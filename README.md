@@ -10,6 +10,14 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.4
+
+- **Focus on one subtask.** Hover a subtask and click ▶ to start a session on just that step. When the session ends, the check-in offers to tick that subtask off.
+- **Subtasks under the timer.** While you focus on a task, its subtasks appear under the timer so you can tick them off without leaving the timer.
+- **Rename and reorder.** Click a subtask to rename it, and drag it by the dotted handle to reorder.
+- **Finishing up.** When you tick the last subtask, Steady offers to mark the whole task done.
+- **Tidier list.** A small counter (for example 2/4) shows progress at a glance, and "+ Add subtask" opens the add box only when you need it.
+
 ## What's new in 1.3.3
 
 - **Today at a glance.** The top of the Plan page shows your focus time against your goal, how many tasks are done, your next meeting (or how many sessions you've done, without a calendar) and your streak.

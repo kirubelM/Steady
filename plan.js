@@ -216,24 +216,49 @@ function renderGlance(force = false) {
 /* ---------- Subtasks: a checklist inside a task ---------- */
 
 let subAddFor = null; // task whose "Add a subtask" box is open
+let subEditing = null; // { taskId, subId } while a subtask is being renamed
+let subDrag = null; // { taskId, subId } while a subtask is being dragged
 
-function subtaskBlock(t) {
+function findSub(taskId, subId) {
+  const t = findTask(taskId);
+  return t ? (t.subtasks || []).find((s) => s.id === subId) || null : null;
+}
+
+function subtaskRow(t, s, canFocus) {
+  const editing = subEditing && subEditing.taskId === t.id && subEditing.subId === s.id;
+  const focused = (S.state === 'focus' || S.state === 'paused') && S.taskId === t.id && S.subId === s.id;
+  return `<li class="sub-row${s.done ? ' done' : ''}${focused ? ' focused' : ''}" draggable="${editing ? 'false' : 'true'}" data-sub-row="${t.id}" data-sub-id="${s.id}">
+    <span class="sub-grip" aria-hidden="true" title="Drag to reorder"></span>
+    <input type="checkbox" data-sub-done="${t.id}" data-sub-id="${s.id}" ${s.done ? 'checked' : ''} aria-label="Mark ${esc(s.text)} as done">
+    ${editing
+      ? `<input class="sub-edit" type="text" value="${esc(s.text)}" maxlength="140" data-sub-edit="${t.id}" data-sub-id="${s.id}" aria-label="Rename subtask">`
+      : `<button class="sub-text" type="button" data-sub-rename="${t.id}" data-sub-id="${s.id}" title="Click to rename">${esc(s.text)}</button>`}
+    ${focused ? '<span class="sub-now">In focus</span>' : ''}
+    ${!s.done && canFocus ? `<button class="sub-act" type="button" data-sub-focus="${t.id}" data-sub-id="${s.id}" aria-label="Focus on ${esc(s.text)}" title="Focus on just this">▶</button>` : ''}
+    <button class="sub-act del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}" title="Remove">×</button>
+  </li>`;
+}
+
+function subtaskBlock(t, canFocus) {
   const subs = t.subtasks || [];
   const adding = !t.done && subAddFor === t.id;
   if (!subs.length && !adding) return '';
   const done = subs.filter((s) => s.done).length;
   const hidden = !!t.subsHidden && !adding;
   const toggle = subs.length
-    ? `<button class="link sub-toggle" type="button" data-sub-toggle="${t.id}" aria-expanded="${!hidden}">${hidden
-      ? `Show ${plural(subs.length, 'subtask')} (${done} done)`
-      : `Hide subtasks (${done} of ${subs.length} done)`}</button>`
+    ? `<button class="sub-toggle" type="button" data-sub-toggle="${t.id}" aria-expanded="${!hidden}">
+        <span class="sub-caret" aria-hidden="true"></span>${hidden
+          ? `Show ${plural(subs.length, 'subtask')}`
+          : 'Hide subtasks'}<span class="sub-count">${done}/${subs.length}</span></button>`
     : '';
-  const list = hidden ? '' : `<ul class="subtask-list">${subs.map((s) => `<li class="${s.done ? 'done' : ''}">
-      <label><input type="checkbox" data-sub-done="${t.id}" data-sub-id="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.text)}</span></label>
-      <button class="del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}">×</button>
-    </li>`).join('')}</ul>
-    ${t.done ? '' : `<form class="subtask-add" data-sub-add="${t.id}"><input type="text" maxlength="140" placeholder="Add a subtask and press Enter" aria-label="Add a subtask to ${esc(t.text)}" autocomplete="off"></form>`}`;
-  return `<div class="subtasks">${toggle}${list}</div>`;
+  if (hidden) return `<div class="subtasks">${toggle}</div>`;
+  const add = t.done ? '' : adding
+    ? `<form class="subtask-add" data-sub-add="${t.id}"><input type="text" maxlength="140" placeholder="Add a subtask and press Enter" aria-label="Add a subtask to ${esc(t.text)}" autocomplete="off"></form>`
+    : `<button class="link sub-add-link" type="button" data-sub-new="${t.id}">+ Add subtask</button>`;
+  return `<div class="subtasks">${toggle}
+    <ul class="subtask-list">${subs.map((s) => subtaskRow(t, s, canFocus)).join('')}</ul>
+    ${add}
+  </div>`;
 }
 
 async function addSubtask(id, text) {
@@ -251,6 +276,159 @@ async function updateSubtasks(id, fn) {
   fn(t);
   await persist('tasks');
   renderPlan();
+  renderFocusSubs(true);
+}
+
+async function setSubtaskDone(taskId, subId, done) {
+  const t = findTask(taskId);
+  const s = findSub(taskId, subId);
+  if (!t || !s) return;
+  s.done = !!done;
+  await updateSubtasks(taskId, () => {});
+  const subs = t.subtasks || [];
+  if (done && !t.done && subs.length > 1 && subs.every((x) => x.done)) {
+    showNudge(`All subtasks of "${t.text}" are done.`, 'info', true, { label: 'Mark task done', fn: () => setTaskDone(t.id, true) });
+  }
+}
+
+function startSubtask(taskId, subId) {
+  const t = findTask(taskId);
+  const s = findSub(taskId, subId);
+  if (!t || !s) return;
+  if (S.state !== 'idle' && S.state !== 'breakPending') {
+    showNudge('Finish or end your current session before starting another.', 'info', true);
+    return;
+  }
+  startFocus({ taskId: t.id, subId: s.id, text: `${t.text}: ${s.text}` });
+}
+
+async function finishRename(input, save) {
+  const { subEdit: taskId, subId } = input.dataset;
+  subEditing = null;
+  const text = input.value.trim();
+  if (save && text) await updateSubtasks(taskId, () => { findSub(taskId, subId).text = text; });
+  else renderPlan();
+}
+
+/* The checklist under the timer while you focus on a task that has subtasks. */
+let lastFocusSubs = '';
+function renderFocusSubs(force = false) {
+  const box = $('focusSubs');
+  if (!box) return;
+  const inSession = S.state === 'focus' || S.state === 'paused';
+  const t = inSession && S.taskId ? findTask(S.taskId) : null;
+  const subs = (t && t.subtasks) || [];
+  const key = inSession && subs.length ? `${t.id}|${S.subId}|${subs.map((s) => s.id + s.done + s.text).join(',')}` : '';
+  if (!force && key === lastFocusSubs) return;
+  lastFocusSubs = key;
+  box.hidden = !key;
+  if (!key) { box.innerHTML = ''; return; }
+  const done = subs.filter((s) => s.done).length;
+  box.innerHTML = `<p class="focus-subs-head">Subtasks <span>${done} of ${subs.length} done</span></p>
+    <ul>${subs.map((s) => `<li class="${s.done ? 'done' : ''}${s.id === S.subId ? ' current' : ''}">
+      <label><input type="checkbox" data-fsub="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.text)}</span></label>
+    </li>`).join('')}</ul>`;
+}
+
+function bindSubtasks() {
+  const list = $('taskList');
+  list.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const { subId } = b.dataset;
+    if (b.dataset.subNew) {
+      subAddFor = b.dataset.subNew;
+      updateSubtasks(subAddFor, (t) => { t.subsHidden = false; });
+    } else if (b.dataset.subToggle) {
+      subAddFor = null;
+      updateSubtasks(b.dataset.subToggle, (t) => { t.subsHidden = !t.subsHidden; });
+    } else if (b.dataset.subDel) {
+      updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== subId); });
+    } else if (b.dataset.subFocus) {
+      startSubtask(b.dataset.subFocus, subId);
+    } else if (b.dataset.subRename) {
+      subEditing = { taskId: b.dataset.subRename, subId };
+      renderPlan();
+      const input = list.querySelector('.sub-edit');
+      if (input) { input.focus(); input.select(); }
+    }
+  });
+  list.addEventListener('change', (e) => {
+    const { subDone, subId } = e.target.dataset || {};
+    if (subDone) setSubtaskDone(subDone, subId, e.target.checked);
+  });
+  list.addEventListener('submit', (e) => {
+    const id = e.target.dataset?.subAdd;
+    if (!id) return;
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    const text = input.value;
+    input.value = '';
+    subAddFor = id; // keep the box open for the next one
+    addSubtask(id, text);
+  });
+  list.addEventListener('keydown', (e) => {
+    if (e.target.classList.contains('sub-edit')) {
+      if (e.key === 'Enter') { e.preventDefault(); finishRename(e.target, true); }
+      if (e.key === 'Escape') { e.preventDefault(); finishRename(e.target, false); }
+      return;
+    }
+    if (e.key === 'Escape' && e.target.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
+  });
+  list.addEventListener('focusout', (e) => {
+    if (e.target.classList.contains('sub-edit') && subEditing) { finishRename(e.target, true); return; }
+    const form = e.target.closest('[data-sub-add]');
+    // Close an empty add box once you click elsewhere.
+    if (form && !e.target.value.trim() && subAddFor === form.dataset.subAdd) {
+      setTimeout(() => {
+        if (subAddFor === form.dataset.subAdd && !document.activeElement?.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
+      }, 150);
+    }
+  });
+
+  // Drag a subtask within its task to reorder.
+  list.addEventListener('dragstart', (e) => {
+    const row = e.target.closest?.('[data-sub-row]');
+    if (!row) return;
+    subDrag = { taskId: row.dataset.subRow, subId: row.dataset.subId };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', row.dataset.subId);
+    row.classList.add('dragging');
+  });
+  list.addEventListener('dragover', (e) => {
+    const row = e.target.closest?.('[data-sub-row]');
+    if (!subDrag || !row || row.dataset.subRow !== subDrag.taskId) return;
+    e.preventDefault();
+    list.querySelectorAll('.drop-before, .drop-after').forEach((r) => r.classList.remove('drop-before', 'drop-after'));
+    const r = row.getBoundingClientRect();
+    row.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+  });
+  list.addEventListener('drop', (e) => {
+    const row = e.target.closest?.('[data-sub-row]');
+    if (!subDrag || !row || row.dataset.subRow !== subDrag.taskId) return;
+    e.preventDefault();
+    const before = row.classList.contains('drop-before');
+    const { taskId, subId } = subDrag;
+    const targetId = row.dataset.subId;
+    subDrag = null;
+    if (targetId === subId) { renderPlan(); return; }
+    updateSubtasks(taskId, (t) => {
+      const moving = t.subtasks.find((s) => s.id === subId);
+      const rest = t.subtasks.filter((s) => s.id !== subId);
+      const i = rest.findIndex((s) => s.id === targetId);
+      rest.splice(before ? i : i + 1, 0, moving);
+      t.subtasks = rest;
+    });
+  });
+  list.addEventListener('dragend', () => {
+    subDrag = null;
+    list.querySelectorAll('.dragging, .drop-before, .drop-after').forEach((r) => r.classList.remove('dragging', 'drop-before', 'drop-after'));
+  });
+
+  $('focusSubs').addEventListener('change', (e) => {
+    const subId = e.target.dataset?.fsub;
+    if (subId && S.taskId) setSubtaskDone(S.taskId, subId, e.target.checked);
+  });
 }
 
 /* ---------- Done list: finished tasks plus everything logged that day ---------- */
@@ -368,9 +546,9 @@ function renderPlan() {
           ${t.done ? '' : `${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}
           <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="-1" aria-label="Move up" ${firstOpen ? 'disabled' : ''}>↑</button>
           <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="1" aria-label="Move down" ${lastOpen ? 'disabled' : ''}>↓</button>
-          <button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
+          ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}`}
         </div>
-        ${subtaskBlock(t)}
+        ${subtaskBlock(t, canFocus)}
       </li>`;
     }).join('')
     : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
@@ -563,15 +741,6 @@ function bindPlan() {
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
-    else if (b.dataset.subNew) {
-      subAddFor = subAddFor === b.dataset.subNew ? null : b.dataset.subNew;
-      renderPlan();
-    } else if (b.dataset.subToggle) {
-      subAddFor = null;
-      updateSubtasks(b.dataset.subToggle, (t) => { t.subsHidden = !t.subsHidden; });
-    } else if (b.dataset.subDel) {
-      updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== b.dataset.subId); });
-    }
   };
   $('taskList').addEventListener('click', onListClick);
   $('leftoverList').addEventListener('click', onListClick);
@@ -579,37 +748,8 @@ function bindPlan() {
   $('taskList').addEventListener('change', (e) => {
     const id = e.target.dataset?.taskDone;
     if (id) setTaskDone(id, e.target.checked);
-    const subOf = e.target.dataset?.subDone;
-    if (subOf) {
-      const checked = e.target.checked;
-      updateSubtasks(subOf, (t) => {
-        const s = t.subtasks.find((x) => x.id === e.target.dataset.subId);
-        if (s) s.done = checked;
-      });
-    }
   });
-  $('taskList').addEventListener('submit', (e) => {
-    const id = e.target.dataset?.subAdd;
-    if (!id) return;
-    e.preventDefault();
-    const input = e.target.querySelector('input');
-    const text = input.value;
-    input.value = '';
-    subAddFor = id; // keep the box open for the next one
-    addSubtask(id, text);
-  });
-  $('taskList').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && e.target.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
-  });
-  $('taskList').addEventListener('focusout', (e) => {
-    const form = e.target.closest('[data-sub-add]');
-    // Close an empty box opened with "+" once you click elsewhere.
-    if (form && !e.target.value.trim() && subAddFor === form.dataset.subAdd) {
-      setTimeout(() => {
-        if (subAddFor === form.dataset.subAdd && !document.activeElement?.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
-      }, 150);
-    }
-  });
+  bindSubtasks();
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
     data.meta.tomorrowNote = null;

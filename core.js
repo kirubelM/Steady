@@ -207,6 +207,7 @@ function renderTimer() {
   document.title = inSession ? `${fmtClock(rem)} – Steady` : 'Steady';
 
   if (typeof renderGoal === 'function') renderGoal();
+  if (typeof renderFocusSubs === 'function') renderFocusSubs();
   if (typeof syncSound === 'function') syncSound();
   if (S.state === 'focus' || S.state === 'paused') {
     $('currentProject').innerHTML = projectChip(S.projectId);
@@ -246,6 +247,7 @@ async function startFocus(opts = {}) {
   const text = (opts.text ?? $('task').value).trim();
   S.task = text || 'Untitled focus';
   S.taskId = opts.taskId ?? (typeof matchTask === 'function' ? matchTask(S.task) : null);
+  S.subId = opts.subId || null;
   const task = S.taskId && typeof findTask === 'function' ? findTask(S.taskId) : null;
   if (task && task.presetId && presetById(task.presetId) && !opts.keepPreset) selectedPresetId = task.presetId;
   renderPresetBar();
@@ -297,6 +299,7 @@ function finishFocus(early) {
     end,
     task: S.task,
     taskId: S.taskId,
+    subId: S.subId || null,
     projectId: S.projectId || null,
     presetId: S.presetId,
     plannedMin: Math.round(S.total / 60000),
@@ -394,9 +397,11 @@ function openCheckin(kind) {
       : '';
     $('checkinProject').innerHTML = projectOptions(p.projectId);
     const task = p.taskId && typeof findTask === 'function' ? findTask(p.taskId) : null;
-    $('checkinDoneRow').hidden = !task || task.done;
+    const sub = task && p.subId ? (task.subtasks || []).find((x) => x.id === p.subId) : null;
+    $('checkinDoneRow').hidden = sub ? sub.done : !task || task.done;
     $('checkinDone').checked = false;
-    if (task) $('checkinDoneLabel').textContent = `Mark "${task.text}" as done in my plan`;
+    if (sub) $('checkinDoneLabel').textContent = `Mark the subtask "${sub.text}" as done`;
+    else if (task) $('checkinDoneLabel').textContent = `Mark "${task.text}" as done in my plan`;
   } else {
     $('checkinTitle').textContent = `What have you worked on since ${fmtTime(lastLogAt)}?`;
     $('checkinNote').value = '';
@@ -426,8 +431,9 @@ async function saveCheckin(primary) {
     const p = S.pendingSession;
     data.entries.push({ ...p, note: note || p.task, rating, projectId });
     S.pendingSession = null;
-    if (!$('checkinDoneRow').hidden && $('checkinDone').checked && typeof setTaskDone === 'function') {
-      await setTaskDone(p.taskId, true);
+    if (!$('checkinDoneRow').hidden && $('checkinDone').checked) {
+      if (p.subId && typeof setSubtaskDone === 'function') await setSubtaskDone(p.taskId, p.subId, true);
+      else if (typeof setTaskDone === 'function') await setTaskDone(p.taskId, true);
     }
     await persist('entries');
     $('checkin').close();
