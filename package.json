@@ -1,0 +1,54 @@
+{
+  "name": "steady",
+  "productName": "Steady",
+  "version": "1.3.0",
+  "description": "Focus sessions, screen breaks, distraction nudges and a work log for Windows.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.steady.focus",
+    "productName": "Steady",
+    "files": [
+      "main.js",
+      "preload.js",
+      "logger.js",
+      "backup.js",
+      "calendar.js",
+      "index.html",
+      "styles.css",
+      "core.js",
+      "projects.js",
+      "sound.js",
+      "views.js",
+      "insights.js",
+      "plan.js",
+      "review.js",
+      "recurring.js",
+      "schedule.js",
+      "goals.js",
+      "shortcuts.js",
+      "datacare.js",
+      "app.js",
+      "break.html",
+      "break.js",
+      "mini.html",
+      "mini.js",
+      "capture.html",
+      "capture.js"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

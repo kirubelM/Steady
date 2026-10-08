@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Break</title>
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: radial-gradient(ellipse at 50% 120%, #3B4A36 0%, #1D2826 60%);
+      color: #F2EBDD;
+      font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      user-select: none;
+      cursor: default;
+    }
+    main { max-width: 640px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+    h1 { margin: 0; font-weight: 400; font-size: 2rem; color: #E9C77B; }
+    .count {
+      font-family: "Bahnschrift", "Segoe UI Variable Display", sans-serif;
+      font-weight: 300; font-stretch: semi-condensed;
+      font-size: 8rem; line-height: 1; font-variant-numeric: tabular-nums;
+    }
+    .tip { font-size: 1.25rem; min-height: 3.2em; max-width: 34ch; opacity: 0.92; transition: opacity 400ms ease; }
+    .bar { width: 320px; height: 4px; border-radius: 2px; background: rgba(242, 235, 221, 0.15); overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; background: #E9C77B; transition: width 900ms linear; }
+    .actions { display: flex; gap: 12px; margin-top: 18px; }
+    button {
+      font: inherit;
+      background: transparent; color: rgba(242, 235, 221, 0.7);
+      border: 1px solid rgba(242, 235, 221, 0.3); border-radius: 999px;
+      padding: 8px 20px; cursor: pointer;
+    }
+    button:hover { color: #F2EBDD; border-color: rgba(242, 235, 221, 0.6); }
+    button:focus-visible { outline: 2px solid #E9C77B; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 id="heading">Rest your eyes</h1>
+    <div id="count" class="count" aria-live="off">05:00</div>
+    <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+    <p id="tip" class="tip"></p>
+    <div class="actions">
+      <button id="snooze" type="button" hidden>5 more minutes</button>
+      <button id="skip" type="button" hidden>Skip break</button>
+    </div>
+  </main>
+  <script src="break.js"></script>
+</body>
+</html>

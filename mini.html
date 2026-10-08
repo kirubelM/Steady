@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Steady mini timer</title>
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+    body {
+      font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      padding: 4px;
+      user-select: none;
+    }
+    .card {
+      height: 100%;
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 8px 0 10px;
+      border-radius: 12px;
+      background: #1F4A44;
+      color: #EEF3F1;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+      -webkit-app-region: drag;
+      transition: background-color 400ms ease;
+    }
+    body[data-state="paused"] .card { background: #3A4A4E; }
+    body[data-state="breakPending"] .card,
+    body[data-state="checkin"] .card,
+    body[data-state="break"] .card { background: #5B4615; }
+    body[data-state="idle"] .card { background: #2B3B40; }
+    svg { flex: none; width: 40px; height: 40px; transform: rotate(-90deg); }
+    .track, .prog { fill: none; stroke-width: 5; }
+    .track { stroke: rgba(255, 255, 255, 0.16); }
+    .prog { stroke: #9FD4C8; stroke-linecap: round; stroke-dasharray: 100.53; stroke-dashoffset: 100.53; transition: stroke-dashoffset 900ms linear; }
+    body[data-state="paused"] .prog { stroke: #A9B6B9; }
+    body[data-state="breakPending"] .prog, body[data-state="checkin"] .prog { stroke: #E9C77B; }
+    .text { flex: 1; min-width: 0; line-height: 1.2; }
+    .time {
+      font-family: "Bahnschrift", "Segoe UI Variable Display", sans-serif;
+      font-size: 1.35rem; font-weight: 300; font-stretch: semi-condensed;
+      font-variant-numeric: tabular-nums;
+    }
+    .task { font-size: 0.78rem; color: #B9CEC9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .buttons { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+    button {
+      width: 28px; height: 28px; border: 0; border-radius: 7px;
+      background: transparent; color: #EEF3F1; cursor: pointer;
+      display: grid; place-items: center; padding: 0;
+    }
+    button:hover { background: rgba(255, 255, 255, 0.14); }
+    button:focus-visible { outline: 2px solid #E9C77B; outline-offset: 1px; }
+    button svg { width: 16px; height: 16px; transform: none; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body data-state="idle">
+  <div class="card">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <circle class="track" cx="20" cy="20" r="16"></circle>
+      <circle id="prog" class="prog" cx="20" cy="20" r="16"></circle>
+    </svg>
+    <div class="text">
+      <div id="time" class="time">30:00</div>
+      <div id="task" class="task">Ready to focus</div>
+    </div>
+    <div class="buttons">
+      <button id="toggle" type="button" aria-label="Pause" title="Pause">
+        <svg id="iconPause" viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="2.5" width="3" height="11" rx="1"/><rect x="9.5" y="2.5" width="3" height="11" rx="1"/></svg>
+        <svg id="iconPlay" viewBox="0 0 16 16" fill="currentColor" hidden><path d="M4.5 2.8v10.4a.8.8 0 0 0 1.2.7l8.2-5.2a.8.8 0 0 0 0-1.4L5.7 2.1a.8.8 0 0 0-1.2.7z"/></svg>
+      </button>
+      <button id="open" type="button" aria-label="Open Steady" title="Open Steady">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5h4v4M13.5 2.5 8 8M7 3.5H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13.5h7a1.5 1.5 0 0 0 1.5-1.5V9"/></svg>
+      </button>
+      <button id="hide" type="button" aria-label="Hide mini timer" title="Hide until next session">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+  </div>
+  <script src="mini.js"></script>
+</body>
+</html>

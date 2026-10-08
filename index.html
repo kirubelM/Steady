@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' blob:">
+  <meta name="color-scheme" content="light dark">
+  <title>Steady</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-state="idle">
+  <main class="layout">
+    <section class="focus-pane" aria-label="Focus timer">
+      <header class="brand">
+        <h1>Steady</h1>
+        <p id="status" class="status" aria-live="polite">Ready when you are</p>
+        <button id="compactBtn" class="icon-btn ghost" type="button" aria-label="Compact view" title="Compact view">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.5v3.5H2.5M10 2.5v3.5h3.5M6 13.5V10H2.5M10 13.5V10h3.5"/></svg>
+        </button>
+      </header>
+
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 280 280" aria-hidden="true">
+          <circle class="ring-track" cx="140" cy="140" r="120"></circle>
+          <circle id="ringProgress" class="ring-progress" cx="140" cy="140" r="120"></circle>
+        </svg>
+        <div class="ring-text">
+          <span id="time" class="time">30:00</span>
+          <span id="phase" class="phase">Ready</span>
+        </div>
+      </div>
+
+      <div id="presetBar" class="preset-bar" role="group" aria-label="Session length"></div>
+
+      <div class="task-field">
+        <label for="task">What are you focusing on?</label>
+        <input id="task" type="text" maxlength="140" placeholder="e.g. Draft the budget summary" autocomplete="off" list="taskOptions">
+        <datalist id="taskOptions"></datalist>
+        <div id="focusProjectRow" class="focus-project">
+          <label for="focusProject" class="sr-only">Project</label>
+          <select id="focusProject" class="project-select" data-none="No project"></select>
+        </div>
+        <p id="nextUp" class="next-up" hidden>Up next from your plan: <button id="nextUpBtn" class="link" type="button"></button></p>
+        <p id="currentTask" class="current-task" hidden></p>
+        <p id="currentProject" class="current-project" hidden></p>
+      </div>
+
+      <div id="goal" class="goal" hidden>
+        <div class="goal-track" aria-hidden="true"><span id="goalFill"></span></div>
+        <p id="goalText" class="goal-text"></p>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="btn primary" type="button">Start focus</button>
+        <button id="pauseBtn" class="btn" type="button" hidden>Pause</button>
+        <button id="stopBtn" class="btn quiet" type="button" hidden>End early</button>
+        <button id="breakNowBtn" class="btn primary" type="button" hidden>Take break now</button>
+        <button id="skipBreakBtn" class="btn quiet" type="button" hidden>Skip break</button>
+      </div>
+
+      <div class="sound-row">
+        <svg class="sound-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6v4h2.5l3.5 3V3L5 6H2.5zM11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.8a6 6 0 0 1 0 8.4"/></svg>
+        <label for="soundSelect" class="sr-only">Focus sound</label>
+        <select id="soundSelect"></select>
+        <label for="soundVolume" class="sr-only">Volume</label>
+        <input id="soundVolume" type="range" min="0" max="100" step="1">
+      </div>
+
+      <div id="nudge" class="nudge" role="status" hidden>
+        <p id="nudgeText"></p>
+        <div class="nudge-actions">
+          <button id="nudgeAction" class="link strong" type="button" hidden></button>
+          <button id="nudgeClose" class="link" type="button">Dismiss</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        <p>From any app: <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Space</kbd> to capture a thought or task. Press <kbd>Ctrl</kbd> <kbd>K</kbd> here for every command.</p>
+        <button id="miniLink" class="link" type="button">Show or hide the mini timer</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button class="tab-btn" role="tab" data-tab="plan" aria-selected="true" type="button">Plan</button>
+        <button class="tab-btn" role="tab" data-tab="log" aria-selected="false" type="button">Work log</button>
+        <button class="tab-btn" role="tab" data-tab="insights" aria-selected="false" type="button">Insights</button>
+        <button class="tab-btn" role="tab" data-tab="parking" aria-selected="false" type="button">Parking lot</button>
+        <button class="tab-btn" role="tab" data-tab="settings" aria-selected="false" type="button">Settings</button>
+      </nav>
+
+      <!-- Plan: a page per day -->
+      <div id="tab-plan" class="tab" role="tabpanel">
+        <div class="plan-head">
+          <div class="plan-nav">
+            <button id="planPrev" class="icon-btn" type="button" aria-label="Previous day">‹</button>
+            <div>
+              <h2 id="planTitle">Today</h2>
+              <p id="planDate" class="plan-date"></p>
+            </div>
+            <button id="planNext" class="icon-btn" type="button" aria-label="Next day">›</button>
+            <button id="planToday" class="link" type="button" hidden>Back to today</button>
+          </div>
+          <button id="reviewBtn" class="btn small" type="button">Review my day</button>
+        </div>
+
+        <div id="tomorrowNote" class="carry-note" hidden>
+          <p><span id="tomorrowNoteLabel" class="carry-label">Your note from yesterday:</span> <span id="tomorrowNoteText"></span></p>
+          <button id="dismissNote" class="link" type="button">Dismiss</button>
+        </div>
+
+        <section id="scheduleSection" class="plan-section sched" hidden></section>
+        <section id="goalsSection" class="plan-section" hidden></section>
+
+        <section class="plan-section">
+          <h3>To do</h3>
+          <form id="taskForm" class="task-form">
+            <label for="taskInput" class="sr-only">New task</label>
+            <input id="taskInput" type="text" maxlength="140" placeholder="Add a task for today" autocomplete="off">
+            <label for="taskProject" class="sr-only">Project</label>
+            <select id="taskProject" class="project-select" data-none="No project"></select>
+            <label for="taskEst" class="sr-only">Estimated sessions</label>
+            <select id="taskEst">
+              <option value="0">No estimate</option>
+              <option value="1">1 session</option>
+              <option value="2">2 sessions</option>
+              <option value="3">3 sessions</option>
+              <option value="4">4 sessions</option>
+              <option value="6">6 sessions</option>
+            </select>
+            <button class="btn primary" type="submit">Add</button>
+          </form>
+          <p id="estHint" class="field-note est-hint" hidden></p>
+          <p id="planSummary" class="summary"></p>
+          <ul id="taskList" class="task-list"></ul>
+          <section id="leftoverSection" class="leftovers" hidden>
+            <div class="leftover-head">
+              <h4>Left over from earlier</h4>
+              <button id="moveAllBtn" class="link" type="button">Move all to today</button>
+            </div>
+            <ul id="leftoverList" class="task-list"></ul>
+          </section>
+        </section>
+
+        <section id="doneSection" class="plan-section">
+          <h3>Done</h3>
+          <form id="doneForm" class="task-form">
+            <label for="doneInput" class="sr-only">Something you did</label>
+            <input id="doneInput" type="text" maxlength="200" placeholder="Add something you finished, e.g. Called the vendor" autocomplete="off">
+            <label for="doneMinutes" class="sr-only">Minutes spent (optional)</label>
+            <input id="doneMinutes" class="minutes" type="number" min="0" max="720" placeholder="Min">
+            <label for="doneProject" class="sr-only">Project</label>
+            <select id="doneProject" class="project-select" data-none="No project"></select>
+            <button class="btn" type="submit">Add</button>
+          </form>
+          <p id="doneSummary" class="summary"></p>
+          <ul id="doneList" class="task-list done-list"></ul>
+        </section>
+
+        <section class="plan-section">
+          <div class="notes-head">
+            <h3><label for="dayNotes">Notes</label></h3>
+            <span id="notesSaved" class="saved" role="status"></span>
+          </div>
+          <textarea id="dayNotes" class="day-notes" rows="5" placeholder="Anything worth remembering about this day: ideas, decisions, who said what."></textarea>
+        </section>
+      </div>
+
+      <!-- Work log -->
+      <div id="tab-log" class="tab" role="tabpanel" hidden>
+        <div class="log-head">
+          <div class="range" role="group" aria-label="Log view">
+            <button type="button" data-logview="day" aria-pressed="true">Day</button>
+            <button type="button" data-logview="history" aria-pressed="false">History</button>
+          </div>
+          <div class="log-actions">
+            <button id="addEntryBtn" class="btn small" type="button">Add entry</button>
+            <button id="exportBtn" class="btn small" type="button">Export CSV</button>
+          </div>
+        </div>
+
+        <div id="logDay">
+          <div class="day-nav">
+            <button id="prevDay" class="icon-btn" type="button" aria-label="Previous day">‹</button>
+            <h2 id="dayLabel">Today</h2>
+            <button id="nextDay" class="icon-btn" type="button" aria-label="Next day">›</button>
+            <label class="sr-only" for="datePick">Go to date</label>
+            <input id="datePick" class="date-pick" type="date">
+          </div>
+          <p id="summary" class="summary"></p>
+          <ol id="logList" class="log-list"></ol>
+        </div>
+
+        <div id="logHistory" hidden>
+          <label class="sr-only" for="historySearch">Search what you worked on</label>
+          <input id="historySearch" class="history-search" type="search" placeholder="Search your log or a project name" autocomplete="off">
+          <p id="historySummary" class="summary"></p>
+          <div id="historyList"></div>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div id="tab-insights" class="tab" role="tabpanel" hidden>
+        <div class="insights-head">
+          <h2>Insights</h2>
+          <div class="insights-controls">
+            <label for="insProject" class="sr-only">Project</label>
+            <select id="insProject"></select>
+            <div class="range" role="group" aria-label="Date range">
+              <button type="button" data-range="7" aria-pressed="true">7 days</button>
+              <button type="button" data-range="30" aria-pressed="false">30 days</button>
+              <button type="button" data-range="90" aria-pressed="false">90 days</button>
+            </div>
+          </div>
+        </div>
+        <div class="period-nav">
+          <button id="insPrev" class="icon-btn small" type="button" aria-label="Earlier period">‹</button>
+          <span id="insPeriod">Last 7 days</span>
+          <button id="insNext" class="icon-btn small" type="button" aria-label="Later period">›</button>
+        </div>
+        <p id="insightSummary" class="summary"></p>
+        <div id="insightBody"></div>
+      </div>
+
+      <!-- Parking lot -->
+      <div id="tab-parking" class="tab" role="tabpanel" hidden>
+        <h2>Parking lot</h2>
+        <p class="lede">Write down the thought, get back to work, deal with it on your break.</p>
+        <form id="parkForm" class="park-form">
+          <label for="parkInput" class="sr-only">New item</label>
+          <input id="parkInput" type="text" maxlength="200" placeholder="Reply to Sam about Friday" autocomplete="off">
+          <button class="btn primary" type="submit">Park it</button>
+        </form>
+        <ul id="parkList" class="park-list"></ul>
+        <button id="clearDone" class="link" type="button" hidden>Clear finished items</button>
+      </div>
+
+      <!-- Settings -->
+      <div id="tab-settings" class="tab" role="tabpanel" hidden>
+        <h2>Settings</h2>
+
+        <section class="settings">
+          <fieldset>
+            <legend>Projects</legend>
+            <p class="field-note">Group tasks and logged time by project. Click a color to change it.</p>
+            <ul id="projectList" class="project-list"></ul>
+            <form id="projectForm" class="inline-form">
+              <label for="projectInput" class="sr-only">New project name</label>
+              <input id="projectInput" type="text" maxlength="40" placeholder="New project, e.g. Client A" autocomplete="off">
+              <button class="btn small" type="submit">Add project</button>
+            </form>
+          </fieldset>
+        </section>
+
+        <section class="settings">
+          <fieldset>
+            <legend>Repeating tasks</legend>
+            <ul id="recurringList" class="recurring-list"></ul>
+          </fieldset>
+        </section>
+
+        <form id="settingsForm" class="settings">
+          <fieldset>
+            <legend>Session lengths</legend>
+            <p class="field-note">Pick one of these under the timer before each session. Tasks remember the length you last used for them.</p>
+            <ul id="presetSettings" class="preset-settings"></ul>
+            <label>Long break <span><input name="longBreakMin" type="number" min="1" max="120"> min</span></label>
+            <label>Long break after every <span><input name="longEvery" type="number" min="2" max="12"> sessions</span></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Breaks</legend>
+            <label class="check"><input name="strictBreaks" type="checkbox"> Hide the skip button until halfway through a break</label>
+            <label>Snooze a break for <span><input name="snoozeMin" type="number" min="1" max="30"> min</span></label>
+            <label>Snoozes allowed per break <span><input name="maxSnoozes" type="number" min="0" max="5"></span></label>
+            <label class="check"><input name="meetingAware" type="checkbox"> Hold breaks and reminders while I'm in a call or presenting</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Look and feel</legend>
+            <label>Theme
+              <span><select name="theme">
+                <option value="system">Match Windows</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select></span>
+            </label>
+            <label class="check"><input name="compactAuto" type="checkbox"> Switch to compact view automatically during focus sessions</label>
+            <label>Show the floating mini timer
+              <span><select name="miniMode">
+                <option value="focus">During focus sessions</option>
+                <option value="always">Always</option>
+                <option value="off">Never</option>
+              </select></span>
+            </label>
+            <label class="check"><input name="soundInBreaks" type="checkbox"> Keep playing focus sounds during breaks</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Goal and reviews</legend>
+            <label>Daily focus goal (0 turns it off) <span><input name="dailyGoalMin" type="number" min="0" max="720" step="15"> min</span></label>
+            <label class="check"><input name="reviewEnabled" type="checkbox"> Show an end-of-day review</label>
+            <label>Review time <span><input name="reviewTime" type="time"></span></label>
+            <label class="check"><input name="weeklyReview" type="checkbox"> Once a week, show a review of the whole week instead</label>
+            <label>Weekly review day
+              <span><select name="weeklyReviewDay">
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="0">Sunday</option>
+              </select></span>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Calendar</legend>
+            <p class="field-note">See your meetings on the Plan page, how much focus time is left, and get a reminder before each meeting.</p>
+            <label>Get my meetings from
+              <span><select name="calendarSource">
+                <option value="off">Don't use a calendar</option>
+                <option value="outlook">Classic Outlook on this computer</option>
+                <option value="link">A calendar link (new Outlook, Outlook.com, Google)</option>
+              </select></span>
+            </label>
+            <p id="calOutlookNote" class="field-note" hidden>Works with the classic Outlook desktop app. Steady reads your calendar directly; nothing leaves your computer. If you use the new Outlook, choose a calendar link instead.</p>
+            <div id="calUrlRow" hidden>
+              <label class="stack">Calendar link (ICS)
+                <input name="calendarUrl" type="text" placeholder="https://outlook.office365.com/owa/calendar/…/calendar.ics" autocomplete="off" spellcheck="false">
+              </label>
+            </div>
+            <p id="calLinkNote" class="field-note" hidden>In Outlook on the web, go to Settings, then Calendar, then Shared calendars, and publish your calendar to get an ICS link. In Google Calendar, use "Secret address in iCal format". Keep the link private; anyone with it can see your calendar.</p>
+            <div id="calTestRow" class="inline-form" hidden>
+              <button id="calTestBtn" class="btn small" type="button">Test connection</button>
+              <span id="calTestResult" class="field-note" role="status"></span>
+            </div>
+            <label>My workday starts <span><input name="workStart" type="time"></span></label>
+            <label>My workday ends <span><input name="workEnd" type="time"></span></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Reminders</legend>
+            <label class="check"><input name="eyeBreaks" type="checkbox"> Eye-break nudges during focus sessions (20-20-20 rule)</label>
+            <label>Nudge every <span><input name="eyeEveryMin" type="number" min="5" max="120"> min</span></label>
+            <label class="check"><input name="idleCheckins" type="checkbox"> Ask what I worked on even when no session is running</label>
+            <label>Ask every <span><input name="idleCheckinMin" type="number" min="10" max="240"> min</span></label>
+            <label class="check"><input name="idleAutoPause" type="checkbox"> Pause my session when I step away</label>
+            <label>Count me as away after <span><input name="idlePauseMin" type="number" min="1" max="60"> min</span></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Startup</legend>
+            <label class="check"><input name="startAtLogin" type="checkbox"> Open Steady when I sign in to Windows</label>
+            <label class="check"><input name="startMinimized" type="checkbox"> Start quietly in the system tray</label>
+            <p id="startupNote" class="field-note" hidden>This works in the installed version of Steady. Run <code>npm run dist</code> and install it from the <code>dist</code> folder to turn it on.</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Distractions</legend>
+            <label class="stack">Nudge me when a window title contains (one per line)
+              <textarea name="distractionKeywords" rows="5"></textarea>
+            </label>
+            <label class="check"><input name="blockSites" type="checkbox"> Block these sites during focus sessions (needs Steady to run as administrator)</label>
+            <label class="stack">Sites to block (one per line)
+              <textarea name="blockedSites" rows="5"></textarea>
+            </label>
+          </fieldset>
+
+          <div class="settings-actions">
+            <button class="btn primary" type="submit">Save settings</button>
+            <span id="settingsSaved" class="saved" role="status"></span>
+          </div>
+        </form>
+
+        <section class="settings">
+          <fieldset>
+            <legend>Backups and your data</legend>
+            <p id="backupInfo" class="field-note"></p>
+            <label>Keep daily backups for <span><input id="backupKeepDays" type="number" min="3" max="365"> days</span></label>
+            <div class="inline-form">
+              <label for="backupSelect" class="sr-only">Backup to restore</label>
+              <select id="backupSelect"></select>
+              <button id="restoreBtn" class="btn small" type="button">Restore</button>
+            </div>
+            <div class="button-row">
+              <button id="backupNowBtn" class="btn small" type="button">Back up now</button>
+              <button id="openBackupsBtn" class="btn small" type="button">Open backups folder</button>
+              <button id="exportAllBtn" class="btn small" type="button">Export all data</button>
+              <button id="importAllBtn" class="btn small" type="button">Import data</button>
+            </div>
+            <p id="dataCareMsg" class="saved" role="status"></p>
+          </fieldset>
+
+          <fieldset>
+            <legend>Keyboard shortcuts</legend>
+            <p class="field-note">Press <kbd>Ctrl</kbd> <kbd>K</kbd> anywhere in Steady to search every command.</p>
+            <div class="button-row"><button id="shortcutsBtn" class="btn small" type="button">Show all shortcuts</button></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Something not working?</legend>
+            <p class="field-note">Steady keeps a small log of errors. Copy a report to share when asking for help. It contains no task names, notes or window titles.</p>
+            <div class="button-row">
+              <button id="copyDiagBtn" class="btn small" type="button">Copy problem report</button>
+              <button id="openLogsBtn" class="btn small" type="button">Open log folder</button>
+            </div>
+            <p id="diagMsg" class="saved" role="status"></p>
+          </fieldset>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <!-- Check-in after a session (or between sessions) -->
+  <dialog id="checkin" class="dialog" aria-labelledby="checkinTitle">
+    <h2 id="checkinTitle">Session done. What did you get done?</h2>
+    <label for="checkinNote" class="sr-only">What you worked on</label>
+    <textarea id="checkinNote" rows="3" maxlength="500" placeholder="Finished the intro and outlined section 2"></textarea>
+
+    <div class="dialog-row">
+      <fieldset class="rating">
+        <legend>How did it go?</legend>
+        <label><input type="radio" name="rating" value="on-track" checked> On track</label>
+        <label><input type="radio" name="rating" value="partly"> Partly</label>
+        <label><input type="radio" name="rating" value="sidetracked"> Got sidetracked</label>
+      </fieldset>
+      <label class="field">Project
+        <select id="checkinProject"></select>
+      </label>
+    </div>
+
+    <label id="checkinDoneRow" class="checkin-done" hidden>
+      <input id="checkinDone" type="checkbox"> <span id="checkinDoneLabel"></span>
+    </label>
+
+    <p id="checkinApps" class="checkin-meta"></p>
+    <p id="checkinDrift" class="checkin-meta"></p>
+
+    <div class="dialog-actions">
+      <button id="checkinPrimary" class="btn primary" type="button">Save and take a break</button>
+      <button id="checkinSecondary" class="btn quiet" type="button">Save and skip the break</button>
+    </div>
+  </dialog>
+
+  <!-- Returning after stepping away -->
+  <dialog id="awayDialog" class="dialog" aria-labelledby="awayTitle">
+    <h2 id="awayTitle">Welcome back.</h2>
+    <p id="awayText" class="checkin-meta"></p>
+    <div class="dialog-actions">
+      <button id="awayResume" class="btn primary" type="button">Resume session</button>
+      <button id="awayCount" class="btn" type="button">I was still working</button>
+      <button id="awayEnd" class="btn quiet" type="button">End session</button>
+    </div>
+  </dialog>
+
+  <!-- Edit a task -->
+  <dialog id="taskDialog" class="dialog" aria-labelledby="taskDialogTitle">
+    <h2 id="taskDialogTitle">Edit task</h2>
+    <label class="field">Task
+      <input id="taskEditText" type="text" maxlength="140">
+    </label>
+    <div class="dialog-grid">
+      <label class="field">Project <select id="taskEditProject"></select></label>
+      <label class="field">Planned for <input id="taskEditDay" type="date"></label>
+      <label class="field">Estimate
+        <select id="taskEditEst">
+          <option value="0">No estimate</option>
+          <option value="1">1 session</option>
+          <option value="2">2 sessions</option>
+          <option value="3">3 sessions</option>
+          <option value="4">4 sessions</option>
+          <option value="6">6 sessions</option>
+        </select>
+      </label>
+      <label class="field">Session length <select id="taskEditPreset"></select></label>
+      <label class="field">Repeats <select id="taskEditRepeat"></select></label>
+    </div>
+    <label class="checkin-done"><input id="taskEditDone" type="checkbox"> Done</label>
+    <div class="dialog-actions">
+      <button id="taskEditSave" class="btn primary" type="button">Save task</button>
+      <button id="taskEditCancel" class="btn quiet" type="button">Cancel</button>
+      <button id="taskEditDelete" class="btn danger" type="button">Delete task</button>
+    </div>
+  </dialog>
+
+  <!-- Edit or add a log entry -->
+  <dialog id="entryDialog" class="dialog" aria-labelledby="entryTitle">
+    <h2 id="entryTitle">Edit entry</h2>
+    <p id="entryKind" class="checkin-meta"></p>
+    <label class="field">What you worked on
+      <textarea id="entryNote" rows="2" maxlength="500"></textarea>
+    </label>
+    <div class="dialog-grid">
+      <label class="field">Date <input id="entryDate" type="date"></label>
+      <label class="field">Started at <input id="entryStart" type="time"></label>
+      <label class="field">Minutes <input id="entryMinutes" type="number" min="0" max="720"></label>
+      <label class="field">Project <select id="entryProject"></select></label>
+      <label class="field">How it went
+        <select id="entryRating">
+          <option value="">Not rated</option>
+          <option value="on-track">On track</option>
+          <option value="partly">Partly</option>
+          <option value="sidetracked">Got sidetracked</option>
+        </select>
+      </label>
+    </div>
+    <p id="entryError" class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button id="entrySave" class="btn primary" type="button">Save</button>
+      <button id="entryCancel" class="btn quiet" type="button">Cancel</button>
+      <button id="entryDelete" class="btn danger" type="button">Delete entry</button>
+    </div>
+  </dialog>
+
+  <!-- Day and week review -->
+  <dialog id="review" class="dialog review" aria-labelledby="reviewTitle">
+    <div class="review-head">
+      <h2 id="reviewTitle">Your day</h2>
+      <div class="range" role="group" aria-label="Review period">
+        <button type="button" data-review="day" aria-pressed="true">Today</button>
+        <button type="button" data-review="week" aria-pressed="false">This week</button>
+      </div>
+    </div>
+    <div id="reviewBody" class="review-body"></div>
+    <div class="review-actions">
+      <button id="reviewClose" class="btn primary" type="button">Done</button>
+      <button id="reviewCopy" class="btn" type="button">Copy summary</button>
+      <button id="reviewMove" class="btn quiet" type="button">Move unfinished to tomorrow</button>
+      <span id="reviewCopied" class="saved" role="status"></span>
+    </div>
+  </dialog>
+
+  <!-- Command menu -->
+  <dialog id="palette" class="dialog palette" aria-label="Command menu">
+    <label for="paletteInput" class="sr-only">Type a command</label>
+    <input id="paletteInput" type="text" placeholder="Type a command or a task name" autocomplete="off" role="combobox" aria-controls="paletteList" aria-expanded="true">
+    <ul id="paletteList" class="palette-list" role="listbox"></ul>
+  </dialog>
+
+  <!-- Shortcut list -->
+  <dialog id="shortcutsDialog" class="dialog" aria-labelledby="shortcutsTitle">
+    <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
+    <dl id="shortcutList" class="shortcut-list"></dl>
+    <div class="dialog-actions"><button id="shortcutsClose" class="btn primary" type="button">Done</button></div>
+  </dialog>
+
+  <div id="tip" class="tip" role="tooltip" hidden></div>
+
+  <script src="core.js"></script>
+  <script src="projects.js"></script>
+  <script src="sound.js"></script>
+  <script src="views.js"></script>
+  <script src="insights.js"></script>
+  <script src="plan.js"></script>
+  <script src="review.js"></script>
+  <script src="recurring.js"></script>
+  <script src="schedule.js"></script>
+  <script src="goals.js"></script>
+  <script src="shortcuts.js"></script>
+  <script src="datacare.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

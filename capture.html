@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta name="color-scheme" content="light dark">
+  <title>Quick capture</title>
+  <style>
+    :root {
+      --card: #F6F8F7; --ink: #1F2D33; --muted: #5F7076; --line: #CBD5D3; --field: #FFFFFF;
+      --pine: #2E6B62; --on: #FFFFFF; --amber: #D29A2E;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --card: #1B2427; --ink: #E1E9E7; --muted: #92A4A8; --line: #34454A; --field: #222D30; --pine: #58AE9C; --on: #0E1B19; --amber: #E2B04E; }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+    body { font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; padding: 10px; color: var(--ink); }
+    .card {
+      height: 100%; background: var(--card); border-radius: 14px; padding: 14px 16px 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); border: 1px solid var(--line);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; -webkit-app-region: drag; }
+    .kinds { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; -webkit-app-region: no-drag; }
+    .kinds button {
+      font: inherit; font-size: 0.85rem; border: 0; background: none; color: var(--muted);
+      padding: 3px 12px; border-radius: 999px; cursor: pointer;
+    }
+    .kinds button[aria-pressed="true"] { background: var(--pine); color: var(--on); }
+    .title { font-weight: 600; font-size: 0.9rem; }
+    .row { display: flex; gap: 8px; }
+    input {
+      font: inherit; color: var(--ink); background: var(--field);
+      border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px;
+    }
+    #text { flex: 1; min-width: 0; font-size: 1.02rem; }
+    #minutes { width: 5.5rem; }
+    input:focus-visible, button:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+    .hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
+    .hint kbd { font-family: inherit; font-size: 0.75rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+    .saved { color: var(--pine); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="top">
+      <span class="title">Quick capture</span>
+      <div class="kinds" role="group" aria-label="Add as">
+        <button type="button" data-kind="todo" aria-pressed="false">To do</button>
+        <button type="button" data-kind="done" aria-pressed="false">Done</button>
+        <button type="button" data-kind="park" aria-pressed="true">Parking lot</button>
+      </div>
+    </div>
+    <div class="row">
+      <label for="text" class="title" hidden>What to add</label>
+      <input id="text" type="text" maxlength="200" autocomplete="off" placeholder="A stray thought to deal with later">
+      <input id="minutes" type="number" min="0" max="720" placeholder="Min" aria-label="Minutes spent (optional)" hidden>
+    </div>
+    <p id="hint" class="hint"><kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type, <kbd>Esc</kbd> closes</p>
+  </div>
+  <script src="capture.js"></script>
+</body>
+</html>
