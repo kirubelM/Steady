@@ -12,6 +12,9 @@
     "electron": "^32.2.0",
     "electron-builder": "^25.1.8"
   },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
   "build": {
     "appId": "com.steady.focus",
     "productName": "Steady",
@@ -21,6 +24,7 @@
       "logger.js",
       "backup.js",
       "calendar.js",
+      "updater.js",
       "index.html",
       "styles.css",
       "core.js",
@@ -49,6 +53,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "kirubelM",
+      "repo": "Steady",
+      "releaseType": "release"
     }
   }
 }

@@ -9,6 +9,7 @@ const { spawn, exec } = require('child_process');
 const log = require('./logger');
 const backup = require('./backup');
 const calendar = require('./calendar');
+const updater = require('./updater');
 
 app.setAppUserModelId(app.isPackaged ? 'com.steady.focus' : process.execPath);
 
@@ -306,7 +307,7 @@ function updateTray() {
   }[st.state] || 'Ready to focus';
   tray.setToolTip(`Steady\n${tip}`.slice(0, 127));
 
-  const menuKey = `${st.state}|${st.task}|${miniWindow && miniWindow.isVisible()}`;
+  const menuKey = `${st.state}|${st.task}|${miniWindow && miniWindow.isVisible()}|${updater.readyVersion()}`;
   if (menuKey === lastMenuKey) return;
   lastMenuKey = menuKey;
 
@@ -342,6 +343,9 @@ function updateTray() {
   items.push({ label: 'Open Steady', click: showMain });
   items.push({ label: 'Review my day', click: () => { showMain(); sendToMain('command', 'review'); } });
   items.push({ type: 'separator' });
+  if (updater.readyVersion()) {
+    items.push({ label: `Restart to update (${updater.readyVersion()})`, click: updater.installNow });
+  }
   items.push({ label: 'Quit Steady', click: () => { app.isQuitting = true; app.quit(); } });
   tray.setContextMenu(Menu.buildFromTemplate(items));
 }
@@ -886,6 +890,7 @@ if (!app.requestSingleInstanceLock()) {
     createMainWindow();
     createTray();
     startWatcher();
+    updater.init({ notify, onReady: updateTray });
     const shortcuts = [
       ['CommandOrControl+Shift+Space', openCapture],
       ['CommandOrControl+Alt+Space', () => sendToMain('command', 'toggle')]
