@@ -17,6 +17,7 @@ function renderGoal() {
   }
   $('goalFill').style.width = `${pct.toFixed(1)}%`;
   $('goal').classList.toggle('met', done >= goalSec);
+  if (typeof renderGlance === 'function' && !$('tab-plan').hidden) renderGlance();
 }
 
 async function checkGoal() {

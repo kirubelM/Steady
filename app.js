@@ -95,6 +95,10 @@ function bind() {
     if (fn) fn();
   });
   $('miniLink').addEventListener('click', () => api.command('mini-toggle'));
+  api.onMiniVisible((shown) => {
+    miniShown = shown;
+    $('miniLink').textContent = shown ? 'Hide mini timer' : 'Show mini timer';
+  });
   $('compactBtn').addEventListener('click', () => { autoCompacted = false; setCompact(!compact); });
 
   // Check-in and away dialogs

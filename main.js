@@ -182,6 +182,7 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile('index.html');
+  mainWindow.webContents.on('did-finish-load', () => { miniShownSent = null; updateMini(); });
   // Keep the tray's Show/Hide Steady label in step with the window.
   for (const ev of ['show', 'hide', 'minimize', 'restore']) mainWindow.on(ev, updateTray);
 
@@ -431,9 +432,13 @@ function createMiniWindow() {
   miniWindow.on('closed', () => { miniWindow = null; });
 }
 
+let miniShownSent = null;
+
 function updateMini() {
   if (!data) return;
   const want = miniWanted();
+  // Lets the main window label its link "Show mini timer" or "Hide mini timer".
+  if (want !== miniShownSent) { miniShownSent = want; sendToMain('mini:visible', want); }
   if (want) {
     if (!miniWindow) createMiniWindow();
     if (!miniWindow.isVisible()) miniWindow.showInactive();

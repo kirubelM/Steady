@@ -123,7 +123,7 @@ function paletteCommands() {
   add('Review my day', () => openReview('day'), 'Ctrl+Shift+R');
   add('Review my week', () => openReview('week'));
   add(compact ? 'Turn off compact view' : 'Turn on compact view', () => { autoCompacted = false; setCompact(!compact); }, 'Ctrl+M');
-  add('Show or hide the mini timer', () => api.command('mini-toggle'));
+  add(miniShown ? 'Hide mini timer' : 'Show mini timer', () => api.command('mini-toggle'));
   settings.presets.forEach((p) => add(`Session length: ${p.name} (${p.focusMin} min)`, () => selectPreset(p.id)));
   SOUND_OPTIONS.forEach((o) => add(`Focus sound: ${o.name}`, async () => {
     settings.sound = o.id;

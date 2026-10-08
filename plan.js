@@ -110,6 +110,14 @@ function startTask(id) {
   startFocus({ taskId: t.id, text: t.text });
 }
 
+// 0..1 from ticked subtasks, or from sessions against the estimate; null when there's nothing to measure.
+function taskProgress(t) {
+  const subs = t.subtasks || [];
+  if (subs.length) return subs.filter((s) => s.done).length / subs.length;
+  if (t.est) return Math.min(1, taskStats(t.id).count / t.est);
+  return null;
+}
+
 function taskMeta(t) {
   const { count, sec } = taskStats(t.id);
   const parts = [];
@@ -124,6 +132,85 @@ function taskMeta(t) {
   const r = t.recurId && recurById(t.recurId);
   if (r) parts.push(`↻ ${repeatLabel(r).replace('Repeats ', '')}`);
   return parts.join(', ');
+}
+
+/* ---------- At a glance: the day's key numbers above the plan ---------- */
+
+let glanceAt = 0;
+let lastGlance = '';
+
+function glanceRing(pct, met) {
+  const c = 2 * Math.PI * 20;
+  return `<svg class="g-ring${met ? ' met' : ''}" viewBox="0 0 48 48" aria-hidden="true">
+    <circle cx="24" cy="24" r="20" class="g-ring-track"></circle>
+    <circle cx="24" cy="24" r="20" class="g-ring-fill" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - pct)).toFixed(1)}"></circle>
+  </svg>`;
+}
+
+function glanceTile(label, value, sub, extra = '') {
+  return `<div class="g-tile">${extra}<div class="g-body">
+    <p class="g-label">${esc(label)}</p>
+    <p class="g-value">${esc(value)}</p>
+    ${sub ? `<p class="g-sub">${esc(sub)}</p>` : ''}
+  </div></div>`;
+}
+
+// Called from renderPlan and every second from the timer; does real work at most every 10 s.
+function renderGlance(force = false) {
+  const box = $('glance');
+  const today = todayKey();
+  const isToday = planDay === today;
+  if (planDay > today) { box.hidden = true; return; }
+  if (!force && Date.now() - glanceAt < 10000) return;
+  glanceAt = Date.now();
+
+  const tiles = [];
+  const goalSec = (settings.dailyGoalMin || 0) * 60;
+  const focusSec = isToday ? todayFocusSec() : data.entries
+    .filter((e) => e.type === 'session' && dayKey(e.start) === planDay)
+    .reduce((a, e) => a + (e.focusSec || 0), 0);
+  const pct = goalSec ? Math.min(1, focusSec / goalSec) : 0;
+  tiles.push(glanceTile(
+    isToday ? 'Focus today' : 'Focus',
+    focusSec ? fmtMins(focusSec) : '0 min',
+    goalSec ? (focusSec >= goalSec ? 'Goal reached' : `of ${fmtMins(goalSec)} goal`) : '',
+    goalSec ? glanceRing(pct, focusSec >= goalSec) : ''
+  ));
+
+  const tasks = tasksFor(planDay);
+  const doneN = tasks.filter((t) => t.done).length;
+  tiles.push(glanceTile(
+    'Tasks',
+    tasks.length ? `${doneN} of ${tasks.length}` : 'None yet',
+    tasks.length ? (doneN === tasks.length ? 'All done' : `${tasks.length - doneN} to go`) : 'Add a few below',
+    `<div class="g-bar" aria-hidden="true"><span style="width:${tasks.length ? (doneN / tasks.length) * 100 : 0}%"></span></div>`
+  ));
+
+  if (typeof calendarOn === 'function' && calendarOn() && isToday) {
+    const now = Date.now();
+    const next = eventsOn(today).find((ev) => ev.busy && !ev.allDay && ev.end > now);
+    if (next) {
+      const mins = Math.round((next.start - now) / 60000);
+      tiles.push(glanceTile('Next meeting', next.title,
+        next.start <= now ? `Now, until ${fmtTime(next.end)}` : mins < 60 ? `In ${plural(mins, 'min')}` : `At ${fmtTime(next.start)}`));
+    } else {
+      const free = freeBlocks(today).reduce((a, [s, e]) => a + (e - s), 0);
+      tiles.push(glanceTile('Next meeting', 'None left today', free ? `${fmtMins(free / 1000)} free` : ''));
+    }
+  } else {
+    const n = data.entries.filter((e) => e.type === 'session' && dayKey(e.start) === planDay).length;
+    tiles.push(glanceTile('Sessions', String(n), n ? 'focus sessions' : 'none yet'));
+  }
+
+  if (isToday && typeof computeStreaks === 'function') {
+    const st = computeStreaks();
+    tiles.push(glanceTile('Streak', plural(st.current, 'day'),
+      st.activeToday ? 'Focused today' : st.current ? 'Focus today to keep it going' : 'Start one today'));
+  }
+
+  const html = tiles.join('');
+  box.hidden = false;
+  if (html !== lastGlance) { lastGlance = html; box.innerHTML = html; }
 }
 
 /* ---------- Subtasks: a checklist inside a task ---------- */
@@ -259,6 +346,7 @@ function renderPlan() {
   }
   $('planSummary').textContent = summary;
   if (typeof renderSchedule === 'function') renderSchedule(planDay, realistic ? realistic.sessions : estLeft);
+  renderGlance(true);
   if (typeof renderProjectGoals === 'function') renderProjectGoals();
 
   const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
@@ -267,11 +355,14 @@ function renderPlan() {
       const meta = taskMeta(t);
       const firstOpen = !t.done && i === 0;
       const lastOpen = !t.done && i === open.length - 1;
-      return `<li class="task${t.done ? ' done' : ''}">
+      const color = projectById(t.projectId)?.color;
+      const progress = taskProgress(t);
+      return `<li class="task${t.done ? ' done' : ''}"${color ? ` style="--pc:${color}"` : ''}>
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
           <span class="task-meta">${projectChip(t.projectId)}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
+          ${progress !== null && !t.done ? `<span class="task-progress" aria-hidden="true"><span style="width:${(progress * 100).toFixed(0)}%"></span></span>` : ''}
         </button>
         <div class="task-actions">
           ${t.done ? '' : `${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}
@@ -312,7 +403,8 @@ function renderPlan() {
         if (g.sessions) meta.push(plural(g.sessions, 'focus session'));
         if (g.manual.length && !g.sessions) meta.push(g.manual.length > 1 ? `Added ${g.manual.length} times` : `Added at ${fmtTime(g.manual[0].end)}`);
         const editable = g.manual.length === 1 && !g.sessions;
-        return `<li class="done-item${g.taskDone ? ' is-task' : ''}">
+        const color = projectById(g.projectId)?.color;
+        return `<li class="done-item${g.taskDone ? ' is-task' : ''}"${color ? ` style="--pc:${color}"` : ''}>
           <span class="done-mark" aria-hidden="true">${g.taskDone ? '✓' : '•'}</span>
           ${editable
             ? `<button class="task-main" type="button" data-entry-edit="${g.manual[0].id}" title="Edit">`

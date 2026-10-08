@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('steady', {
   onBreakSnoozed: (cb) => ipcRenderer.on('break:snoozed', () => cb()),
   onQuickPark: (cb) => ipcRenderer.on('quick-park', () => cb()),
   onMiniState: (cb) => ipcRenderer.on('mini:state', (_e, st) => cb(st)),
+  onMiniVisible: (cb) => ipcRenderer.on('mini:visible', (_e, shown) => cb(shown)),
 
   // Backups, import/export and diagnostics
   listBackups: () => ipcRenderer.invoke('backups:list'),

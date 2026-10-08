@@ -10,6 +10,13 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.3
+
+- **Today at a glance.** The top of the Plan page shows your focus time against your goal, how many tasks are done, your next meeting (or how many sessions you've done, without a calendar) and your streak.
+- **A cleaner look.** Plan and Insights sections sit on their own cards. Each task has a stripe in its project's color and a progress bar for its subtasks or sessions, and the daily goal bar fills with color.
+- **Timer fits the window.** The timer scales with the window height, so you don't have to scroll to see it.
+- **Mini timer link.** The link under the timer now says "Show mini timer" or "Hide mini timer".
+
 ## What's new in 1.3.2
 
 - **Subtasks.** Click + next to a task to break it into smaller steps, then tick them off on the Plan page. "Hide subtasks" and "Show subtasks" collapse the list and show how many are done. You can also add, rename, tick or remove subtasks in the task editor. On a repeating task, subtasks set in the task editor come back unticked each day.

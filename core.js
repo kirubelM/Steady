@@ -46,6 +46,7 @@ const S = {
 let tally = {};
 let lastLogAt = Date.now();
 let lastIdle = 0;
+let miniShown = false; // whether the mini timer is on screen (sent by the main process)
 let inMeeting = false;
 let meetingClearSince = Date.now();
 let viewDay = dayKey(Date.now());
