@@ -10,6 +10,11 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.1
+
+- **More than one calendar.** Connect classic Outlook and any number of calendar links (for example a work Outlook calendar and a personal Google Calendar). Their meetings are combined on the Plan page, labelled with the calendar they came from, and a meeting that appears in two calendars is shown once. If one calendar can't be reached, the others still show. Your existing calendar carries over automatically.
+- **Automatic updates.** Steady checks for new versions in the background and installs them the next time it quits. To install right away, choose "Restart to update" in the tray menu.
+
 ## What's new in 1.3
 
 - **Backups and recovery.** Steady backs up your data once a day and keeps 30 days of copies (adjustable). Restore any backup from Settings, or export and import all your data as one file. If your data file is ever damaged, Steady keeps a copy of it and automatically restores the most recent good backup instead of starting over.
@@ -77,13 +82,13 @@ The mini timer is a small floating window that stays on top of other apps during
 
 ## Connecting your calendar
 
-Go to Settings, then Calendar.
+Go to Settings, then Calendar, choose where the calendar comes from, give it a name (for example "Work" or "Personal") and click "Add calendar". Steady checks the connection before adding it. Repeat for each calendar you want to see; use Test next to a calendar to check it again, or × to remove it.
 
 - **Classic Outlook (desktop app):** choose "Classic Outlook on this computer". Steady reads your calendar directly from Outlook on your PC; nothing is sent anywhere. Outlook may open in the background the first time.
 - **New Outlook, Outlook.com or Microsoft 365 on the web:** in Outlook on the web, go to Settings, then Calendar, then Shared calendars, and under "Publish a calendar" choose your calendar and "Can view all details". Copy the ICS link into Steady.
 - **Google Calendar:** open the calendar's settings and copy "Secret address in iCal format".
 
-Click "Test connection" to check it, then set your working hours so Steady knows how much focus time you have. Published links can take a while to show changes, depending on your calendar provider.
+Set your working hours so Steady knows how much focus time you have. Steady refreshes your calendars about every 10 minutes, or right away with Refresh on the Plan page. Classic Outlook changes show up on the next refresh; published links can take anywhere from minutes to several hours to show changes, depending on your calendar provider.
 
 ## Backups
 

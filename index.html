@@ -316,25 +316,28 @@
 
           <fieldset>
             <legend>Calendar</legend>
-            <p class="field-note">See your meetings on the Plan page, how much focus time is left, and get a reminder before each meeting.</p>
-            <label>Get my meetings from
-              <span><select name="calendarSource">
-                <option value="off">Don't use a calendar</option>
-                <option value="outlook">Classic Outlook on this computer</option>
+            <p class="field-note">See your meetings on the Plan page, how much focus time is left, and get a reminder before each meeting. You can connect several calendars; their meetings are combined.</p>
+            <ul id="calendarList" class="project-list calendar-list"></ul>
+            <label>Add a calendar from
+              <span><select id="calAddKind">
                 <option value="link">A calendar link (new Outlook, Outlook.com, Google)</option>
+                <option value="outlook">Classic Outlook on this computer</option>
               </select></span>
             </label>
-            <p id="calOutlookNote" class="field-note" hidden>Works with the classic Outlook desktop app. Steady reads your calendar directly; nothing leaves your computer. If you use the new Outlook, choose a calendar link instead.</p>
-            <div id="calUrlRow" hidden>
-              <label class="stack">Calendar link (ICS)
-                <input name="calendarUrl" type="text" placeholder="https://outlook.office365.com/owa/calendar/…/calendar.ics" autocomplete="off" spellcheck="false">
-              </label>
+            <div class="inline-form">
+              <label for="calAddName" class="sr-only">Calendar name</label>
+              <input id="calAddName" type="text" maxlength="30" placeholder="Name, e.g. Work or Personal" autocomplete="off">
             </div>
-            <p id="calLinkNote" class="field-note" hidden>In Outlook on the web, go to Settings, then Calendar, then Shared calendars, and publish your calendar to get an ICS link. In Google Calendar, use "Secret address in iCal format". Keep the link private; anyone with it can see your calendar.</p>
-            <div id="calTestRow" class="inline-form" hidden>
-              <button id="calTestBtn" class="btn small" type="button">Test connection</button>
+            <div id="calUrlRow" class="inline-form">
+              <label for="calAddUrl" class="sr-only">Calendar link (ICS)</label>
+              <input id="calAddUrl" type="text" placeholder="https://outlook.office365.com/owa/calendar/…/calendar.ics" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="inline-form cal-add-row">
+              <button id="calAddBtn" class="btn small" type="button">Add calendar</button>
               <span id="calTestResult" class="field-note" role="status"></span>
             </div>
+            <p id="calOutlookNote" class="field-note" hidden>Works with the classic Outlook desktop app. Steady reads your calendar directly; nothing leaves your computer. If you use the new Outlook, add a calendar link instead.</p>
+            <p id="calLinkNote" class="field-note">In Outlook on the web, go to Settings, then Calendar, then Shared calendars, and publish your calendar to get an ICS link. In Google Calendar, use "Secret address in iCal format". Keep the link private; anyone with it can see your calendar.</p>
             <label>My workday starts <span><input name="workStart" type="time"></span></label>
             <label>My workday ends <span><input name="workEnd" type="time"></span></label>
           </fieldset>

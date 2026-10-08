@@ -133,7 +133,7 @@ function paletteCommands() {
   }));
   [['system', 'Match Windows'], ['light', 'Light'], ['dark', 'Dark']].forEach(([id, name]) =>
     add(`Theme: ${name}`, async () => { settings.theme = id; await persist('settings'); api.setTheme(); fillSettingsForm(); }));
-  if (settings.calendarSource !== 'off') add('Refresh calendar', () => loadCalendar(true, planDay));
+  if (calendarOn()) add('Refresh calendar', () => loadCalendar(true, planDay));
   add('Back up my data now', backupNow);
   add('Export work log as CSV', exportCsv);
   add('Show keyboard shortcuts', openShortcuts, '?');

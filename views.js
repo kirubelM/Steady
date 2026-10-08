@@ -285,9 +285,7 @@ const TEXT_FIELDS = {
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
   workStart: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
-  workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
-  calendarSource: (v) => (['off', 'outlook', 'link'].includes(v) ? v : null),
-  calendarUrl: (v) => (v.trim() === '' || /^(https|webcal):\/\//i.test(v.trim()) ? v.trim() : null)
+  workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null)
 };
 const LIST_FIELDS = ['distractionKeywords', 'blockedSites'];
 
@@ -306,7 +304,7 @@ function fillSettingsForm() {
   LIST_FIELDS.forEach((k) => { f.elements[k].value = (settings[k] || []).join('\n'); });
   Object.keys(TEXT_FIELDS).forEach((k) => { f.elements[k].value = settings[k]; });
   renderPresetSettings();
-  if (typeof updateCalendarFields === 'function') updateCalendarFields();
+  if (typeof renderCalendarSettings === 'function') renderCalendarSettings();
   api.startupSupported().then((ok) => {
     f.elements.startAtLogin.disabled = !ok;
     f.elements.startMinimized.disabled = !ok;
@@ -342,14 +340,12 @@ async function saveSettings(ev) {
     $('settingsSaved').textContent = 'Your workday has to end after it starts.';
     return;
   }
-  const calendarChanged = next.calendarSource !== settings.calendarSource || next.calendarUrl !== settings.calendarUrl;
   const themeChanged = next.theme !== settings.theme;
   Object.assign(settings, next);
   data.settings = settings;
   await persist('settings');
   await api.applyStartup();
   if (themeChanged) api.setTheme();
-  if (calendarChanged) loadCalendar(true, planDay);
   fillSettingsForm();
   const inSession = S.state === 'focus' || S.state === 'paused';
   $('settingsSaved').textContent = inSession ? 'Saved. Timing changes apply from your next session.' : 'Saved.';

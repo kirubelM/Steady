@@ -185,8 +185,7 @@ function bind() {
   });
 
   $('settingsForm').addEventListener('submit', saveSettings);
-  $('settingsForm').elements.calendarSource.addEventListener('change', updateCalendarFields);
-  $('calTestBtn').addEventListener('click', testCalendar);
+  bindCalendars();
 
   bindPlan();
   bindRecurring();

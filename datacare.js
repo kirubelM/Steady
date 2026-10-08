@@ -54,7 +54,7 @@ async function copyDiagnostics() {
     `Steady ${d.version} (Electron ${d.electron})`,
     `System: ${d.os}`,
     `Data: ${counts}`,
-    `Calendar: ${settings.calendarSource}`,
+    `Calendar: ${(settings.calendars || []).map((c) => c.kind).join(', ') || 'off'}`,
     '',
     'Recent log:',
     d.log || '(empty)'

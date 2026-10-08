@@ -67,8 +67,7 @@ const DEFAULTS = {
     ],
     workStart: '09:00',
     workEnd: '17:00',
-    calendarSource: 'off',
-    calendarUrl: '',
+    calendars: [], // { id, kind: 'outlook' | 'link', name, url }
     backupKeepDays: 30,
     startAtLogin: false,
     startMinimized: true,
@@ -95,6 +94,19 @@ function normalize(raw) {
     const std = raw.settings.presets.find((p) => p.id === 'standard');
     std.focusMin = raw.settings.focusMin || 30;
     std.breakMin = raw.settings.shortBreakMin || 5;
+  }
+  // Before 1.3.1 there was a single calendar source; carry it into the list.
+  if (raw.settings && !Array.isArray(raw.settings.calendars)) {
+    const { calendarSource: src, calendarUrl: url } = raw.settings;
+    raw.settings.calendars = src === 'outlook' ? [{ id: 'outlook', kind: 'outlook', name: 'Outlook' }]
+      : src === 'link' && url ? [{ id: 'link1', kind: 'link', name: 'Calendar', url }]
+        : [];
+  }
+  if (raw.settings) {
+    delete raw.settings.calendarSource;
+    delete raw.settings.calendarUrl;
+    raw.settings.calendars = raw.settings.calendars
+      .filter((c) => c && c.id && (c.kind === 'outlook' || (c.kind === 'link' && c.url)));
   }
   return {
     ...base,
@@ -816,19 +828,46 @@ ipcMain.on('diag:open-logs', () => shell.openPath(log.dir()));
 
 const calendarCache = new Map();
 
-ipcMain.handle('calendar:fetch', async (_e, { start, end, force }) => {
-  const st = data.settings;
-  if (st.calendarSource === 'off') return { ok: true, events: [], off: true };
-  const key = `${st.calendarSource}|${st.calendarUrl}|${start}|${end}`;
+async function fetchSource(cal, start, end, force) {
+  const key = `${cal.kind}|${cal.url || ''}|${start}|${end}`;
   const cached = calendarCache.get(key);
   if (!force && cached && Date.now() - cached.at < 10 * 60000) return cached.result;
-  const result = st.calendarSource === 'outlook'
+  const result = cal.kind === 'outlook'
     ? await calendar.fromOutlook(start, end)
-    : await calendar.fromLink(st.calendarUrl, start, end, (u, o) => net.fetch(u, o));
-  if (!result.ok) log.warn('Calendar fetch failed', `${result.error} ${result.detail || ''}`);
+    : await calendar.fromLink(cal.url, start, end, (u, o) => net.fetch(u, o));
+  if (!result.ok) log.warn('Calendar fetch failed', `${cal.kind} ${result.error} ${result.detail || ''}`);
   calendarCache.set(key, { at: Date.now(), result });
   return result;
+}
+
+// Fetches every connected calendar and merges their meetings. A meeting that shows up
+// in two calendars (for example Google subscribed inside Outlook) is listed once.
+ipcMain.handle('calendar:fetch', async (_e, { start, end, force }) => {
+  const cals = data.settings.calendars || [];
+  if (!cals.length) return { ok: true, events: [], off: true };
+  const results = await Promise.all(cals.map((c) => fetchSource(c, start, end, force)));
+  const failed = cals
+    .map((c, i) => ({ name: c.name, error: results[i].error }))
+    .filter((_f, i) => !results[i].ok);
+  if (failed.length === cals.length) {
+    return { ok: false, error: cals.length > 1 ? `${failed[0].name}: ${failed[0].error}` : failed[0].error };
+  }
+  const merged = new Map();
+  results.forEach((r, i) => {
+    if (!r.ok) return;
+    for (const ev of r.events) {
+      const key = `${ev.title}|${ev.start}|${ev.end}`;
+      const seen = merged.get(key);
+      if (seen) seen.busy = seen.busy || ev.busy;
+      else merged.set(key, { ...ev, cal: cals[i].name });
+    }
+  });
+  const events = [...merged.values()].sort((a, b) => a.start - b.start);
+  return { ok: true, events, failed };
 });
+
+// Checks one calendar before it's added, without touching the saved list.
+ipcMain.handle('calendar:test', (_e, { cal, start, end }) => fetchSource(cal, start, end, true));
 
 /* ---------- Quick capture ---------- */
 

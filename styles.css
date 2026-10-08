@@ -686,3 +686,6 @@ button.task-main:hover { background: var(--tint-pine); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; scroll-behavior: auto !important; }
 }
+.calendar-list .cal-kind { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.cal-add-row { align-items: center; }
+.meet-list .cal-name { margin-left: 8px; color: var(--muted); font-size: 0.85rem; }

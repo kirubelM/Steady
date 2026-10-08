@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('steady', {
 
   // Calendar
   fetchCalendar: (start, end, force) => ipcRenderer.invoke('calendar:fetch', { start, end, force }),
+  testCalendar: (cal, start, end) => ipcRenderer.invoke('calendar:test', { cal, start, end }),
 
   // Quick capture
   openCapture: () => ipcRenderer.send('capture:open'),

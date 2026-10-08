@@ -5,11 +5,14 @@ const Cal = {
   rangeEnd: 0,
   events: [],
   error: null,
+  warning: null,
   loading: false,
   loadedAt: 0,
   notified: new Set(),
   warnedSession: 0
 };
+
+const calendarOn = () => (settings.calendars || []).length > 0;
 
 const minutesOf = (hhmm) => {
   const [h, m] = String(hhmm || '00:00').split(':').map(Number);
@@ -22,9 +25,10 @@ function atDay(day, minutes) {
 }
 
 async function loadCalendar(force = false, aroundDay = dayKey(Date.now())) {
-  if (settings.calendarSource === 'off') {
+  if (!calendarOn()) {
     Cal.events = [];
     Cal.error = null;
+    Cal.warning = null;
     Cal.loadedAt = Date.now();
     return;
   }
@@ -39,6 +43,10 @@ async function loadCalendar(force = false, aroundDay = dayKey(Date.now())) {
     if (res.ok) {
       Cal.events = res.events || [];
       Cal.error = null;
+      const failed = res.failed || [];
+      Cal.warning = failed.length
+        ? `Couldn't load ${failed.map((f) => f.name).join(' and ')}: ${failed[0].error}`
+        : null;
       Cal.rangeStart = start;
       Cal.rangeEnd = end;
     } else {
@@ -54,7 +62,7 @@ async function loadCalendar(force = false, aroundDay = dayKey(Date.now())) {
 }
 
 function ensureCalendarFor(day) {
-  if (settings.calendarSource === 'off') return;
+  if (!calendarOn()) return;
   const t = new Date(day + 'T12:00').getTime();
   if (t < Cal.rangeStart || t > Cal.rangeEnd) loadCalendar(false, day);
 }
@@ -94,7 +102,8 @@ function sessionsThatFit(blocks) {
 
 function renderSchedule(day, sessionsNeeded) {
   const box = $('scheduleSection');
-  const off = settings.calendarSource === 'off';
+  const off = !calendarOn();
+  const many = settings.calendars.length > 1;
   const isPast = day < dayKey(Date.now());
   box.hidden = off && isPast;
   if (box.hidden) return;
@@ -120,7 +129,7 @@ function renderSchedule(day, sessionsNeeded) {
     const a = pct(ev.start);
     const b = pct(ev.end);
     if (b <= 0 || a >= 100 || b - a <= 0) return;
-    segs.push(`<span class="tl-meet${ev.busy ? '' : ' free'}" style="left:${a}%;width:${Math.max(0.6, b - a)}%" data-tip="${esc(`${fmtTime(ev.start)} – ${fmtTime(ev.end)}\n${ev.title}${ev.busy ? '' : '\nShown as free'}`)}"></span>`);
+    segs.push(`<span class="tl-meet${ev.busy ? '' : ' free'}" style="left:${a}%;width:${Math.max(0.6, b - a)}%" data-tip="${esc(`${fmtTime(ev.start)} – ${fmtTime(ev.end)}\n${ev.title}${many ? `\n${ev.cal}` : ''}${ev.busy ? '' : '\nShown as free'}`)}"></span>`);
   });
   blocks.forEach(([a, b]) => {
     segs.push(`<span class="tl-free" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%" data-tip="${esc(`Free ${fmtTime(a)} – ${fmtTime(b)}\n${fmtMins((b - a) / 1000)}`)}"></span>`);
@@ -151,11 +160,12 @@ function renderSchedule(day, sessionsNeeded) {
       ${off ? '' : `<button class="link" type="button" id="calRefresh">${Cal.loading ? 'Updating…' : 'Refresh'}</button>`}
     </div>
     <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(summary)}</p>
+    ${!off && !Cal.error && Cal.warning ? `<p class="insight-note warn-text">${esc(Cal.warning)}</p>` : ''}
     ${off ? '' : `<div class="timeline" aria-hidden="true">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
-    ${allDay.length ? `<p class="allday">${allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)">${esc(ev.title)}</span>`).join('')}</p>` : ''}
+    ${allDay.length ? `<p class="allday">${allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)"${many ? ` title="${esc(ev.cal)}"` : ''}>${esc(ev.title)}</span>`).join('')}</p>` : ''}
     ${timed.length ? `<ul class="meet-list">${timed.map((ev) => `<li class="${ev.end < Date.now() ? 'past' : ''}">
         <span class="when">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</span>
-        <span>${esc(ev.title)}${ev.busy ? '' : ' <span class="muted-note">(free)</span>'}</span>
+        <span>${esc(ev.title)}${ev.busy ? '' : ' <span class="muted-note">(free)</span>'}${many ? `<span class="cal-name">${esc(ev.cal)}</span>` : ''}</span>
       </li>`).join('')}</ul>` : (off || Cal.error ? '' : '<p class="insight-note">No meetings.</p>')}
   `;
   const btn = $('calRefresh');
@@ -171,7 +181,7 @@ function shortHourLabel(h) {
 /* ---------- Meeting reminders while you work ---------- */
 
 function calendarTick(now) {
-  if (settings.calendarSource === 'off') return;
+  if (!calendarOn()) return;
   if (now - Cal.loadedAt > 10 * 60000 && !Cal.loading) loadCalendar(false);
   const today = dayKey(now);
   for (const ev of eventsOn(today)) {
@@ -194,37 +204,102 @@ function calendarTick(now) {
   }
 }
 
-/* ---------- Settings: test the connection ---------- */
+/* ---------- Settings: connected calendars ---------- */
 
-async function testCalendar() {
-  $('calTestResult').textContent = 'Checking…';
-  const f = $('settingsForm');
-  const prev = { source: settings.calendarSource, url: settings.calendarUrl };
-  // Test what's in the form, even before saving.
-  settings.calendarSource = f.elements.calendarSource.value;
-  settings.calendarUrl = f.elements.calendarUrl.value.trim();
-  await persist('settings');
-  const start = atDay(dayKey(Date.now()), 0);
-  const res = await api.fetchCalendar(start, start + 7 * 86400000, true);
-  if (res.ok && !res.off) {
-    const n = res.events.length;
-    $('calTestResult').textContent = `Connected. Found ${plural(n, 'event')} in the next 7 days.`;
-    loadCalendar(true);
-  } else if (res.off) {
-    $('calTestResult').textContent = 'Choose where your calendar comes from first.';
-  } else {
-    $('calTestResult').textContent = res.error;
-    settings.calendarSource = prev.source;
-    settings.calendarUrl = prev.url;
-    await persist('settings');
-  }
+const CAL_KIND_LABEL = { outlook: 'Classic Outlook', link: 'Calendar link' };
+
+function renderCalendarSettings() {
+  const list = settings.calendars || [];
+  $('calendarList').innerHTML = list.length
+    ? list.map((c) => `<li>
+        <input type="text" value="${esc(c.name)}" data-cal-name="${c.id}" maxlength="30" aria-label="Calendar name">
+        <span class="cal-kind">${CAL_KIND_LABEL[c.kind]}</span>
+        <button class="link" type="button" data-cal-test="${c.id}">Test</button>
+        <button class="del" type="button" data-cal-del="${c.id}" aria-label="Remove ${esc(c.name)}">×</button>
+      </li>`).join('')
+    : '<li class="empty">No calendars connected yet.</li>';
+  updateCalendarFields();
 }
 
 function updateCalendarFields() {
-  const f = $('settingsForm');
-  const src = f.elements.calendarSource.value;
-  $('calUrlRow').hidden = src !== 'link';
-  $('calOutlookNote').hidden = src !== 'outlook';
-  $('calLinkNote').hidden = src !== 'link';
-  $('calTestRow').hidden = src === 'off';
+  const kind = $('calAddKind').value;
+  $('calUrlRow').hidden = kind !== 'link';
+  $('calOutlookNote').hidden = kind !== 'outlook';
+  $('calLinkNote').hidden = kind !== 'link';
+  $('calAddName').placeholder = kind === 'outlook' ? 'Name, e.g. Outlook' : 'Name, e.g. Work or Personal';
+}
+
+async function testCalendarSource(cal) {
+  const start = atDay(dayKey(Date.now()), 0);
+  const res = await api.testCalendar(cal, start, start + 7 * 86400000);
+  return res.ok
+    ? { ok: true, msg: `Connected to ${cal.name}. Found ${plural(res.events.length, 'event')} in the next 7 days.` }
+    : { ok: false, msg: res.error };
+}
+
+async function calendarsChanged() {
+  await persist('settings');
+  renderCalendarSettings();
+  loadCalendar(true, planDay);
+}
+
+async function addCalendar() {
+  const out = $('calTestResult');
+  const kind = $('calAddKind').value;
+  const list = settings.calendars;
+  let url = '';
+  if (kind === 'outlook') {
+    if (list.some((c) => c.kind === 'outlook')) { out.textContent = 'Classic Outlook is already connected.'; return; }
+  } else {
+    url = $('calAddUrl').value.trim();
+    if (!/^(https|webcal):\/\//i.test(url)) { out.textContent = 'Paste a calendar link that starts with https:// or webcal://.'; return; }
+    if (list.some((c) => c.url === url)) { out.textContent = 'That calendar is already connected.'; return; }
+  }
+  const name = ($('calAddName').value.trim() || (kind === 'outlook' ? 'Outlook' : `Calendar ${list.length + 1}`)).slice(0, 30);
+  const cal = kind === 'outlook' ? { id: uid(), kind, name } : { id: uid(), kind, name, url };
+  out.textContent = 'Checking…';
+  $('calAddBtn').disabled = true;
+  const res = await testCalendarSource(cal);
+  $('calAddBtn').disabled = false;
+  out.textContent = res.msg;
+  if (!res.ok) return;
+  list.push(cal);
+  $('calAddName').value = '';
+  $('calAddUrl').value = '';
+  await calendarsChanged();
+}
+
+function bindCalendars() {
+  $('calAddKind').addEventListener('change', updateCalendarFields);
+  $('calAddBtn').addEventListener('click', addCalendar);
+  // These fields sit inside the settings form; Enter should add the calendar, not save settings.
+  ['calAddName', 'calAddUrl'].forEach((id) => $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addCalendar(); }
+  }));
+  $('calendarList').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const out = $('calTestResult');
+    if (b.dataset.calTest) {
+      const cal = settings.calendars.find((c) => c.id === b.dataset.calTest);
+      out.textContent = 'Checking…';
+      out.textContent = (await testCalendarSource(cal)).msg;
+    } else if (b.dataset.calDel) {
+      const cal = settings.calendars.find((c) => c.id === b.dataset.calDel);
+      if (!confirm(`Remove "${cal.name}"? Its meetings will no longer show in Steady.`)) return;
+      settings.calendars = settings.calendars.filter((c) => c.id !== cal.id);
+      out.textContent = '';
+      await calendarsChanged();
+    }
+  });
+  // Enter in a name box would otherwise submit the settings form.
+  $('calendarList').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.dataset?.calName) { e.preventDefault(); e.target.blur(); }
+  });
+  $('calendarList').addEventListener('change', async (e) => {
+    const cal = settings.calendars.find((c) => c.id === e.target.dataset?.calName);
+    if (!cal || !e.target.value.trim()) return;
+    cal.name = e.target.value.trim().slice(0, 30);
+    await calendarsChanged();
+  });
 }
