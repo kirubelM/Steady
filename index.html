@@ -479,6 +479,15 @@
       <label class="field">Session length <select id="taskEditPreset"></select></label>
       <label class="field">Repeats <select id="taskEditRepeat"></select></label>
     </div>
+    <div class="field">
+      <span>Subtasks</span>
+      <ul id="taskEditSubs" class="subtask-list editable"></ul>
+      <div class="inline-form">
+        <label for="taskEditSubInput" class="sr-only">New subtask</label>
+        <input id="taskEditSubInput" type="text" maxlength="140" placeholder="Add a subtask" autocomplete="off">
+        <button id="taskEditSubAdd" class="btn small" type="button">Add</button>
+      </div>
+    </div>
     <label class="checkin-done"><input id="taskEditDone" type="checkbox"> Done</label>
     <div class="dialog-actions">
       <button id="taskEditSave" class="btn primary" type="button">Save task</button>

@@ -59,7 +59,8 @@ function materializeDay(day) {
     if (data.tasks.some((t) => t.recurId === r.id && t.day === day)) continue;
     data.tasks.push({
       id: uid(), text: r.text, day, est: r.est || 0, projectId: r.projectId || null, presetId: r.presetId || null,
-      recurId: r.id, done: false, doneAt: null, createdAt: Date.now(), order: nextOrder(day)
+      recurId: r.id, done: false, doneAt: null, createdAt: Date.now(), order: nextOrder(day),
+      subtasks: (r.subtasks || []).map((text) => ({ id: uid(), text, done: false }))
     });
     changed = true;
   }
@@ -103,13 +104,17 @@ async function setRepeat(task, freq) {
   }
   Object.assign(r, {
     text: task.text, projectId: task.projectId || null, est: task.est || 0, presetId: task.presetId || null,
+    subtasks: (task.subtasks || []).map((x) => x.text), // each new day starts with them unticked
     freq, weekday: weekdayOf(task.day), monthday: monthdayOf(task.day),
     startDay: task.day < today ? today : task.day, stopped: false
   });
   // Keep upcoming copies in line with the edited task.
   data.tasks.forEach((t) => {
     if (t.recurId === r.id && t.id !== task.id && !t.done && t.day > today) {
-      if (recurMatches(r, t.day)) Object.assign(t, { text: r.text, projectId: r.projectId, est: r.est, presetId: r.presetId });
+      if (recurMatches(r, t.day)) {
+        Object.assign(t, { text: r.text, projectId: r.projectId, est: r.est, presetId: r.presetId });
+        t.subtasks = r.subtasks.map((text) => ({ id: uid(), text, done: false }));
+      }
       else t._remove = true;
     }
   });

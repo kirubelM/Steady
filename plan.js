@@ -126,6 +126,46 @@ function taskMeta(t) {
   return parts.join(', ');
 }
 
+/* ---------- Subtasks: a checklist inside a task ---------- */
+
+let subAddFor = null; // task whose "Add a subtask" box is open
+
+function subtaskBlock(t) {
+  const subs = t.subtasks || [];
+  const adding = !t.done && subAddFor === t.id;
+  if (!subs.length && !adding) return '';
+  const done = subs.filter((s) => s.done).length;
+  const hidden = !!t.subsHidden && !adding;
+  const toggle = subs.length
+    ? `<button class="link sub-toggle" type="button" data-sub-toggle="${t.id}" aria-expanded="${!hidden}">${hidden
+      ? `Show ${plural(subs.length, 'subtask')} (${done} done)`
+      : `Hide subtasks (${done} of ${subs.length} done)`}</button>`
+    : '';
+  const list = hidden ? '' : `<ul class="subtask-list">${subs.map((s) => `<li class="${s.done ? 'done' : ''}">
+      <label><input type="checkbox" data-sub-done="${t.id}" data-sub-id="${s.id}" ${s.done ? 'checked' : ''}><span>${esc(s.text)}</span></label>
+      <button class="del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}">×</button>
+    </li>`).join('')}</ul>
+    ${t.done ? '' : `<form class="subtask-add" data-sub-add="${t.id}"><input type="text" maxlength="140" placeholder="Add a subtask and press Enter" aria-label="Add a subtask to ${esc(t.text)}" autocomplete="off"></form>`}`;
+  return `<div class="subtasks">${toggle}${list}</div>`;
+}
+
+async function addSubtask(id, text) {
+  const t = findTask(id);
+  const clean = String(text || '').trim();
+  if (!t || !clean) return;
+  t.subtasks = [...(t.subtasks || []), { id: uid(), text: clean, done: false }];
+  await persist('tasks');
+  renderPlan();
+}
+
+async function updateSubtasks(id, fn) {
+  const t = findTask(id);
+  if (!t) return;
+  fn(t);
+  await persist('tasks');
+  renderPlan();
+}
+
 /* ---------- Done list: finished tasks plus everything logged that day ---------- */
 
 function doneItems(day) {
@@ -221,6 +261,7 @@ function renderPlan() {
   if (typeof renderSchedule === 'function') renderSchedule(planDay, realistic ? realistic.sessions : estLeft);
   if (typeof renderProjectGoals === 'function') renderProjectGoals();
 
+  const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
   $('taskList').innerHTML = tasks.length
     ? tasks.map((t, i) => {
       const meta = taskMeta(t);
@@ -235,8 +276,10 @@ function renderPlan() {
         <div class="task-actions">
           ${t.done ? '' : `${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}
           <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="-1" aria-label="Move up" ${firstOpen ? 'disabled' : ''}>↑</button>
-          <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="1" aria-label="Move down" ${lastOpen ? 'disabled' : ''}>↓</button>`}
+          <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="1" aria-label="Move down" ${lastOpen ? 'disabled' : ''}>↓</button>
+          <button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
         </div>
+        ${subtaskBlock(t)}
       </li>`;
     }).join('')
     : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
@@ -290,6 +333,11 @@ function renderPlan() {
   }
   $('notesSaved').textContent = '';
 
+  if (subAddFor) {
+    const input = document.querySelector(`[data-sub-add="${subAddFor}"] input`);
+    if (input) { input.value = typedSub; input.focus(); }
+  }
+
   $('taskOptions').innerHTML = [...openTodayTasks(), ...leftoverTasks()].map((t) => `<option value="${esc(t.text)}"></option>`).join('');
   if (tasks.length && isToday && $('nudge').dataset.kind === 'plan') hideNudge();
   lastNextUp = null;
@@ -328,6 +376,24 @@ async function maybeNudgePlan() {
 /* ---------- Task editor ---------- */
 
 let editingTaskId = null;
+let editingSubs = []; // working copy, saved with the task
+
+function renderSubEditor() {
+  $('taskEditSubs').innerHTML = editingSubs.map((s, i) => `<li>
+      <input type="checkbox" data-esub-done="${i}" ${s.done ? 'checked' : ''} aria-label="Done">
+      <input type="text" value="${esc(s.text)}" data-esub-text="${i}" maxlength="140" aria-label="Subtask">
+      <button class="del" type="button" data-esub-del="${i}" aria-label="Remove subtask">×</button>
+    </li>`).join('');
+}
+
+function addSubFromEditor() {
+  const text = $('taskEditSubInput').value.trim();
+  if (!text) return;
+  editingSubs.push({ id: uid(), text, done: false });
+  $('taskEditSubInput').value = '';
+  renderSubEditor();
+  $('taskEditSubInput').focus();
+}
 
 function openTaskDialog(id) {
   const t = findTask(id);
@@ -344,6 +410,9 @@ function openTaskDialog(id) {
   const r = recurById(t.recurId);
   $('taskEditRepeat').innerHTML = REPEAT_OPTIONS.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('');
   $('taskEditRepeat').value = r ? r.freq : '';
+  editingSubs = (t.subtasks || []).map((x) => ({ ...x }));
+  $('taskEditSubInput').value = '';
+  renderSubEditor();
   $('taskDialog').showModal();
   $('taskEditText').focus();
 }
@@ -361,6 +430,8 @@ async function saveTaskDialog() {
   if (day && day !== t.day) { t.day = day; t.order = nextOrder(day); }
   const done = $('taskEditDone').checked;
   if (done !== t.done) { t.done = done; t.doneAt = done ? Date.now() : null; }
+  if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
+  t.subtasks = editingSubs.filter((x) => x.text.trim());
   const freq = $('taskEditRepeat').value;
   if (freq || t.recurId) await setRepeat(t, freq);
   await persist('tasks');
@@ -400,6 +471,15 @@ function bindPlan() {
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
+    else if (b.dataset.subNew) {
+      subAddFor = subAddFor === b.dataset.subNew ? null : b.dataset.subNew;
+      renderPlan();
+    } else if (b.dataset.subToggle) {
+      subAddFor = null;
+      updateSubtasks(b.dataset.subToggle, (t) => { t.subsHidden = !t.subsHidden; });
+    } else if (b.dataset.subDel) {
+      updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== b.dataset.subId); });
+    }
   };
   $('taskList').addEventListener('click', onListClick);
   $('leftoverList').addEventListener('click', onListClick);
@@ -407,6 +487,36 @@ function bindPlan() {
   $('taskList').addEventListener('change', (e) => {
     const id = e.target.dataset?.taskDone;
     if (id) setTaskDone(id, e.target.checked);
+    const subOf = e.target.dataset?.subDone;
+    if (subOf) {
+      const checked = e.target.checked;
+      updateSubtasks(subOf, (t) => {
+        const s = t.subtasks.find((x) => x.id === e.target.dataset.subId);
+        if (s) s.done = checked;
+      });
+    }
+  });
+  $('taskList').addEventListener('submit', (e) => {
+    const id = e.target.dataset?.subAdd;
+    if (!id) return;
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    const text = input.value;
+    input.value = '';
+    subAddFor = id; // keep the box open for the next one
+    addSubtask(id, text);
+  });
+  $('taskList').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && e.target.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
+  });
+  $('taskList').addEventListener('focusout', (e) => {
+    const form = e.target.closest('[data-sub-add]');
+    // Close an empty box opened with "+" once you click elsewhere.
+    if (form && !e.target.value.trim() && subAddFor === form.dataset.subAdd) {
+      setTimeout(() => {
+        if (subAddFor === form.dataset.subAdd && !document.activeElement?.closest('[data-sub-add]')) { subAddFor = null; renderPlan(); }
+      }, 150);
+    }
   });
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
@@ -440,6 +550,22 @@ function bindPlan() {
     $('taskDialog').close();
   });
   $('taskEditText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveTaskDialog(); } });
+  $('taskEditSubAdd').addEventListener('click', addSubFromEditor);
+  $('taskEditSubInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSubFromEditor(); } });
+  $('taskEditSubs').addEventListener('click', (e) => {
+    const i = e.target.closest('[data-esub-del]')?.dataset.esubDel;
+    if (i === undefined) return;
+    editingSubs.splice(Number(i), 1);
+    renderSubEditor();
+  });
+  $('taskEditSubs').addEventListener('input', (e) => {
+    const { esubText, esubDone } = e.target.dataset;
+    if (esubText !== undefined) editingSubs[Number(esubText)].text = e.target.value;
+    if (esubDone !== undefined) editingSubs[Number(esubDone)].done = e.target.checked;
+  });
+  $('taskEditSubs').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.dataset.esubText !== undefined) { e.preventDefault(); $('taskEditSubInput').focus(); }
+  });
 
   const showEstHint = () => {
     const est = Number($('taskEst').value);

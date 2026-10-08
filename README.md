@@ -10,6 +10,12 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.2
+
+- **Subtasks.** Click + next to a task to break it into smaller steps, then tick them off on the Plan page. "Hide subtasks" and "Show subtasks" collapse the list and show how many are done. You can also add, rename, tick or remove subtasks in the task editor. On a repeating task, subtasks set in the task editor come back unticked each day.
+- **Clearer tray menu.** The tray menu now says "Show Steady" or "Hide Steady", and "Show mini timer" or "Hide mini timer", depending on what's on screen.
+- **Scrolling fix.** Scrolling a page no longer runs past the end into empty space.
+
 ## What's new in 1.3.1
 
 - **More than one calendar.** Connect classic Outlook and any number of calendar links (for example a work Outlook calendar and a personal Google Calendar). Their meetings are combined on the Plan page, labelled with the calendar they came from, and a meeting that appears in two calendars is shown once. If one calendar can't be reached, the others still show. Your existing calendar carries over automatically.
@@ -64,7 +70,7 @@ To build an installer, run `npm run dist`. The installer appears in the `dist` f
 
 ## The tray and the mini timer
 
-Closing the window keeps Steady running in the system tray (the ring icon near the clock, which fills up as your session goes). Click it to open Steady; right-click it to start, pause or end a session, take or skip a waiting break, toggle the mini timer, open your review or quit.
+Closing the window keeps Steady running in the system tray (the ring icon near the clock, which fills up as your session goes). Click it to open Steady; right-click it to start, pause or end a session, take or skip a waiting break, show or hide Steady and the mini timer, open your review or quit.
 
 The mini timer is a small floating window that stays on top of other apps during focus sessions. Drag it anywhere; it remembers where you put it. Its buttons pause or resume, open Steady, or hide it until the next session. In Settings you can show it always, only during sessions, or never.
 

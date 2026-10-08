@@ -199,6 +199,10 @@ kbd {
   display: flex; flex-direction: column; gap: 18px;
   transition: background-color 600ms ease, color 600ms ease;
   overflow-y: auto;
+  /* Keeps hidden screen-reader labels inside the pane; otherwise they stretch the
+     whole window and scrolling runs on into empty space. */
+  position: relative;
+  overscroll-behavior: contain;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { font-family: var(--font-num); font-size: 1.35rem; letter-spacing: 0.02em; }
@@ -305,7 +309,7 @@ body.compact #compactBtn svg path { d: path("M2.5 6V2.5H6M13.5 6V2.5H10M2.5 10v3
 }
 .tab-btn:hover { color: var(--ink); }
 .tab-btn[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--pine); }
-.tab { padding: 22px 32px 48px; overflow-y: auto; flex: 1; }
+.tab { padding: 22px 32px 48px; overflow-y: auto; flex: 1; position: relative; overscroll-behavior: contain; }
 
 .range { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; flex-wrap: wrap; }
 .range button {
@@ -689,3 +693,21 @@ button.task-main:hover { background: var(--tint-pine); }
 .calendar-list .cal-kind { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .cal-add-row { align-items: center; }
 .meet-list .cal-name { margin-left: 8px; color: var(--muted); font-size: 0.85rem; }
+
+/* ---------- Subtasks ---------- */
+
+.subtasks { grid-column: 2 / -1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: -4px; }
+.sub-toggle { font-size: 0.82rem; color: var(--muted); }
+.subtask-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.subtask-list li { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; }
+.subtask-list label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: pointer; }
+.subtask-list label span { overflow-wrap: anywhere; }
+.subtask-list input[type="checkbox"] { width: 15px; height: 15px; flex: none; }
+.subtask-list li.done span { text-decoration: line-through; color: var(--muted); }
+.subtask-list .del { opacity: 0; }
+.subtask-list li:hover .del, .subtask-list .del:focus-visible { opacity: 1; }
+.subtask-list.editable li input[type="text"] { flex: 1; padding: 5px 8px; }
+.subtask-list.editable .del { opacity: 1; }
+.subtask-add { width: 100%; max-width: 420px; }
+.subtask-add input { width: 100%; padding: 5px 8px; font-size: 0.9rem; }
+.task.done .subtasks { opacity: 0.7; }

@@ -182,6 +182,8 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile('index.html');
+  // Keep the tray's Show/Hide Steady label in step with the window.
+  for (const ev of ['show', 'hide', 'minimize', 'restore']) mainWindow.on(ev, updateTray);
 
   // Closing the window keeps Steady running in the tray; "Quit Steady" in the tray menu exits.
   mainWindow.on('close', (e) => {
@@ -209,6 +211,13 @@ function showMain() {
   mainWindow.setAlwaysOnTop(true);
   mainWindow.focus();
   mainWindow.setAlwaysOnTop(false);
+}
+
+const mainVisible = () => !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && !mainWindow.isMinimized());
+
+function toggleMain() {
+  if (mainVisible()) mainWindow.hide();
+  else showMain();
 }
 
 function sendToMain(channel, payload) {
@@ -319,7 +328,7 @@ function updateTray() {
   }[st.state] || 'Ready to focus';
   tray.setToolTip(`Steady\n${tip}`.slice(0, 127));
 
-  const menuKey = `${st.state}|${st.task}|${miniWindow && miniWindow.isVisible()}|${updater.readyVersion()}`;
+  const menuKey = `${st.state}|${st.task}|${miniWindow && miniWindow.isVisible()}|${mainVisible()}|${updater.readyVersion()}`;
   if (menuKey === lastMenuKey) return;
   lastMenuKey = menuKey;
 
@@ -346,13 +355,8 @@ function updateTray() {
   if (st.state === 'checkin') items.push({ label: 'Log session', click: showMain });
 
   items.push({ type: 'separator' });
-  items.push({
-    label: 'Mini timer',
-    type: 'checkbox',
-    checked: !!(miniWindow && miniWindow.isVisible()),
-    click: toggleMini
-  });
-  items.push({ label: 'Open Steady', click: showMain });
+  items.push({ label: mainVisible() ? 'Hide Steady' : 'Show Steady', click: toggleMain });
+  items.push({ label: miniWindow && miniWindow.isVisible() ? 'Hide mini timer' : 'Show mini timer', click: toggleMini });
   items.push({ label: 'Review my day', click: () => { showMain(); sendToMain('command', 'review'); } });
   items.push({ type: 'separator' });
   if (updater.readyVersion()) {
