@@ -10,6 +10,10 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.9
+
+- **Filter and sort your To do list.** Show one project's tasks (or those without a project), sort by your own order, project, most sessions left, least progress, name or newest, and hide finished tasks. Steady remembers your choice. Dragging works in "My order" with all projects shown; "Reset" puts everything back.
+
 ## What's new in 1.3.8
 
 - **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. This replaces the up and down arrow buttons.

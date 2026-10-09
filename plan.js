@@ -542,12 +542,15 @@ function renderPlan() {
   if (typeof renderProjectGoals === 'function') renderProjectGoals();
 
   const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
-  $('taskList').innerHTML = tasks.length
-    ? tasks.map((t) => {
+  const shown = viewTasks(tasks);
+  const dragOk = taskView.sort === 'manual' && taskView.project === 'all';
+  renderTaskView(tasks, shown);
+  $('taskList').innerHTML = shown.length
+    ? shown.map((t) => {
       const meta = taskMeta(t);
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
-      const movable = !t.done && open.length > 1;
+      const movable = dragOk && !t.done && open.length > 1;
       return `<li class="task${t.done ? ' done' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
         ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder (or Alt+↑ / Alt+↓)"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
@@ -563,7 +566,9 @@ function renderPlan() {
         ${subtaskBlock(t, canFocus)}
       </li>`;
     }).join('')
-    : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
+    : tasks.length
+      ? '<li class="empty">No tasks match. <button class="link" type="button" data-view-reset>Show all tasks</button></li>'
+      : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
 
   const left = isToday ? leftoverTasks() : [];
   $('leftoverSection').hidden = !left.length;
@@ -660,6 +665,78 @@ async function maybeNudgePlan() {
   $('nudge').dataset.kind = 'plan';
 }
 
+/* ---------- Filtering and sorting the To do list ---------- */
+
+const TASK_SORTS = [
+  ['manual', 'My order'], ['project', 'Project'], ['left', 'Most sessions left'],
+  ['progress', 'Least progress'], ['name', 'Name A–Z'], ['newest', 'Newest first']
+];
+const taskView = { project: 'all', sort: 'manual', hideDone: false };
+try { Object.assign(taskView, JSON.parse(localStorage.getItem('taskView') || '{}')); } catch { /* storage unavailable */ }
+
+function saveTaskView() {
+  try { localStorage.setItem('taskView', JSON.stringify(taskView)); } catch { /* storage unavailable */ }
+}
+
+function sessionsLeft(t) {
+  return t.est ? Math.max(0, t.est - taskStats(t.id).count) : 0;
+}
+
+// The day's tasks as the To do list shows them: filtered, sorted, open ones first.
+function viewTasks(tasks) {
+  let list = tasks;
+  if (taskView.project === 'none') list = list.filter((t) => !t.projectId);
+  else if (taskView.project !== 'all') list = list.filter((t) => t.projectId === taskView.project);
+  if (taskView.hideDone) list = list.filter((t) => !t.done);
+  const byName = (a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' });
+  const cmp = {
+    manual: () => 0,
+    project: (a, b) => (projectName(a.projectId) || '￿').localeCompare(projectName(b.projectId) || '￿'),
+    left: (a, b) => sessionsLeft(b) - sessionsLeft(a),
+    progress: (a, b) => (taskProgress(a) ?? 0) - (taskProgress(b) ?? 0),
+    name: byName,
+    newest: (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+  }[taskView.sort] || (() => 0);
+  // tasksFor() already gives open-then-done in your order; a stable sort keeps that as the tie-breaker.
+  return list.slice().sort((a, b) => (a.done - b.done) || cmp(a, b));
+}
+
+function renderTaskView(tasks, shown) {
+  const box = $('taskView');
+  box.hidden = tasks.length < 2 && taskView.project === 'all' && !taskView.hideDone;
+  if (box.hidden) return;
+  const used = new Set(tasks.map((t) => t.projectId || 'none'));
+  const projects = activeProjects().filter((p) => used.has(p.id) || p.id === taskView.project);
+  $('taskFilter').innerHTML = `<option value="all">All projects</option>` +
+    projects.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('') +
+    (used.has('none') || taskView.project === 'none' ? '<option value="none">No project</option>' : '');
+  $('taskFilter').value = taskView.project;
+  if ($('taskFilter').value !== taskView.project) { taskView.project = 'all'; $('taskFilter').value = 'all'; }
+  $('taskSort').innerHTML = TASK_SORTS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+  $('taskSort').value = taskView.sort;
+  $('taskHideDone').checked = taskView.hideDone;
+  const hidden = tasks.length - shown.length;
+  const notes = [];
+  if (hidden) notes.push(`${plural(hidden, 'task')} hidden`);
+  if (taskView.sort !== 'manual' || taskView.project !== 'all') notes.push('Switch to My order and All projects to drag');
+  $('taskViewNote').innerHTML = notes.length
+    ? `${esc(notes.join('. '))}. <button class="link" type="button" data-view-reset>Reset</button>`
+    : '';
+  $('taskViewNote').hidden = !notes.length;
+}
+
+function bindTaskView() {
+  const changed = () => { saveTaskView(); renderPlan(); };
+  $('taskFilter').addEventListener('change', (e) => { taskView.project = e.target.value; changed(); });
+  $('taskSort').addEventListener('change', (e) => { taskView.sort = e.target.value; changed(); });
+  $('taskHideDone').addEventListener('change', (e) => { taskView.hideDone = e.target.checked; changed(); });
+  document.querySelector('#taskList').closest('.plan-section').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-view-reset]')) return;
+    Object.assign(taskView, { project: 'all', sort: 'manual', hideDone: false });
+    changed();
+  });
+}
+
 /* ---------- Reordering tasks: drag a row, or Alt+Up / Alt+Down ---------- */
 
 function bindTaskDrag() {
@@ -707,7 +784,7 @@ function bindTaskDrag() {
   list.addEventListener('keydown', async (e) => {
     if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
     const row = e.target.closest('[data-task-row]');
-    if (!row || e.target.matches('input[type="text"]')) return;
+    if (!row || e.target.matches('input[type="text"]') || row.getAttribute('draggable') !== 'true') return;
     e.preventDefault();
     const id = row.dataset.taskRow;
     await moveTask(id, e.key === 'ArrowUp' ? -1 : 1);
@@ -839,6 +916,7 @@ function bindPlan() {
   });
   bindSubtasks();
   bindTaskDrag();
+  bindTaskView();
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
     data.meta.tomorrowNote = null;

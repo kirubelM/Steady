@@ -891,3 +891,13 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 /* Version at the bottom of the timer pane */
 .app-version { margin-left: auto; font-size: 0.75rem; color: var(--pane-muted); opacity: 0.8; font-variant-numeric: tabular-nums; }
 .settings .saved:empty { display: none; }
+
+/* ---------- To do: filter and sort ---------- */
+
+.todo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.task-view { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.task-view select { font-size: 0.82rem; padding: 3px 8px; border-radius: 999px; max-width: 11rem; }
+.hide-done { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.hide-done input { margin: 0; accent-color: var(--pine); }
+.task-view-note { margin: 8px 0 0; }
+.task-view-note .link { font-size: inherit; color: var(--pine); }

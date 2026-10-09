@@ -116,7 +116,16 @@
         <section id="goalsSection" class="plan-section" hidden></section>
 
         <section class="plan-section">
-          <h3>To do</h3>
+          <div class="todo-head">
+            <h3>To do</h3>
+            <div id="taskView" class="task-view" hidden>
+              <label for="taskFilter" class="sr-only">Show tasks from</label>
+              <select id="taskFilter" title="Show tasks from"></select>
+              <label for="taskSort" class="sr-only">Sort tasks by</label>
+              <select id="taskSort" title="Sort tasks by"></select>
+              <label class="hide-done"><input id="taskHideDone" type="checkbox"> Hide done</label>
+            </div>
+          </div>
           <form id="taskForm" class="task-form">
             <label for="taskInput" class="sr-only">New task</label>
             <input id="taskInput" type="text" maxlength="140" placeholder="Add a task for today" autocomplete="off">
@@ -135,6 +144,7 @@
           </form>
           <p id="estHint" class="field-note est-hint" hidden></p>
           <p id="planSummary" class="summary"></p>
+          <p id="taskViewNote" class="field-note task-view-note" hidden></p>
           <ul id="taskList" class="task-list"></ul>
           <section id="leftoverSection" class="leftovers" hidden>
             <div class="leftover-head">
