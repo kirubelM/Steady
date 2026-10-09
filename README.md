@@ -10,6 +10,12 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.7
+
+- **Settings by category.** Settings are grouped into Focus, Breaks, Projects and tasks, Calendar, Distractions, Appearance and startup, Data and backups, and Help and about, and you see one group at a time. Steady remembers the last group you opened.
+- **Version number.** The version shows at the bottom of the timer pane and under Settings, then Help and about, then About Steady, where "Check for updates" checks right away.
+- **More reliable updates.** If an update check fails, for example because you were offline, Steady tries again after 10 minutes instead of 6 hours, and checks again when your PC wakes from sleep.
+
 ## What's new in 1.3.6
 
 - **Less clutter on the Plan page.** The "sessions left" estimate moved into the Tasks tile. With no meetings, the schedule is a single line instead of an empty timeline. Tasks show just their project and repeat, with the progress bar covering sessions. The move-up, move-down and add-subtask buttons appear when you hover a task; Focus is always there.

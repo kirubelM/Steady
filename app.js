@@ -208,6 +208,7 @@ function bind() {
   bindCalendars();
 
   bindScrollPolish();
+  bindSettingsNav();
   bindPlan();
   bindRecurring();
   bindShortcuts();

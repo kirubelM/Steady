@@ -355,3 +355,56 @@ async function saveSettings(ev) {
   renderPlan();
   if (!$('tab-insights').hidden) renderInsights();
 }
+
+/* ---------- Settings sections: one category at a time ---------- */
+
+const SETTINGS_CATS = [
+  ['focus', 'Focus'], ['breaks', 'Breaks'], ['plan', 'Projects and tasks'], ['calendar', 'Calendar'],
+  ['distractions', 'Distractions'], ['appearance', 'Appearance and startup'], ['data', 'Data and backups'], ['help', 'Help and about']
+];
+let settingsCat = 'focus';
+try { settingsCat = localStorage.getItem('settingsCat') || 'focus'; } catch { /* storage unavailable */ }
+
+function showSettingsCat(cat) {
+  if (!SETTINGS_CATS.some(([id]) => id === cat)) cat = 'focus';
+  settingsCat = cat;
+  try { localStorage.setItem('settingsCat', cat); } catch { /* storage unavailable */ }
+  $('settingsNav').innerHTML = SETTINGS_CATS.map(([id, label]) =>
+    `<button type="button" data-cat-btn="${id}" aria-current="${id === cat ? 'page' : 'false'}">${esc(label)}</button>`).join('');
+  document.querySelectorAll('#tab-settings [data-cat]').forEach((el) => { el.hidden = el.dataset.cat !== cat; });
+  // Hide wrappers (and the Save button's form) that have nothing to show in this category.
+  document.querySelectorAll('#tab-settings .settings').forEach((box) => {
+    box.hidden = ![...box.querySelectorAll('[data-cat]')].some((el) => !el.hidden);
+  });
+  $('tab-settings').scrollTop = 0;
+}
+
+function bindSettingsNav() {
+  $('settingsNav').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cat-btn]');
+    if (b) showSettingsCat(b.dataset.catBtn);
+  });
+  showSettingsCat(settingsCat);
+
+  api.appVersion().then((v) => {
+    $('appVersion').textContent = v;
+    $('appVersionHint').textContent = `v${v}`;
+    $('appVersionHint').title = `Steady ${v}`;
+  });
+  const msg = $('updateMsg');
+  $('checkUpdatesBtn').addEventListener('click', async () => {
+    msg.textContent = 'Checking…';
+    $('checkUpdatesBtn').disabled = true;
+    const r = await api.checkUpdates();
+    $('checkUpdatesBtn').disabled = false;
+    $('installUpdateBtn').hidden = r.state !== 'ready';
+    msg.textContent = {
+      dev: 'Updates only work in the installed app.',
+      latest: "You're up to date.",
+      downloading: `Downloading version ${r.version}. You'll get a notification when it's ready to install.`,
+      ready: `Version ${r.version} is ready to install.`,
+      error: "Couldn't check for updates. Check your internet connection and try again."
+    }[r.state] || '';
+  });
+  $('installUpdateBtn').addEventListener('click', () => api.installUpdate());
+}

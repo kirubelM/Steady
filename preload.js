@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('steady', {
   log: (level, msg, detail) => ipcRenderer.send('log:write', { level, msg, detail }),
   diagnostics: () => ipcRenderer.invoke('diag:get'),
   openLogs: () => ipcRenderer.send('diag:open-logs'),
+  appVersion: () => ipcRenderer.invoke('app:version'),
+  checkUpdates: () => ipcRenderer.invoke('update:check'),
+  installUpdate: () => ipcRenderer.send('update:install'),
   onRecovered: (cb) => ipcRenderer.on('recovered', (_e, name) => cb(name)),
 
   // Calendar

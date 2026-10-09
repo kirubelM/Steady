@@ -832,6 +832,9 @@ ipcMain.handle('diag:get', () => ({
   log: log.tail(80)
 }));
 ipcMain.on('diag:open-logs', () => shell.openPath(log.dir()));
+ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('update:check', () => updater.checkNow());
+ipcMain.on('update:install', () => { if (updater.readyVersion()) updater.installNow(); });
 
 /* ---------- Calendar ---------- */
 

@@ -77,6 +77,7 @@
       <div class="hint">
         <button id="miniLink" class="link" type="button">Show mini timer</button>
         <button id="shortcutsLink" class="link" type="button" title="Quick capture, the command menu and every other shortcut">Keyboard shortcuts <kbd>?</kbd></button>
+        <span id="appVersionHint" class="app-version"></span>
       </div>
     </section>
 
@@ -241,9 +242,12 @@
       <!-- Settings -->
       <div id="tab-settings" class="tab" role="tabpanel" hidden>
         <h2>Settings</h2>
+        <div class="settings-layout">
+        <nav id="settingsNav" class="settings-nav" aria-label="Settings sections"></nav>
+        <div class="settings-body">
 
         <section class="settings">
-          <fieldset>
+          <fieldset data-cat="plan">
             <legend>Projects</legend>
             <p class="field-note">Group tasks and logged time by project. Click a color to change it.</p>
             <ul id="projectList" class="project-list"></ul>
@@ -256,14 +260,14 @@
         </section>
 
         <section class="settings">
-          <fieldset>
+          <fieldset data-cat="plan">
             <legend>Repeating tasks</legend>
             <ul id="recurringList" class="recurring-list"></ul>
           </fieldset>
         </section>
 
         <form id="settingsForm" class="settings">
-          <fieldset>
+          <fieldset data-cat="focus">
             <legend>Session lengths</legend>
             <p class="field-note">Pick one of these under the timer before each session. Tasks remember the length you last used for them.</p>
             <ul id="presetSettings" class="preset-settings"></ul>
@@ -271,7 +275,7 @@
             <label>Long break after every <span><input name="longEvery" type="number" min="2" max="12"> sessions</span></label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="breaks">
             <legend>Breaks</legend>
             <label class="check"><input name="strictBreaks" type="checkbox"> Hide the skip button until halfway through a break</label>
             <label>Snooze a break for <span><input name="snoozeMin" type="number" min="1" max="30"> min</span></label>
@@ -279,7 +283,7 @@
             <label class="check"><input name="meetingAware" type="checkbox"> Hold breaks and reminders while I'm in a call or presenting</label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="appearance">
             <legend>Look and feel</legend>
             <label>Theme
               <span><select name="theme">
@@ -299,7 +303,7 @@
             <label class="check"><input name="soundInBreaks" type="checkbox"> Keep playing focus sounds during breaks</label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="focus">
             <legend>Goal and reviews</legend>
             <label>Daily focus goal (0 turns it off) <span><input name="dailyGoalMin" type="number" min="0" max="720" step="15"> min</span></label>
             <label class="check"><input name="reviewEnabled" type="checkbox"> Show an end-of-day review</label>
@@ -318,7 +322,7 @@
             </label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="calendar">
             <legend>Calendar</legend>
             <p class="field-note">See your meetings on the Plan page, how much focus time is left, and get a reminder before each meeting. You can connect several calendars; their meetings are combined.</p>
             <ul id="calendarList" class="project-list calendar-list"></ul>
@@ -346,7 +350,7 @@
             <label>My workday ends <span><input name="workEnd" type="time"></span></label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="focus">
             <legend>Reminders</legend>
             <label class="check"><input name="eyeBreaks" type="checkbox"> Eye-break nudges during focus sessions (20-20-20 rule)</label>
             <label>Nudge every <span><input name="eyeEveryMin" type="number" min="5" max="120"> min</span></label>
@@ -356,14 +360,14 @@
             <label>Count me as away after <span><input name="idlePauseMin" type="number" min="1" max="60"> min</span></label>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="appearance">
             <legend>Startup</legend>
             <label class="check"><input name="startAtLogin" type="checkbox"> Open Steady when I sign in to Windows</label>
             <label class="check"><input name="startMinimized" type="checkbox"> Start quietly in the system tray</label>
             <p id="startupNote" class="field-note" hidden>This works in the installed version of Steady. Run <code>npm run dist</code> and install it from the <code>dist</code> folder to turn it on.</p>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="distractions">
             <legend>Distractions</legend>
             <label class="stack">Nudge me when a window title contains (one per line)
               <textarea name="distractionKeywords" rows="5"></textarea>
@@ -381,7 +385,7 @@
         </form>
 
         <section class="settings">
-          <fieldset>
+          <fieldset data-cat="data">
             <legend>Backups and your data</legend>
             <p id="backupInfo" class="field-note"></p>
             <label>Keep daily backups for <span><input id="backupKeepDays" type="number" min="3" max="365"> days</span></label>
@@ -399,13 +403,23 @@
             <p id="dataCareMsg" class="saved" role="status"></p>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="help">
+            <legend>About Steady</legend>
+            <p class="about-version">Version <strong id="appVersion">…</strong></p>
+            <div class="button-row">
+              <button id="checkUpdatesBtn" class="btn small" type="button">Check for updates</button>
+              <button id="installUpdateBtn" class="btn small primary" type="button" hidden>Restart to update</button>
+            </div>
+            <p id="updateMsg" class="saved" role="status"></p>
+          </fieldset>
+
+          <fieldset data-cat="help">
             <legend>Keyboard shortcuts</legend>
             <p class="field-note">Press <kbd>Ctrl</kbd> <kbd>K</kbd> anywhere in Steady to search every command.</p>
             <div class="button-row"><button id="shortcutsBtn" class="btn small" type="button">Show all shortcuts</button></div>
           </fieldset>
 
-          <fieldset>
+          <fieldset data-cat="help">
             <legend>Something not working?</legend>
             <p class="field-note">Steady keeps a small log of errors. Copy a report to share when asking for help. It contains no task names, notes or window titles.</p>
             <div class="button-row">
@@ -415,6 +429,8 @@
             <p id="diagMsg" class="saved" role="status"></p>
           </fieldset>
         </section>
+        </div>
+        </div>
       </div>
     </section>
   </main>

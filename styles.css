@@ -849,3 +849,33 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 .hint .link:hover { color: var(--pane-ink); }
 .hint kbd { font-size: 0.72rem; padding: 0 5px; margin-left: 2px; }
 .g-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+
+/* ---------- Settings: categories ---------- */
+
+.settings-layout { margin-top: 14px; display: flex; flex-direction: column; gap: 16px; }
+.settings-nav { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: -22px; z-index: 1; padding: 8px 0; background: var(--fog); }
+.settings-nav button {
+  font: inherit; font-size: 0.88rem; cursor: pointer; color: var(--muted);
+  background: transparent; border: 1px solid var(--card-line); border-radius: 999px; padding: 5px 14px;
+}
+.settings-nav button:hover { color: var(--ink); background: var(--tint-pine); }
+.settings-nav button[aria-current="page"] { background: var(--pine); border-color: var(--pine); color: var(--on-accent); font-weight: 600; }
+.settings-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.settings-body > .settings { max-width: none; margin-top: 0; }
+
+@media (min-width: 1200px) {
+  .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 28px; align-items: start; }
+  .settings-nav { flex-direction: column; flex-wrap: nowrap; gap: 2px; top: 0; padding: 0; background: none; }
+  .settings-nav button { text-align: left; border: 0; border-radius: 8px; padding: 8px 12px; }
+  .settings-nav button[aria-current="page"] { background: var(--paper); color: var(--ink); box-shadow: var(--card-shadow); border-left: 3px solid var(--pine); }
+}
+
+/* Settings sections as cards, with the title inside */
+.settings fieldset { background: var(--paper); border-color: var(--card-line); border-radius: 14px; box-shadow: var(--card-shadow); padding: 16px 20px 18px; }
+.settings legend { float: left; width: 100%; padding: 0; margin: 0 0 2px; font-size: 1.02rem; }
+.settings-actions { position: sticky; bottom: -48px; padding: 12px 0 14px; background: linear-gradient(transparent, var(--fog) 35%); }
+.about-version { margin: 0; }
+
+/* Version at the bottom of the timer pane */
+.app-version { margin-left: auto; font-size: 0.75rem; color: var(--pane-muted); opacity: 0.8; font-variant-numeric: tabular-nums; }
+.settings .saved:empty { display: none; }
