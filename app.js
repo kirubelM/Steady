@@ -210,6 +210,7 @@ function bind() {
 
   bindScrollPolish();
   bindPlanning();
+  bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
   bindPlan();

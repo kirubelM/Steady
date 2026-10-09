@@ -35,40 +35,90 @@ function renderLog() {
   $('summary').textContent = parts.length ? parts.join(', ') + '.' : '';
 
   if (!entries.length) {
+    renderLogFilter(entries);
     $('logList').innerHTML = viewDay === today
       ? emptyState('clock', 'Nothing logged yet', 'Start a focus session, or use "Add entry" to record something you did.')
       : emptyState('clock', 'Nothing was logged on this day', 'Use "Add entry" to fill it in.');
     return;
   }
 
-  $('logList').innerHTML = entries.map((e) => {
-    if (e.type === 'break') {
-      const label = e.kind === 'long' ? 'Long break' : 'Short break';
-      return `<li class="entry break">
-        <div class="when">${fmtTime(e.start)}</div>
-        <div><p class="meta">${label}${e.skipped ? ', skipped' : ''}${e.snoozes ? `, snoozed ${plural(e.snoozes, 'time')}` : ''}, ${fmtMins(Math.max(60, (e.end - e.start) / 1000))}</p></div>
-        <div class="entry-actions"><button class="del" data-del="${e.id}" type="button" aria-label="Delete this break">×</button></div>
-      </li>`;
-    }
-    const apps = (e.apps || []).slice(0, 3).map((a) => esc(a.name)).join(', ');
-    const meta = [];
-    if (e.type === 'session') meta.push(`${fmtMins(e.focusSec || 0)} focused${e.early ? ' (ended early)' : ''}`);
-    else if (e.type === 'checkin') meta.push(`Check-in, ${fmtMins(workSec(e))}`);
-    else meta.push(workSec(e) ? `Added by you, ${fmtMins(workSec(e))}` : 'Added by you');
-    if (apps) meta.push(apps);
-    if (e.distractions?.length) meta.push(plural(e.distractions.length, 'drift'));
-    const when = e.end > e.start ? `${fmtTime(e.start)} – ${fmtTime(e.end)}` : fmtTime(e.start);
-    return `<li class="entry ${e.type}">
-      <div class="when">${when}</div>
-      <div>
-        <p class="note">${esc(e.note)}</p>
-        <p class="meta">${e.rating ? `<span class="chip ${esc(e.rating)}">${RATING_LABELS[e.rating]}</span>` : ''}${projectChip(e.projectId)}${meta.join('. ')}</p>
-      </div>
-      <div class="entry-actions">
-        <button class="link" data-edit="${e.id}" type="button">Edit</button>
-      </div>
+  const shown = logType === 'all' ? entries : entries.filter((e) => e.type === logType);
+  renderLogFilter(entries);
+  $('logList').innerHTML = shown.length ? shown.map(entryHtml).join('')
+    : emptyState('clock', `No ${ENTRY_TYPES[logType].plural} on this day`, '');
+}
+
+/* ---------- Work log entries: each kind has its own color, icon and label ---------- */
+
+const ENTRY_TYPES = {
+  session: { label: 'Focus session', plural: 'focus sessions', short: 'Sessions', icon: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>' },
+  checkin: { label: 'Check-in', plural: 'check-ins', short: 'Check-ins', icon: '<path d="M2.5 3.5h11v7.5H7.5L4.5 13.5V11h-2z"/>' },
+  manual: { label: 'Added by you', plural: 'entries you added', short: 'Added', icon: '<path d="M10.5 2.5l3 3-7.5 7.5H3v-3z"/><path d="M9 4l3 3"/>' },
+  break: { label: 'Break', plural: 'breaks', short: 'Breaks', icon: '<path d="M3 6h8v3.5A3.5 3.5 0 0 1 7.5 13h-1A3.5 3.5 0 0 1 3 9.5z"/><path d="M11 7h1a1.75 1.75 0 0 1 0 3.5h-1"/><path d="M5.5 2.5v1.5M8.5 2.5v1.5"/>' }
+};
+let logType = 'all';
+try { logType = localStorage.getItem('logType') || 'all'; } catch { /* storage unavailable */ }
+if (!ENTRY_TYPES[logType] && logType !== 'all') logType = 'all';
+
+const typeIcon = (type) => `<svg viewBox="0 0 16 16" aria-hidden="true">${ENTRY_TYPES[type].icon}</svg>`;
+
+function renderLogFilter(entries) {
+  const counts = { all: entries.length };
+  entries.forEach((e) => { counts[e.type] = (counts[e.type] || 0) + 1; });
+  $('logFilter').hidden = !entries.length;
+  $('logFilter').innerHTML = [['all', 'All'], ...Object.entries(ENTRY_TYPES).map(([k, v]) => [k, v.short])]
+    .filter(([k]) => k === 'all' || counts[k])
+    .map(([k, label]) => `<button type="button" class="lf-chip t-${k}" data-log-type="${k}" aria-pressed="${logType === k}">
+      ${k === 'all' ? '' : `<span class="lf-dot">${typeIcon(k)}</span>`}${label}<span class="lf-count">${counts[k] || 0}</span></button>`).join('');
+}
+
+function entryHtml(e) {
+  const type = ENTRY_TYPES[e.type] ? e.type : 'manual';
+  const color = projectById(e.projectId)?.color;
+  const node = `<span class="entry-node" aria-hidden="true">${typeIcon(type)}</span>`;
+  if (type === 'break') {
+    const label = e.kind === 'long' ? 'Long break' : 'Short break';
+    return `<li class="entry t-break${e.skipped ? ' skipped' : ''}">
+      ${node}
+      <div class="when">${fmtTime(e.start)}</div>
+      <div class="entry-body"><p class="meta"><span class="type-badge">${e.skipped ? 'Skipped break' : label}</span>${fmtMins(Math.max(60, (e.end - e.start) / 1000))}${e.snoozes ? `, snoozed ${plural(e.snoozes, 'time')}` : ''}</p></div>
+      <div class="entry-actions"><button class="del" data-del="${e.id}" type="button" aria-label="Delete this break">×</button></div>
     </li>`;
-  }).join('');
+  }
+  const apps = (e.apps || []).slice(0, 3).map((a) => esc(a.name)).join(', ');
+  const meta = [];
+  if (type === 'session') meta.push(`${fmtMins(e.focusSec || 0)} focused${e.early ? ' (ended early)' : ''}`);
+  else if (workSec(e)) meta.push(fmtMins(workSec(e)));
+  if (apps) meta.push(apps);
+  if (e.distractions?.length) meta.push(plural(e.distractions.length, 'drift'));
+  const goal = type === 'session' && e.goal
+    ? `<p class="entry-goal goal-${e.goalHit || 'none'}">◎ ${esc(e.goal)}${e.goalHit ? ` <span>${{ yes: 'reached', partly: 'partly reached', no: 'not reached' }[e.goalHit]}</span>` : ''}</p>`
+    : '';
+  const when = e.end > e.start ? `${fmtTime(e.start)} – ${fmtTime(e.end)}` : fmtTime(e.start);
+  // The type keeps its own color; a session's project shows on its left edge and chip.
+  return `<li class="entry t-${type}"${color && type === 'session' ? ` style="--edge:${color}"` : ''}>
+    ${node}
+    <div class="when">${when}</div>
+    <div class="entry-body">
+      <span class="type-badge">${ENTRY_TYPES[type].label}</span>
+      <p class="note">${esc(e.note)}</p>
+      ${goal}
+      <p class="meta">${e.rating ? `<span class="chip ${esc(e.rating)}">${RATING_LABELS[e.rating]}</span>` : ''}${projectChip(e.projectId)}${meta.join('. ')}</p>
+    </div>
+    <div class="entry-actions">
+      <button class="link" data-edit="${e.id}" type="button">Edit</button>
+    </div>
+  </li>`;
+}
+
+function bindLogFilter() {
+  $('logFilter').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-log-type]');
+    if (!b) return;
+    logType = b.dataset.logType;
+    try { localStorage.setItem('logType', logType); } catch { /* storage unavailable */ }
+    renderLog();
+  });
 }
 
 function shiftDay(n) {

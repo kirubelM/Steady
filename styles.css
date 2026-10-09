@@ -1202,3 +1202,66 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .welcome-goals span { display: inline-block; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); font-family: var(--font-num); font-size: 1rem; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
 .welcome-goals input:checked + span { background: var(--pine); border-color: var(--pine); color: var(--on-accent); }
 .welcome-goals input:focus-visible + span { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* ---------- Work log: each kind of entry looks different ---------- */
+
+:root { --t-session: var(--pine); --t-checkin: #3E73B8; --t-manual: #8A5BB5; --t-break: var(--amber); }
+@media (prefers-color-scheme: dark) { :root { --t-checkin: #7FA8DC; --t-manual: #B98FDB; } }
+.t-session { --tc: var(--t-session); }
+.t-checkin { --tc: var(--t-checkin); }
+.t-manual { --tc: var(--t-manual); }
+.t-break { --tc: var(--t-break); }
+
+/* Filter chips double as the legend */
+.log-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.lf-chip {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.84rem; cursor: pointer;
+  padding: 4px 10px 4px 8px; border-radius: 999px; border: 1px solid var(--card-line, var(--line)); background: var(--card, var(--paper)); color: var(--ink);
+}
+.lf-chip.t-all { padding-left: 12px; }
+.lf-chip:hover { border-color: var(--tc, var(--muted)); }
+.lf-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--tc, var(--pine)) 16%, var(--card, var(--paper))); border-color: var(--tc, var(--pine)); font-weight: 600; }
+.lf-dot { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--tc); color: #fff; }
+.lf-dot svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.lf-count { font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Timeline rail with an icon node per entry */
+.log-list { border-left: 2px solid var(--card-line, var(--line)); margin-left: 14px; padding-left: 0; }
+.entry { grid-template-columns: 8.5rem 1fr auto; padding: 10px 14px 10px 26px; margin: 0 0 10px 0; border-radius: 0 12px 12px 0; }
+.entry::before { content: none; }
+.entry-node {
+  position: absolute; left: -15px; top: 12px; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--tc); color: #fff;
+  box-shadow: 0 0 0 3px var(--fog);
+}
+.entry-node svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.entry-body { min-width: 0; }
+.type-badge {
+  display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tc); margin-bottom: 2px;
+}
+.entry .when { padding-top: 6px; }
+
+/* Focus sessions: solid card with a colored edge */
+.entry.t-session { background: var(--card, var(--paper)); box-shadow: var(--card-shadow); border-left: 4px solid var(--edge, var(--tc)); }
+/* Check-ins: soft tinted card */
+.entry.t-checkin { background: color-mix(in srgb, var(--t-checkin) 9%, var(--card, var(--paper))); border-left: 4px solid color-mix(in srgb, var(--t-checkin) 60%, transparent); }
+/* Added by you: dashed card */
+.entry.t-manual { background: color-mix(in srgb, var(--t-manual) 6%, transparent); border: 1.5px dashed color-mix(in srgb, var(--t-manual) 55%, transparent); border-left-width: 4px; border-left-style: dashed; }
+/* Breaks: slim amber strip */
+.entry.t-break { padding-block: 4px; background: var(--tint-amber); margin-bottom: 8px; align-items: center; }
+.entry.t-break .entry-node { width: 22px; height: 22px; left: -12px; top: 7px; }
+.entry.t-break .entry-node svg { width: 12px; height: 12px; }
+.entry.t-break .when { padding-top: 0; }
+.entry.t-break .meta { margin: 0; }
+.entry.t-break .type-badge { margin: 0 8px 0 0; }
+.entry.t-break.skipped { background: transparent; opacity: 0.6; }
+.entry.t-break.skipped .entry-node { background: var(--muted); }
+.entry.t-break.skipped .type-badge { color: var(--muted); }
+
+/* Session goal line in the log */
+.entry-goal { margin: 3px 0 0; font-size: 0.86rem; color: var(--ink); }
+.entry-goal span { font-size: 0.75rem; font-weight: 600; padding: 0 7px; border-radius: 999px; margin-left: 4px; }
+.goal-yes span { background: var(--tint-pine); color: var(--pine); }
+.goal-partly span { background: var(--tint-amber); color: var(--amber-ink); }
+.goal-no span { background: var(--tint-berry); color: var(--berry); }

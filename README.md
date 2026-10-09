@@ -12,6 +12,10 @@ To build an installer, run `npm run dist`. The installer appears in the `dist` f
 
 Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calendars, saved-data upgrades, streaks and milestones) and that every file the app needs is included in the installer. The tests also run on GitHub for every push, and a release is only built if they pass.
 
+## What's new in 1.6.1
+
+- **A clearer work log.** Each kind of entry has its own color, icon and label. Focus sessions are solid cards (with the project's color on the edge), check-ins are soft blue cards, things you added yourself are dashed violet cards, and breaks are slim amber strips (skipped ones greyed out). Session goals show on their session with whether you reached them. Chips at the top filter by type and show how many of each there were.
+
 ## What's new in 1.6
 
 - **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or set a time in the task editor. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
