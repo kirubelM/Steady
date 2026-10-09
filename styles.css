@@ -901,3 +901,75 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 .hide-done input { margin: 0; accent-color: var(--pine); }
 .task-view-note { margin: 8px 0 0; }
 .task-view-note .link { font-size: inherit; color: var(--pine); }
+
+/* ---------- 1.4 expressive: states, motion, type ---------- */
+
+/* Focus: a slow drifting gradient behind the timer and a breathing glow on the ring. */
+body[data-state="focus"] .focus-pane,
+body[data-state="paused"] .focus-pane {
+  background-image: radial-gradient(circle at 30% 20%, rgba(76, 150, 135, 0.55) 0, transparent 45%),
+    radial-gradient(circle at 75% 85%, rgba(14, 40, 36, 0.7) 0, transparent 50%);
+  background-size: 180% 180%;
+  animation: pane-drift 24s ease-in-out infinite alternate;
+}
+@keyframes pane-drift { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+body[data-state="focus"] .ring-progress { filter: drop-shadow(0 0 6px rgba(159, 212, 200, 0.7)); animation: ring-breathe 4s ease-in-out infinite; }
+@keyframes ring-breathe { 50% { filter: drop-shadow(0 0 12px rgba(159, 212, 200, 0.95)); } }
+
+/* Paused: color drains and the ring pulses softly. */
+body[data-state="paused"] .focus-pane { filter: saturate(0.4); }
+body[data-state="paused"] .ring-progress { animation: ring-paused 2.4s ease-in-out infinite; }
+@keyframes ring-paused { 50% { opacity: 0.45; } }
+
+/* Break: the whole pane goes warm amber. */
+body[data-state="break"], body[data-state="breakPending"] {
+  --pane-bg: #F6E6C4;
+  --pane-ink: #3E2A08;
+  --pane-muted: #7A5A22;
+  --ring-track: rgba(138, 90, 18, 0.18);
+  --ring-color: var(--amber);
+}
+body[data-state="break"] .focus-pane, body[data-state="breakPending"] .focus-pane {
+  background-image: radial-gradient(circle at 25% 25%, #FBE3B0 0, transparent 50%), radial-gradient(circle at 80% 80%, #F1CD86 0, transparent 55%);
+  background-size: 180% 180%;
+  animation: pane-drift 30s ease-in-out infinite alternate;
+  --scroll-thumb: rgba(62, 42, 8, 0.25);
+}
+body[data-state="break"] .ring-progress, body[data-state="breakPending"] .ring-progress { filter: drop-shadow(0 0 5px rgba(210, 154, 46, 0.55)); }
+body[data-state="break"] .focus-pane .btn.primary, body[data-state="breakPending"] .focus-pane .btn.primary { background: #8A5A12; border-color: #8A5A12; color: #FFF6E5; }
+body[data-state="break"] .focus-pane .btn:not(.primary), body[data-state="breakPending"] .focus-pane .btn:not(.primary) { border-color: rgba(62, 42, 8, 0.3); color: #3E2A08; }
+body[data-state="break"] .focus-pane select, body[data-state="breakPending"] .focus-pane select { background: rgba(255, 255, 255, 0.5); color: #3E2A08; }
+body[data-state="break"] .goal-track span, body[data-state="breakPending"] .goal-track span { background: linear-gradient(90deg, var(--amber), #F0CF8A); }
+
+/* Goal reached: a gold, glowing ring while you're between sessions. */
+body.goal-met[data-state="idle"] .ring-progress { stroke: url(#ringGold); filter: drop-shadow(0 0 8px rgba(210, 154, 46, 0.6)); }
+body.goal-met[data-state="idle"] .phase { color: var(--amber-ink); font-weight: 600; }
+.ring-burst { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.ring-burst i { position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); opacity: 0; }
+.ring-burst.go i { animation: ring-pop 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+@keyframes ring-pop {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1); }
+}
+
+/* Plan heading: a greeting, a big day name in the number font, the date beside it. */
+.plan-greeting { margin: 0 0 6px; color: var(--muted); font-size: 0.95rem; max-width: 860px; }
+.plan-nav > div { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.plan-nav h2 { font-family: var(--font-num); font-size: 2.1rem; line-height: 1.05; letter-spacing: 0.01em; }
+.plan-date { font-size: 1rem; }
+.g-value { font-size: 1.4rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Ticking a task: tick fills with the project color, the text strikes through, the row settles. */
+.task input[type="checkbox"] { accent-color: var(--pc, var(--pine)); transition: transform 0.2s ease; }
+.task input[type="checkbox"]:checked { animation: tick-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes tick-pop { 50% { transform: scale(1.25); } }
+.task .task-text { background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px; transition: background-size 0.4s ease, color 0.4s ease; }
+.task.done .task-text, .task.completing .task-text { text-decoration: none; background-size: 100% 1.5px; color: var(--muted); }
+.task.completing { animation: task-settle 0.3s ease 0.38s forwards; }
+@keyframes task-settle { to { opacity: 0; transform: translateY(6px); } }
+.task.fresh { animation: task-enter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes task-enter { from { opacity: 0; transform: translateY(-6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; }
+}

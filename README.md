@@ -10,6 +10,13 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.4
+
+- **A timer that shows how you're doing.** During a session, the timer pane has a slowly moving green background and the ring glows softly. When paused, the color drains and the ring pulses. Breaks turn the pane warm amber. Once you reach your daily goal, the ring turns gold, with a short celebration the moment you hit it.
+- **A livelier Plan page.** A greeting ("Good morning. 4 tasks and 5 h free today."), a big day heading with the date beside it, and numbers in the tiles that count up when you open the page.
+- **Ticking off tasks.** The checkbox fills with the project's color, the text strikes through, and the task settles into the finished group. New tasks ease in.
+- All of this follows Windows' "reduce animations" setting: with it on, everything changes instantly.
+
 ## What's new in 1.3.9
 
 - **Filter and sort your To do list.** Show one project's tasks (or those without a project), sort by your own order, project, most sessions left, least progress, name or newest, and hide finished tasks. Steady remembers your choice. Dragging works in "My order" with all projects shown; "Reset" puts everything back.

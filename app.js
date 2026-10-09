@@ -9,7 +9,7 @@ function showTab(name) {
   TABS.forEach((t) => { $(`tab-${t}`).hidden = t !== name; });
   $('tip').hidden = true;
   if (name === 'insights') renderInsights();
-  if (name === 'plan') renderPlan();
+  if (name === 'plan') { glanceCountUp = true; renderPlan(); }
   if (name === 'log') renderLog();
   if (name === 'settings') { renderBackups(); renderRecurringSettings(); }
   document.querySelector('.panel').classList.toggle('scrolled', $(`tab-${name}`).scrollTop > 4);

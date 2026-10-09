@@ -20,6 +20,21 @@ function renderGoal() {
   if (typeof renderGlance === 'function' && !$('tab-plan').hidden) renderGlance();
 }
 
+// A short burst around the timer ring when the day's goal is reached.
+function celebrate() {
+  const box = $('ringBurst');
+  if (!box) return;
+  box.innerHTML = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * Math.PI * 2;
+    const d = 115 + (i % 3) * 16;
+    return `<i style="--x:${(Math.cos(a) * d).toFixed(0)}px;--y:${(Math.sin(a) * d).toFixed(0)}px;animation-delay:${(i % 4) * 40}ms${i % 2 ? ';background:#9FD4C8' : ''}"></i>`;
+  }).join('');
+  box.classList.remove('go');
+  void box.offsetWidth;
+  box.classList.add('go');
+  setTimeout(() => { box.classList.remove('go'); box.innerHTML = ''; }, 1600);
+}
+
 async function checkGoal() {
   const goalSec = (settings.dailyGoalMin || 0) * 60;
   const today = dayKey(Date.now());
@@ -27,6 +42,7 @@ async function checkGoal() {
   data.meta.goalHitDay = today;
   await persist('meta');
   api.notify('Daily goal reached', `You've focused for ${fmtMins(todayFocusSec())} today.`);
+  celebrate();
   showNudge(`You hit today's focus goal of ${fmtMins(goalSec)}. Anything more is a bonus.`, 'info', true);
 }
 

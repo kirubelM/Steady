@@ -20,9 +20,11 @@
 
       <div class="ring-wrap">
         <svg class="ring" viewBox="0 0 280 280" aria-hidden="true">
+          <defs><linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F0CF8A"/><stop offset="1" stop-color="#D29A2E"/></linearGradient></defs>
           <circle class="ring-track" cx="140" cy="140" r="120"></circle>
           <circle id="ringProgress" class="ring-progress" cx="140" cy="140" r="120"></circle>
         </svg>
+        <div id="ringBurst" class="ring-burst" aria-hidden="true"></div>
         <div class="ring-text">
           <span id="time" class="time">30:00</span>
           <span id="phase" class="phase">Ready</span>
@@ -92,6 +94,7 @@
 
       <!-- Plan: a page per day -->
       <div id="tab-plan" class="tab" role="tabpanel">
+        <p id="planGreeting" class="plan-greeting" hidden></p>
         <div class="plan-head">
           <div class="plan-nav">
             <button id="planPrev" class="icon-btn" type="button" aria-label="Previous day">‹</button>

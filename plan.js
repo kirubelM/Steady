@@ -40,9 +40,12 @@ function nextOrder(day) {
   return same.length ? Math.max(...same.map((t) => t.order)) + 1 : 0;
 }
 
+let freshTaskId = null; // the task just added, so it can ease in
+
 async function addTask(text, est = 0, day = todayKey(), projectId = null) {
+  freshTaskId = uid();
   data.tasks.push({
-    id: uid(), text: text.trim(), day, est: Number(est) || 0, projectId: projectId || null,
+    id: freshTaskId, text: text.trim(), day, est: Number(est) || 0, projectId: projectId || null,
     done: false, doneAt: null, createdAt: Date.now(), order: nextOrder(day)
   });
   await persist('tasks');
@@ -144,7 +147,45 @@ function taskMeta(t) {
   return parts.join(', ');
 }
 
+/* ---------- Greeting ---------- */
+
+function renderGreeting(isToday, openCount) {
+  const el = $('planGreeting');
+  el.hidden = !isToday;
+  if (!isToday) return;
+  const h = new Date().getHours();
+  const hello = h < 5 ? 'Working late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const free = typeof freeBlocks === 'function' ? freeBlocks(todayKey()).reduce((a, [s, e]) => a + (e - s), 0) : 0;
+  const parts = [];
+  if (openCount) parts.push(plural(openCount, 'task'));
+  if (free >= 15 * 60000) parts.push(`${fmtMins(free / 1000)} free`);
+  el.textContent = parts.length ? `${hello}. ${parts.join(' and ')} today.` : `${hello}.`;
+}
+
 /* ---------- At a glance: the day's key numbers above the plan ---------- */
+
+let glanceCountUp = true; // count the numbers up the next time the tiles are drawn
+
+// Numbers in the tiles roll up from zero when the Plan page opens.
+function animateGlance() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  $('glance').querySelectorAll('[data-num]').forEach((el) => {
+    const target = Number(el.dataset.num);
+    const kind = el.dataset.kind;
+    const final = el.textContent;
+    const fmt = (n) => kind === 'secs' ? (n >= 60 ? fmtMins(n) : '0 min')
+      : kind === 'of' ? `${Math.round(n)} of ${el.dataset.of}`
+        : kind === 'days' ? plural(Math.round(n), 'day') : String(Math.round(n));
+    const start = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / 800);
+      el.textContent = p < 1 ? fmt(target * (1 - Math.pow(1 - p, 3))) : final;
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 
 let glanceAt = 0;
 let glanceSessions = 0; // sessions the open tasks still need, from renderPlan
@@ -158,10 +199,11 @@ function glanceRing(pct, met) {
   </svg>`;
 }
 
-function glanceTile(label, value, sub, extra = '') {
+function glanceTile(label, value, sub, extra = '', num = null) {
+  const data = num ? ` data-num="${num.n}" data-kind="${num.kind}"${num.of !== undefined ? ` data-of="${num.of}"` : ''}` : '';
   return `<div class="g-tile">${extra}<div class="g-body">
     <p class="g-label">${esc(label)}</p>
-    <p class="g-value">${esc(value)}</p>
+    <p class="g-value"${data}>${esc(value)}</p>
     ${sub ? `<p class="g-sub">${esc(sub)}</p>` : ''}
   </div></div>`;
 }
@@ -185,7 +227,8 @@ function renderGlance(force = false) {
     isToday ? 'Focus today' : 'Focus',
     focusSec ? fmtMins(focusSec) : '0 min',
     goalSec ? (focusSec >= goalSec ? 'Goal reached' : `of ${fmtMins(goalSec)} goal`) : '',
-    goalSec ? glanceRing(pct, focusSec >= goalSec) : ''
+    goalSec ? glanceRing(pct, focusSec >= goalSec) : '',
+    { n: Math.round(focusSec), kind: 'secs' }
   ));
 
   const tasks = tasksFor(planDay);
@@ -196,7 +239,8 @@ function renderGlance(force = false) {
     tasks.length
       ? (doneN === tasks.length ? 'All done' : `${tasks.length - doneN} to go${glanceSessions ? `, about ${plural(glanceSessions, 'session')}` : ''}`)
       : 'Add a few below',
-    `<div class="g-bar" aria-hidden="true"><span style="width:${tasks.length ? (doneN / tasks.length) * 100 : 0}%"></span></div>`
+    `<div class="g-bar" aria-hidden="true"><span style="width:${tasks.length ? (doneN / tasks.length) * 100 : 0}%"></span></div>`,
+    tasks.length ? { n: doneN, kind: 'of', of: tasks.length } : null
   ));
 
   if (typeof calendarOn === 'function' && calendarOn() && isToday) {
@@ -218,12 +262,14 @@ function renderGlance(force = false) {
   if (isToday && typeof computeStreaks === 'function') {
     const st = computeStreaks();
     tiles.push(glanceTile('Streak', plural(st.current, 'day'),
-      st.activeToday ? 'Focused today' : st.current ? 'Focus today to keep it going' : 'Start one today'));
+      st.activeToday ? 'Focused today' : st.current ? 'Focus today to keep it going' : 'Start one today', '',
+      { n: st.current, kind: 'days' }));
   }
 
   const html = tiles.join('');
   box.hidden = false;
   if (html !== lastGlance) { lastGlance = html; box.innerHTML = html; }
+  if (glanceCountUp) { glanceCountUp = false; animateGlance(); }
 }
 
 /* ---------- Subtasks: a checklist inside a task ---------- */
@@ -511,6 +557,7 @@ function renderPlan() {
   const canFocus = isToday && (S.state === 'idle' || S.state === 'breakPending');
 
   $('planTitle').textContent = dayTitle(planDay);
+  renderGreeting(isToday, open.length);
   $('planDate').textContent = new Date(planDay + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   $('planToday').hidden = isToday;
   $('reviewBtn').hidden = isFuture;
@@ -551,7 +598,7 @@ function renderPlan() {
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
       const movable = dragOk && !t.done && open.length > 1;
-      return `<li class="task${t.done ? ' done' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
+      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
         ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder (or Alt+↑ / Alt+↓)"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
@@ -569,6 +616,8 @@ function renderPlan() {
     : tasks.length
       ? '<li class="empty">No tasks match. <button class="link" type="button" data-view-reset>Show all tasks</button></li>'
       : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
+
+  freshTaskId = null;
 
   const left = isToday ? leftoverTasks() : [];
   $('leftoverSection').hidden = !left.length;
@@ -912,7 +961,15 @@ function bindPlan() {
   $('doneList').addEventListener('click', onListClick);
   $('taskList').addEventListener('change', (e) => {
     const id = e.target.dataset?.taskDone;
-    if (id) setTaskDone(id, e.target.checked);
+    if (!id) return;
+    const row = e.target.closest('.task');
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (e.target.checked && row && !reduce) {
+      row.classList.add('completing');
+      setTimeout(() => setTaskDone(id, true), 650);
+    } else {
+      setTaskDone(id, e.target.checked);
+    }
   });
   bindSubtasks();
   bindTaskDrag();

@@ -161,10 +161,14 @@ function renderTimer() {
   let frac = 0;
   if (S.state === 'focus' || S.state === 'paused') frac = 1 - rem / total;
   if (['checkin', 'break', 'breakPending'].includes(S.state)) frac = 1;
+  const goalSec = (settings.dailyGoalMin || 0) * 60;
+  const goalMet = !!goalSec && todayFocusSec() >= goalSec;
+  document.body.classList.toggle('goal-met', goalMet);
+  if (S.state === 'idle' && goalMet) frac = 1; // a full gold ring once the day's goal is done
 
   $('time').textContent = fmtClock(rem);
   $('phase').textContent = {
-    idle: 'Ready',
+    idle: goalMet ? 'Goal reached' : 'Ready',
     focus: 'Focusing',
     paused: S.autoPaused ? 'Paused while away' : 'Paused',
     checkin: 'Check in',
