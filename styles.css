@@ -735,6 +735,7 @@ button.task-main:hover { background: var(--tint-pine); }
 .subtask-list.editable { border-left: 0; padding: 0; gap: 4px; }
 .subtask-list.editable li { display: flex; align-items: center; gap: 8px; }
 .subtask-list.editable li input[type="text"] { flex: 1; padding: 5px 8px; }
+.subtask-list.editable li input[type="checkbox"] { width: 16px; height: 16px; flex: none; margin: 0; accent-color: var(--pine); }
 
 /* Checklist under the timer during a session */
 .focus-subs { display: flex; flex-direction: column; gap: 4px; }
@@ -800,3 +801,31 @@ body[data-state="idle"] .goal-track span { background: linear-gradient(90deg, va
 .time { font-size: clamp(2.4rem, 5.6vh, 4.2rem); }
 body.compact .ring-wrap { width: clamp(150px, 30vh, 200px); }
 @media (max-width: 1000px) { .glance { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Scrolling: slim themed scrollbars, centered content ---------- */
+
+:root { --scroll-thumb: rgba(31, 45, 51, 0.22); --scroll-thumb-hover: rgba(31, 45, 51, 0.4); }
+@media (prefers-color-scheme: dark) { :root { --scroll-thumb: rgba(225, 233, 231, 0.2); --scroll-thumb-hover: rgba(225, 233, 231, 0.38); } }
+body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --scroll-thumb: rgba(255, 255, 255, 0.22); --scroll-thumb-hover: rgba(255, 255, 255, 0.4); }
+
+/* No arrow buttons or grey track; the thumb shows while you hover the area. */
+::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; background-color: transparent; transition: background-color 150ms ease; }
+:hover::-webkit-scrollbar-thumb, :focus-within::-webkit-scrollbar-thumb, .is-scrolling::-webkit-scrollbar-thumb { background-color: var(--scroll-thumb); }
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: var(--scroll-thumb-hover); border-width: 2px; }
+
+/* Room is kept for the scrollbar so content doesn't jump sideways when it appears. */
+.tab, .focus-pane, .review-body, .palette-list, .dialog { scrollbar-gutter: stable; }
+
+/* Keep the page column centered in wide windows instead of hugging the left edge. */
+.tab { padding-inline: max(32px, calc((100% - 860px) / 2)); }
+.tab > *, .tab .plan-section, .tab .insight, .tab .glance, .tab .plan-head, .tab .carry-note { max-width: 860px; }
+.tabs { padding-inline: max(32px, calc((100% - 860px) / 2)); transition: box-shadow 200ms ease; position: relative; z-index: 2; }
+.panel.scrolled .tabs { box-shadow: 0 6px 12px -8px rgba(31, 45, 51, 0.35); }
+@media (prefers-color-scheme: dark) { .panel.scrolled .tabs { box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.7); } }
+
+@media (prefers-reduced-motion: no-preference) { .tab, .review-body, .palette-list { scroll-behavior: smooth; } }
+/* Long dialogs scroll, but Save/Cancel stay pinned to the bottom. */
+.dialog .dialog-actions { position: sticky; bottom: -24px; z-index: 1; background: var(--paper); margin: 20px -26px -24px; padding: 14px 26px 22px; box-shadow: 0 -8px 12px -10px rgba(31, 45, 51, 0.25); }

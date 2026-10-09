@@ -12,6 +12,21 @@ function showTab(name) {
   if (name === 'plan') renderPlan();
   if (name === 'log') renderLog();
   if (name === 'settings') { renderBackups(); renderRecurringSettings(); }
+  document.querySelector('.panel').classList.toggle('scrolled', $(`tab-${name}`).scrollTop > 4);
+}
+
+// A soft shadow under the tab bar once a page scrolls, and scrollbars that show while scrolling.
+function bindScrollPolish() {
+  const panel = document.querySelector('.panel');
+  const timers = new Map();
+  document.querySelectorAll('.tab, .focus-pane, .review-body').forEach((el) => {
+    el.addEventListener('scroll', () => {
+      if (el.classList.contains('tab')) panel.classList.toggle('scrolled', el.scrollTop > 4);
+      el.classList.add('is-scrolling');
+      clearTimeout(timers.get(el));
+      timers.set(el, setTimeout(() => el.classList.remove('is-scrolling'), 900));
+    }, { passive: true });
+  });
 }
 
 /* ---------- Compact view ---------- */
@@ -191,6 +206,7 @@ function bind() {
   $('settingsForm').addEventListener('submit', saveSettings);
   bindCalendars();
 
+  bindScrollPolish();
   bindPlan();
   bindRecurring();
   bindShortcuts();

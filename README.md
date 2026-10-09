@@ -10,6 +10,12 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.5
+
+- **Smoother scrolling.** Scrollbars are slim and match the app's colors, with no arrow buttons, and they only show while you hover or scroll. The tab bar gets a soft shadow when a page scrolls under it, content stays centered in wide windows, and nothing shifts sideways when a scrollbar appears.
+- **Dialogs.** In long dialogs, the Save and Cancel buttons stay pinned to the bottom.
+- **Fix.** Subtasks in the task editor were laid out wrong in 1.3.4: the checkboxes were stretched and the text boxes squashed.
+
 ## What's new in 1.3.4
 
 - **Focus on one subtask.** Hover a subtask and click ▶ to start a session on just that step. When the session ends, the check-in offers to tick that subtask off.
