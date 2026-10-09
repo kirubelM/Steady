@@ -77,8 +77,17 @@ function tick() {
 setInterval(() => {
   if (finished) return;
   tipIndex = (tipIndex + 1) % tips.length;
-  $('tip').textContent = tips[tipIndex];
+  $('tip').classList.add('fade');
+  setTimeout(() => { $('tip').textContent = tips[tipIndex]; $('tip').classList.remove('fade'); }, 600);
 }, 20000);
+
+// Follows the breathing circle: in for 4 seconds, out for 6.
+const breathStart = Date.now();
+setInterval(() => {
+  if (finished) { $('breath').textContent = ''; return; }
+  const t = ((Date.now() - breathStart) / 1000) % 10;
+  $('breath').textContent = t < 4 ? 'Breathe in' : 'Breathe out';
+}, 250);
 
 setInterval(tick, 500);
 tick();

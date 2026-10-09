@@ -7,6 +7,7 @@ function showTab(name) {
     b.setAttribute('aria-selected', String(b.dataset.tab === name));
   });
   TABS.forEach((t) => { $(`tab-${t}`).hidden = t !== name; });
+  playEnter($(`tab-${name}`));
   $('tip').hidden = true;
   if (name === 'insights') renderInsights();
   if (name === 'plan') { glanceCountUp = true; renderPlan(); }
@@ -208,6 +209,7 @@ function bind() {
   bindCalendars();
 
   bindScrollPolish();
+  if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
   bindPlan();
   bindRecurring();

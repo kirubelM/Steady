@@ -10,6 +10,21 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.5
+
+- **Accent colors.** Choose Pine, Ocean, Plum, Terracotta or Graphite in Settings, then Appearance and startup. Buttons, rings, charts and the focus background all follow it.
+- **Sessions in project colors.** During a session on a project, the timer and mini timer take on that project's color. Turn this off in Appearance if you prefer the accent.
+- **Time-of-day tint.** A faint wash over the page shifts from cool morning light to warm evening light. You can turn it off.
+- **A calmer break screen.** A slow dusk sky, a breathing circle behind the countdown ("breathe in" for 4 seconds, "breathe out" for 6), and tips that fade in.
+- **A livelier mini timer.** It matches the accent and project color, glows during focus, turns amber on breaks, and a thin edge around it fills as the session goes.
+- **Your day as a story.** The daily review shows the day as a strip of colored sessions and breaks, and points out your best uninterrupted stretch of focus.
+- **Soft chimes.** Optional bell tones when a session ends, a break ends or you finish a task. Off by default; turn them on in Appearance.
+- **Friendlier empty pages.** Small drawings and helpful text when there's nothing planned, logged or parked yet.
+- **Milestones.** 7, 30 and 100-day streaks and 10 to 500 hours of focus are noted in that day's review, with your progress toward the next ones in Insights.
+- **Richer Insights.** Daily bars split by project color, a dashed line comparing with the previous period, and a "When you focus" grid by day of the week and hour.
+- **Cards that stand apart.** Each section sits on its own clearly separated card, with an accent marker next to its title.
+- **More motion.** Opening a tab, day or Settings category brings the cards in one after another. Bars, rings and charts grow into place, subtasks slide open, dialogs and messages ease in, and buttons give a little when pressed. Windows' "reduce animations" setting turns all of it off.
+
 ## What's new in 1.4.1
 
 - **Site blocking without running as administrator.** Go to Settings, then Distractions, and click "Allow site blocking" once. Windows shows one admin prompt, and blocking then keeps working after updates and restarts. "Remove permission" undoes it. Before, running Steady as administrator didn't help if Steady was still open in the tray, and updates reopened it without admin rights.

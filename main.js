@@ -68,6 +68,10 @@ const DEFAULTS = {
     workStart: '09:00',
     workEnd: '17:00',
     calendars: [], // { id, kind: 'outlook' | 'link', name, url }
+    accent: 'pine',
+    projectTint: true,
+    dayTint: true,
+    chimes: false,
     backupKeepDays: 30,
     startAtLogin: false,
     startMinimized: true,

@@ -18,22 +18,34 @@
       display: flex; align-items: center; gap: 10px;
       padding: 0 8px 0 10px;
       border-radius: 12px;
-      background: #1F4A44;
+      background: var(--deep, #1F4A44);
       color: #EEF3F1;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
       -webkit-app-region: drag;
-      transition: background-color 400ms ease;
+      transition: background-color 400ms ease, filter 400ms ease;
+      position: relative;
+      background-image: radial-gradient(circle at 18% 50%, color-mix(in srgb, var(--glow, #9FD4C8) 22%, transparent), transparent 60%);
     }
-    body[data-state="paused"] .card { background: #3A4A4E; }
+    /* A thin progress edge that runs around the whole card. */
+    .card::before {
+      content: ""; position: absolute; inset: 0; border-radius: 12px; padding: 3px; pointer-events: none;
+      background: conic-gradient(from 0deg, var(--glow, #9FD4C8) calc(var(--p, 0) * 1turn), transparent 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      opacity: 1; transition: opacity 400ms ease;
+    }
+    body[data-state="idle"] .card::before, body[data-state="checkin"] .card::before { opacity: 0; }
+    body[data-state="paused"] .card { filter: saturate(0.4); }
     body[data-state="breakPending"] .card,
     body[data-state="checkin"] .card,
-    body[data-state="break"] .card { background: #5B4615; }
+    body[data-state="break"] .card { background-color: #5B4615; --glow: #E9C77B; }
     body[data-state="idle"] .card { background: #2B3B40; }
     svg { flex: none; width: 40px; height: 40px; transform: rotate(-90deg); }
     .track, .prog { fill: none; stroke-width: 5; }
     .track { stroke: rgba(255, 255, 255, 0.16); }
-    .prog { stroke: #9FD4C8; stroke-linecap: round; stroke-dasharray: 100.53; stroke-dashoffset: 100.53; transition: stroke-dashoffset 900ms linear; }
+    .prog { stroke: var(--glow, #9FD4C8); stroke-linecap: round; stroke-dasharray: 100.53; stroke-dashoffset: 100.53; transition: stroke-dashoffset 900ms linear; }
     body[data-state="paused"] .prog { stroke: #A9B6B9; }
+    body[data-state="focus"] .prog { filter: drop-shadow(0 0 3px var(--glow, #9FD4C8)); }
     body[data-state="breakPending"] .prog, body[data-state="checkin"] .prog { stroke: #E9C77B; }
     .text { flex: 1; min-width: 0; line-height: 1.2; }
     .time {
@@ -51,7 +63,7 @@
     button:hover { background: rgba(255, 255, 255, 0.14); }
     button:focus-visible { outline: 2px solid #E9C77B; outline-offset: 1px; }
     button svg { width: 16px; height: 16px; transform: none; }
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
   </style>
 </head>
 <body data-state="idle">

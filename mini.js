@@ -20,7 +20,18 @@ function render(st) {
   let frac = 1;
   if (inSession) frac = 1 - st.remaining / st.total;
   if (st.state === 'breakPending' && st.pendingReason === 'snooze') frac = 1 - st.remaining / st.total;
-  $('prog').style.strokeDashoffset = String(C * (1 - Math.min(1, Math.max(0, frac))));
+  const p = Math.min(1, Math.max(0, frac));
+  $('prog').style.strokeDashoffset = String(C * (1 - p));
+  // Match the main window's accent, or the session's project color.
+  const style = document.body.style;
+  style.setProperty('--p', String(inSession || st.state === 'breakPending' ? p : 0));
+  if (st.colors && st.colors.glow && inSession) {
+    style.setProperty('--glow', st.colors.glow);
+    style.setProperty('--deep', st.colors.deep || st.colors.accent);
+  } else {
+    style.removeProperty('--glow');
+    style.removeProperty('--deep');
+  }
 
   if (inSession || (st.state === 'breakPending' && st.pendingReason === 'snooze')) $('time').textContent = fmt(st.remaining);
   else if (st.state === 'breakPending') $('time').textContent = 'Break';

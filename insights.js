@@ -50,10 +50,10 @@ function matchesProject(e) {
 
 /* Bar chart with hover tooltips and optional click targets (data-day). */
 function barChart({ labels, values, steps, fmtAxis, tips, barClass, height = 170, labelEvery = 1,
-  ariaLabel, refLine = 0, refLabel = '', days = null, selected = -1 }) {
+  ariaLabel, refLine = 0, refLabel = '', days = null, selected = -1, stacks = null, compare = null }) {
   const W = 640, H = height, padL = 40, padR = 6, padT = 12, padB = 24;
   const plotH = H - padT - padB;
-  const max = niceMax(Math.max(0, refLine, ...values), steps);
+  const max = niceMax(Math.max(0, refLine, ...values, ...(compare || [])), steps);
   const n = values.length;
   const cw = (W - padL - padR) / n;
   const bw = Math.max(2, Math.min(36, cw * 0.62));
@@ -69,13 +69,29 @@ function barChart({ labels, values, steps, fmtAxis, tips, barClass, height = 170
     const x = padL + i * cw + (cw - bw) / 2;
     const y = padT + plotH - h;
     const cls = `bar ${barClass(i)}${i === selected ? ' selected' : ''}`;
-    if (v > 0) svg += `<rect class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="2"></rect>`;
+    if (v > 0 && stacks && stacks[i] && stacks[i].length) {
+      // One segment per project, bottom up, in the project's color.
+      let top = padT + plotH;
+      stacks[i].forEach((seg, j) => {
+        const sh = max ? (seg.v / max) * plotH : 0;
+        top -= sh;
+        const last = j === stacks[i].length - 1;
+        svg += `<rect class="${cls} seg" x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0.5, sh).toFixed(1)}" rx="${last ? 2 : 0}" style="fill:${seg.color}"></rect>`;
+      });
+    } else if (v > 0) {
+      svg += `<rect class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" rx="2"></rect>`;
+    }
     if (i % labelEvery === 0 || i === n - 1) {
       svg += `<text class="axis${i === selected ? ' sel' : ''}" x="${(padL + i * cw + cw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${esc(labels[i])}</text>`;
     }
     // Full-height hit area so small bars are easy to hover and click.
     svg += `<rect class="hit" x="${(padL + i * cw).toFixed(1)}" y="${padT}" width="${cw.toFixed(1)}" height="${plotH}" data-tip="${esc(tips[i])}"${days ? ` data-day="${days[i]}"` : ''}></rect>`;
   });
+  if (compare && compare.some((v) => v > 0)) {
+    const pts = compare.map((v, i) => `${(padL + i * cw + cw / 2).toFixed(1)},${(padT + plotH - (max ? (v / max) * plotH : 0)).toFixed(1)}`);
+    svg += `<polyline class="compare" points="${pts.join(' ')}"></polyline>`;
+    if (n <= 31) svg += pts.map((p) => { const [cx, cy] = p.split(','); return `<circle class="compare-dot" cx="${cx}" cy="${cy}" r="2.2"></circle>`; }).join('');
+  }
   if (refLine > 0) {
     const y = padT + plotH * (1 - refLine / max);
     svg += `<line class="ref" x1="${padL}" x2="${W - padR}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line>`;
@@ -83,6 +99,29 @@ function barChart({ labels, values, steps, fmtAxis, tips, barClass, height = 170
     if (refLabel) svg += `<text class="ref-label" x="${W - padR}" y="${ly.toFixed(1)}" text-anchor="end">${esc(refLabel)}</text>`;
   }
   return svg + '</svg>';
+}
+
+function chartLegend(stacks, compare) {
+  const items = [];
+  if (stacks) {
+    const seen = new Map();
+    stacks.flat().forEach((s) => seen.set(s.color, true));
+    (data.projects || []).filter((p) => seen.has(p.color)).forEach((p) => items.push(`<span><i class="dot" style="background:${p.color}"></i>${esc(p.name)}</span>`));
+    if (seen.has('var(--muted)')) items.push('<span><i class="dot none"></i>No project</span>');
+  }
+  if (compare && compare.some((v) => v > 0)) items.push(`<span><i class="dash"></i>The ${insightRange} days before</span>`);
+  return items.length ? `<p class="legend">${items.join('')}</p>` : '';
+}
+
+function milestonesHtml() {
+  if (typeof MILESTONES === 'undefined') return '';
+  const got = data.meta.milestones || {};
+  const earned = MILESTONES.filter((m) => got[m.id]);
+  const next = nextMilestones();
+  if (!earned.length && !next.length) return '';
+  return `<h4 class="ms-head">Milestones</h4>
+    ${earned.length ? milestoneBadges(earned) : ''}
+    ${next.length ? `<div class="badges">${next.map((m) => `<span class="badge later">Next: ${esc(m.title)}, ${m.kind === 'streak' ? plural(m.left, 'day') : plural(m.left, 'hour')} to go</span>`).join('')}</div>` : ''}`;
 }
 
 function splitBar(parts) {
@@ -218,6 +257,7 @@ function renderInsightControls(days) {
 }
 
 function renderInsights() {
+  playEnter($('insightBody'));
   const days = rangeDays(insightRange, insightOffset);
   const first = days[0];
   const last = days[days.length - 1];
@@ -243,7 +283,7 @@ function renderInsights() {
 
   if (!work.length) {
     $('insightSummary').textContent = '';
-    $('insightBody').innerHTML = `<p class="empty-insight">Nothing logged${filterLabel} in this period. ${insightOffset ? 'Try a more recent period.' : 'Finish a few sessions and your patterns will show up here.'}</p>` +
+    $('insightBody').innerHTML = emptyState('chart', `Nothing logged${filterLabel} in this period`, insightOffset ? 'Try a more recent period.' : 'Finish a few sessions and your patterns will show up here.', 'div') +
       (selectedDay ? drilldown(selectedDay, workFiltered) : '');
     return;
   }
@@ -287,7 +327,25 @@ function renderInsights() {
     return parts.join('\n') + '\nClick for details';
   });
   const isTime = metric.id === 'focus' || metric.id === 'logged';
+  const projOrder = (data.projects || []).map((p) => p.id);
+  const stacks = isTime && insightProject === 'all' && projOrder.length
+    ? days.map((k) => {
+      const by = new Map();
+      work.filter((e) => dayKey(e.start) === k && (metric.id === 'logged' || e.type === 'session')).forEach((e) => {
+        const id = e.projectId && projectById(e.projectId) ? e.projectId : 'none';
+        by.set(id, (by.get(id) || 0) + (metric.id === 'focus' ? e.focusSec || 0 : workSec(e)) / 60);
+      });
+      return [...by.entries()]
+        .sort((a, b) => (a[0] === 'none') - (b[0] === 'none') || projOrder.indexOf(a[0]) - projOrder.indexOf(b[0]))
+        .map(([id, v]) => ({ v, color: projectById(id)?.color || 'var(--muted)' }));
+    })
+    : null;
+  const compare = insightRange <= 30
+    ? prevDays.map((k) => metricVal(dayStats(workFiltered, k)))
+    : null;
   const chart = barChart({
+    stacks,
+    compare,
     labels: dayLabels,
     values,
     steps: isTime ? [5, 10, 15, 30, 60, 90, 120, 180, 240, 360] : metric.id === 'ontrack' ? [25] : [1, 2, 3, 5, 10, 20],
@@ -390,6 +448,40 @@ function renderInsights() {
     </section>`;
   }
 
+  /* When you focus: a weekday-by-hour grid */
+  let whenHtml = '';
+  if (sessions.length >= 3) {
+    const grid = Array.from({ length: 7 }, () => new Array(24).fill(0));
+    sessions.forEach((e) => {
+      let t = e.start;
+      let left = e.focusSec || 0;
+      while (left > 0) {
+        const d = new Date(t);
+        const chunk = Math.min(left, 3600 - (d.getMinutes() * 60 + d.getSeconds()));
+        grid[(d.getDay() + 6) % 7][d.getHours()] += chunk / 60;
+        t += chunk * 1000;
+        left -= chunk;
+      }
+    });
+    let used = [];
+    grid.forEach((row) => row.forEach((v, h) => { if (v > 0) used.push(h); }));
+    const gFrom = Math.min(8, ...used);
+    const gTo = Math.max(18, ...used);
+    const gMax = Math.max(...grid.flat(), 1);
+    const level = (v) => (v <= 0 ? 0 : Math.min(4, 1 + Math.floor((v / gMax) * 3.999)));
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const cols = gTo - gFrom + 1;
+    whenHtml = `<section class="insight">
+      <h3>When you focus</h3>
+      <p class="insight-note">Darker squares are the hours you focus most, by day of the week${filterLabel}.</p>
+      <div class="when-grid" style="--cols:${cols}">
+        <span></span>${Array.from({ length: cols }, (_, i) => `<span class="when-h">${(gFrom + i) % 3 === 0 ? shortHour(gFrom + i) : ''}</span>`).join('')}
+        ${grid.map((row, d) => `<span class="when-d">${names[d]}</span>${row.slice(gFrom, gTo + 1).map((v, i) =>
+          `<span class="when-c heat-${level(v)}" data-tip="${esc(`${names[d]} ${fmtHour(gFrom + i)}\n${v ? fmtMins(v * 60) + ' focused' : 'No focus'}`)}"></span>`).join('')}`).join('')}
+      </div>
+    </section>`;
+  }
+
   /* Apps, distractions and ratings */
   const appTotals = {};
   work.forEach((e) => (e.apps || []).forEach((a) => { appTotals[a.name] = (appTotals[a.name] || 0) + a.sec; }));
@@ -453,6 +545,7 @@ function renderInsights() {
       </div>
       <p class="insight-note">Hover a day to see the numbers. Click it to see what you did.</p>
       ${chart}
+      ${chartLegend(stacks, compare)}
     </section>
     ${selectedDay ? drilldown(selectedDay, workFiltered) : ''}
     <section class="insight">
@@ -463,6 +556,7 @@ function renderInsights() {
     ${projectsHtml}
     ${estimatesInsightHtml()}
     ${hoursHtml}
+    ${whenHtml}
     <section class="insight two-col">
       <div>
         <h3>Top apps</h3>
@@ -482,6 +576,7 @@ function renderInsights() {
         <p><strong>${fmtMins(restSec)}</strong> spent resting</p>
         ${settings.dailyGoalMin ? `<p><strong>${goalDays} of ${workedDays}</strong> working days met your goal</p>` : ''}
       </div>
+      ${milestonesHtml()}
       ${breaks.length ? splitBar([
         { label: 'Taken', value: taken, cls: 'rest' },
         { label: 'Skipped', value: skipped, cls: 'skip' }

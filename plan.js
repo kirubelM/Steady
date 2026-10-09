@@ -55,6 +55,7 @@ async function addTask(text, est = 0, day = todayKey(), projectId = null) {
 async function setTaskDone(id, done) {
   const t = findTask(id);
   if (!t) return;
+  if (done && !t.done && typeof playChime === 'function') playChime('task');
   t.done = !!done;
   t.doneAt = done ? Date.now() : null;
   // Finishing a leftover counts as today's work.
@@ -277,6 +278,7 @@ function renderGlance(force = false) {
 let subAddFor = null; // task whose "Add a subtask" box is open
 let subEditing = null; // { taskId, subId } while a subtask is being renamed
 let subDrag = null; // { taskId, subId } while a subtask is being dragged
+let subOpening = null; // task whose subtask list was just opened, so it can slide in
 
 function findSub(taskId, subId) {
   const t = findTask(taskId);
@@ -314,8 +316,9 @@ function subtaskBlock(t, canFocus) {
   const add = t.done ? '' : adding
     ? `<form class="subtask-add" data-sub-add="${t.id}"><input type="text" maxlength="140" placeholder="Add a subtask and press Enter" aria-label="Add a subtask to ${esc(t.text)}" autocomplete="off"></form>`
     : `<button class="link sub-add-link" type="button" data-sub-new="${t.id}">+ Add subtask</button>`;
+  const opening = subOpening === t.id;
   return `<div class="subtasks">${toggle}
-    <ul class="subtask-list">${subs.map((s) => subtaskRow(t, s, canFocus)).join('')}</ul>
+    <ul class="subtask-list${opening ? ' opening' : ''}">${subs.map((s) => subtaskRow(t, s, canFocus)).join('')}</ul>
     ${add}
   </div>`;
 }
@@ -400,7 +403,9 @@ function bindSubtasks() {
       updateSubtasks(subAddFor, (t) => { t.subsHidden = false; });
     } else if (b.dataset.subToggle) {
       subAddFor = null;
-      updateSubtasks(b.dataset.subToggle, (t) => { t.subsHidden = !t.subsHidden; });
+      const t = findTask(b.dataset.subToggle);
+      subOpening = t && t.subsHidden ? t.id : null;
+      updateSubtasks(b.dataset.subToggle, (x) => { x.subsHidden = !x.subsHidden; }).then(() => { subOpening = null; });
     } else if (b.dataset.subDel) {
       updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== subId); });
     } else if (b.dataset.subFocus) {
@@ -615,7 +620,9 @@ function renderPlan() {
     }).join('')
     : tasks.length
       ? '<li class="empty">No tasks match. <button class="link" type="button" data-view-reset>Show all tasks</button></li>'
-      : `<li class="empty">${isFuture ? 'Nothing planned yet.' : isToday ? 'No tasks yet. Add the few things that would make today a good day.' : 'No tasks were planned for this day.'}</li>`;
+      : isFuture ? emptyState('sprout', 'Nothing planned yet', 'Add a few things you want to get done that day.')
+        : isToday ? emptyState('sprout', 'A fresh start', 'Add the few things that would make today a good day.')
+          : emptyState('sprout', 'No tasks were planned for this day', '');
 
   freshTaskId = null;
 
@@ -659,7 +666,8 @@ function renderPlan() {
           <span class="done-time">${g.sec ? fmtMins(Math.max(60, g.sec)) : ''}</span>
         </li>`;
       }).join('')
-      : `<li class="empty">${isToday ? 'Nothing yet. Finished sessions, completed tasks and anything you add here show up in this list.' : 'Nothing was logged on this day.'}</li>`;
+      : isToday ? emptyState('check', 'Nothing finished yet', 'Sessions, completed tasks and anything you log show up here.')
+        : emptyState('check', 'Nothing was logged on this day', '');
   }
 
   $('doneForm').hidden = !doneFormOpen;
@@ -981,9 +989,9 @@ function bindPlan() {
     renderPlan();
   });
 
-  $('planPrev').addEventListener('click', () => { planDay = shiftKey(planDay, -1); renderPlan(); ensureCalendarFor(planDay); });
-  $('planNext').addEventListener('click', () => { planDay = shiftKey(planDay, 1); renderPlan(); ensureCalendarFor(planDay); });
-  $('planToday').addEventListener('click', () => { planDay = todayKey(); renderPlan(); });
+  $('planPrev').addEventListener('click', () => { planDay = shiftKey(planDay, -1); glanceCountUp = true; renderPlan(); ensureCalendarFor(planDay); playEnter($('tab-plan')); });
+  $('planNext').addEventListener('click', () => { planDay = shiftKey(planDay, 1); glanceCountUp = true; renderPlan(); ensureCalendarFor(planDay); playEnter($('tab-plan')); });
+  $('planToday').addEventListener('click', () => { planDay = todayKey(); glanceCountUp = true; renderPlan(); playEnter($('tab-plan')); });
 
   let notesTimer = null;
   $('dayNotes').addEventListener('input', () => {

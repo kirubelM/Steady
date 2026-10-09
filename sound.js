@@ -180,8 +180,37 @@ const Sound = (() => {
   }
   function previewing() { return !!previewTimer && playing; }
 
-  return { play, stop, setVolume, preview, isPlaying: () => playing, current: () => current, previewing };
+  // Soft bell tones for moments worth noticing: a session ending, a break ending, a task done.
+  function chime(kind) {
+    ensure();
+    if (ctx.state === 'suspended') ctx.resume();
+    const notes = { session: [659.25, 523.25], break: [523.25, 659.25, 783.99], task: [880] }[kind] || [660];
+    const peak = kind === 'task' ? 0.07 : 0.12;
+    const t0 = ctx.currentTime + 0.03;
+    notes.forEach((freq, i) => {
+      const t = t0 + i * 0.18;
+      [[freq, 1], [freq * 2.76, 0.18]].forEach(([f, level]) => { // the fundamental plus a faint bell overtone
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(peak * level, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'task' ? 0.9 : 1.8));
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 2);
+      });
+    });
+  }
+
+  return { play, stop, setVolume, preview, chime, isPlaying: () => playing, current: () => current, previewing };
 })();
+
+function playChime(kind) {
+  if (settings.chimes) Sound.chime(kind);
+}
 
 function wanted() {
   if (!settings || settings.sound === 'off') return false;

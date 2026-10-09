@@ -9,7 +9,13 @@
     [hidden] { display: none !important; }
     html, body { height: 100%; margin: 0; }
     body {
-      background: radial-gradient(ellipse at 50% 120%, #3B4A36 0%, #1D2826 60%);
+      /* A slow dusk sky: warm light low on the horizon, deep blue-green above. */
+      background:
+        radial-gradient(ellipse 80% 55% at 50% 115%, rgba(233, 170, 90, 0.55) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 15% 10%, rgba(80, 120, 140, 0.35) 0%, transparent 70%),
+        linear-gradient(180deg, #16232A 0%, #1D2826 55%, #2E3328 100%);
+      background-size: 140% 140%, 160% 160%, 100% 100%;
+      animation: sky 40s ease-in-out infinite alternate;
       color: #F2EBDD;
       font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
       display: flex; align-items: center; justify-content: center;
@@ -17,14 +23,27 @@
       user-select: none;
       cursor: default;
     }
+    @keyframes sky { from { background-position: 50% 100%, 0% 0%, 0 0; } to { background-position: 50% 80%, 30% 20%, 0 0; } }
     main { max-width: 640px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+    /* Breathing circle behind the countdown: about 4 s in, 6 s out. */
+    .orb-wrap { position: relative; display: grid; place-items: center; width: 340px; height: 340px; }
+    .orb {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle, rgba(233, 199, 123, 0.28) 0%, rgba(233, 199, 123, 0.08) 55%, transparent 70%);
+      box-shadow: 0 0 80px rgba(233, 199, 123, 0.18);
+      animation: breathe 10s ease-in-out infinite;
+    }
+    @keyframes breathe { 0%, 100% { transform: scale(0.72); opacity: 0.65; } 40% { transform: scale(1); opacity: 1; } }
+    .breath { position: absolute; bottom: 34px; font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(242, 235, 221, 0.6); transition: opacity 600ms ease; }
     h1 { margin: 0; font-weight: 400; font-size: 2rem; color: #E9C77B; }
     .count {
       font-family: "Bahnschrift", "Segoe UI Variable Display", sans-serif;
       font-weight: 300; font-stretch: semi-condensed;
       font-size: 8rem; line-height: 1; font-variant-numeric: tabular-nums;
     }
-    .tip { font-size: 1.25rem; min-height: 3.2em; max-width: 34ch; opacity: 0.92; transition: opacity 400ms ease; }
+    .tip { font-size: 1.25rem; min-height: 3.2em; max-width: 34ch; opacity: 0.92; transition: opacity 600ms ease; }
+    .tip.fade { opacity: 0; }
+    .orb-wrap .count { position: relative; }
     .bar { width: 320px; height: 4px; border-radius: 2px; background: rgba(242, 235, 221, 0.15); overflow: hidden; }
     .bar span { display: block; height: 100%; width: 0; background: #E9C77B; transition: width 900ms linear; }
     .actions { display: flex; gap: 12px; margin-top: 18px; }
@@ -36,13 +55,17 @@
     }
     button:hover { color: #F2EBDD; border-color: rgba(242, 235, 221, 0.6); }
     button:focus-visible { outline: 2px solid #E9C77B; outline-offset: 3px; }
-    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } .breath { display: none; } }
   </style>
 </head>
 <body>
   <main>
     <h1 id="heading">Rest your eyes</h1>
-    <div id="count" class="count" aria-live="off">05:00</div>
+    <div class="orb-wrap">
+      <div class="orb" aria-hidden="true"></div>
+      <div id="count" class="count" aria-live="off">05:00</div>
+      <div id="breath" class="breath" aria-hidden="true">Breathe in</div>
+    </div>
     <div class="bar" aria-hidden="true"><span id="bar"></span></div>
     <p id="tip" class="tip"></p>
     <div class="actions">

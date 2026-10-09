@@ -46,6 +46,63 @@ async function checkGoal() {
   showNudge(`You hit today's focus goal of ${fmtMins(goalSec)}. Anything more is a bonus.`, 'info', true);
 }
 
+/* ---------- Milestones: noted quietly in the review and in Insights ---------- */
+
+const MILESTONES = [
+  { id: 'streak7', kind: 'streak', n: 7, title: '7-day streak' },
+  { id: 'streak30', kind: 'streak', n: 30, title: '30-day streak' },
+  { id: 'streak100', kind: 'streak', n: 100, title: '100-day streak' },
+  { id: 'hours10', kind: 'hours', n: 10, title: '10 hours focused' },
+  { id: 'hours50', kind: 'hours', n: 50, title: '50 hours focused' },
+  { id: 'hours100', kind: 'hours', n: 100, title: '100 hours focused' },
+  { id: 'hours250', kind: 'hours', n: 250, title: '250 hours focused' },
+  { id: 'hours500', kind: 'hours', n: 500, title: '500 hours focused' }
+];
+
+function milestoneProgress() {
+  const hours = data.entries.filter((e) => e.type === 'session').reduce((a, e) => a + (e.focusSec || 0), 0) / 3600;
+  const streak = typeof computeStreaks === 'function' ? computeStreaks().current : 0;
+  return { hours, streak };
+}
+
+async function checkMilestones() {
+  const firstRun = !data.meta.milestones;
+  data.meta.milestones = data.meta.milestones || {};
+  const { hours, streak } = milestoneProgress();
+  let changed = firstRun;
+  for (const m of MILESTONES) {
+    if (data.meta.milestones[m.id]) continue;
+    if ((m.kind === 'streak' ? streak : hours) >= m.n) {
+      // Ones already passed before this version are recorded without showing up in today's review.
+      data.meta.milestones[m.id] = firstRun ? 'earlier' : dayKey(Date.now());
+      changed = true;
+    }
+  }
+  if (changed) await persist('meta');
+}
+
+function milestonesOn(key) {
+  const got = data.meta.milestones || {};
+  return MILESTONES.filter((m) => got[m.id] === key);
+}
+
+function nextMilestones() {
+  const got = data.meta.milestones || {};
+  const { hours, streak } = milestoneProgress();
+  return ['streak', 'hours'].map((kind) => {
+    const m = MILESTONES.find((x) => x.kind === kind && !got[x.id]);
+    if (!m) return null;
+    const left = kind === 'streak' ? m.n - streak : Math.ceil(m.n - hours);
+    return { ...m, left: Math.max(1, left) };
+  }).filter(Boolean);
+}
+
+function milestoneBadges(list) {
+  return `<div class="badges">${list.map((m) => `<span class="badge ${m.kind}"><svg viewBox="0 0 24 24" aria-hidden="true">${m.kind === 'streak'
+    ? '<path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z"/>'
+    : '<circle cx="12" cy="13" r="7"/><path d="M12 9v4l3 2M10 3h4"/>'}</svg>${esc(m.title)}</span>`).join('')}</div>`;
+}
+
 function goalMetOn(key) {
   const goalSec = (settings.dailyGoalMin || 0) * 60;
   if (!goalSec) return false;
@@ -110,6 +167,44 @@ function listHtml(items, cls = '') {
   return `<ul class="rv-list ${cls}">${items.join('')}</ul>`;
 }
 
+// The day as a strip: sessions as solid blocks (in project colors), other logged work lighter, breaks in amber.
+function dayStrip(key, entries) {
+  const timed = entries.filter((e) => e.start && e.end && e.end > e.start);
+  if (!timed.length) return '';
+  const minutes = (t) => { const d = new Date(t); return d.getHours() * 60 + d.getMinutes(); };
+  const workStart = typeof minutesOf === 'function' ? minutesOf(settings.workStart) : 540;
+  const workEnd = typeof minutesOf === 'function' ? minutesOf(settings.workEnd) : 1020;
+  const from = Math.floor(Math.min(workStart, ...timed.map((e) => minutes(e.start))) / 60) * 60;
+  const to = Math.ceil(Math.max(workEnd, ...timed.map((e) => minutes(e.end))) / 60) * 60;
+  const span = Math.max(60, to - from);
+  const pct = (m) => (((m - from) / span) * 100).toFixed(2);
+  const blocks = timed.map((e) => {
+    const a = minutes(e.start);
+    const b = Math.max(a + 2, minutes(e.end));
+    const color = projectById(e.projectId)?.color;
+    const cls = e.type === 'session' ? 'sess' : e.type === 'break' ? 'brk' : 'other';
+    const label = `${fmtTime(e.start)} – ${fmtTime(e.end)}${e.note ? `
+${e.note}` : ''}`;
+    return `<span class="rv-blk ${cls}" style="left:${pct(a)}%;width:${(((b - a) / span) * 100).toFixed(2)}%${color && cls !== 'brk' ? `;--bc:${color}` : ''}" title="${esc(label)}"></span>`;
+  }).join('');
+  const hours = [];
+  for (let m = from; m <= to; m += span > 600 ? 180 : 120) hours.push(`<span style="left:${pct(m)}%">${shortHourLabel(m / 60)}</span>`);
+  return `<div class="rv-strip" aria-hidden="true">${blocks}</div><div class="rv-strip-hours" aria-hidden="true">${hours.join('')}</div>`;
+}
+
+// The longest run of focus, joining sessions separated by short breaks (15 minutes or less).
+function bestStretch(sessions) {
+  const list = sessions.filter((e) => e.start && e.end).sort((a, b) => a.start - b.start);
+  let best = null;
+  let cur = null;
+  for (const e of list) {
+    if (cur && e.start - cur.end <= 15 * 60000) { cur.end = Math.max(cur.end, e.end); cur.sec += e.focusSec || 0; cur.n++; }
+    else { cur = { start: e.start, end: e.end, sec: e.focusSec || 0, n: 1 }; }
+    if (!best || cur.sec > best.sec) best = { ...cur };
+  }
+  return best && best.n > 1 ? best : null;
+}
+
 function buildDay(key) {
   const today = dayKey(Date.now());
   const entries = data.entries.filter((e) => dayKey(e.start) === key);
@@ -140,6 +235,15 @@ function buildDay(key) {
   let html = `<p class="rv-headline">${headline}</p>`;
   if (goalSec) html += `<div class="rv-bar"><span style="width:${Math.min(100, (focusSec / goalSec) * 100).toFixed(1)}%"></span></div>`;
   if (detail.length) html += `<p class="rv-detail">${esc(detail.join(', '))}.</p>`;
+  const earned = milestonesOn(key);
+  if (earned.length) html += `<p class="rv-milestone">Milestone reached</p>${milestoneBadges(earned)}`;
+
+  const strip = dayStrip(key, entries.filter((e) => WORK_TYPES.includes(e.type) || e.type === 'break'));
+  if (strip) {
+    html += `<h3>Your day</h3>${strip}`;
+    const best = bestStretch(sessions);
+    if (best) html += `<p class="rv-detail">Your best stretch was ${fmtTime(best.start)} – ${fmtTime(best.end)}: ${fmtMins(best.sec)} of focus across ${best.n} sessions.</p>`;
+  }
 
   if (work.length) {
     html += `<h3>What you worked on</h3>` + listHtml(work.map((g) =>

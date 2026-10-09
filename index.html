@@ -305,6 +305,18 @@
                 <option value="dark">Dark</option>
               </select></span>
             </label>
+            <div class="field-row"><span>Accent color</span>
+              <span class="accent-pick" role="radiogroup" aria-label="Accent color">
+                <label title="Pine"><input type="radio" name="accent" value="pine" aria-label="Pine"><span style="--sw:#2E6B62"></span></label>
+                <label title="Ocean"><input type="radio" name="accent" value="ocean" aria-label="Ocean"><span style="--sw:#2F6690"></span></label>
+                <label title="Plum"><input type="radio" name="accent" value="plum" aria-label="Plum"><span style="--sw:#74508F"></span></label>
+                <label title="Terracotta"><input type="radio" name="accent" value="terracotta" aria-label="Terracotta"><span style="--sw:#A3543A"></span></label>
+                <label title="Graphite"><input type="radio" name="accent" value="graphite" aria-label="Graphite"><span style="--sw:#4A5560"></span></label>
+              </span>
+            </div>
+            <label class="check"><input name="projectTint" type="checkbox"> Color the timer with the project during a session</label>
+            <label class="check"><input name="dayTint" type="checkbox"> Tint the background gently through the day</label>
+            <label class="check"><input name="chimes" type="checkbox"> Play a soft chime when a session or break ends, or a task is done</label>
             <label class="check"><input name="compactAuto" type="checkbox"> Switch to compact view automatically during focus sessions</label>
             <label>Show the floating mini timer
               <span><select name="miniMode">

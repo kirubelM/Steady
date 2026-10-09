@@ -112,6 +112,36 @@ function todayFocusSec() {
   if (S.state === 'paused') sec += Math.max(0, (S.total - S.remaining) / 1000);
   return sec;
 }
+/* ---------- Entrance motion: cards rise in one after another ---------- */
+
+// Adds the "enter" class for long enough to play the CSS entrance, then removes it so
+// later redraws (a timer tick, a ticked task) don't replay it.
+function playEnter(el) {
+  if (!el) return;
+  el.classList.remove('enter');
+  void el.offsetWidth;
+  el.classList.add('enter');
+  clearTimeout(el._enterTimer);
+  el._enterTimer = setTimeout(() => el.classList.remove('enter'), 1100);
+}
+
+/* ---------- Empty states: a small line drawing with a friendly line of text ---------- */
+
+const EMPTY_ART = {
+  sprout: '<path d="M20 44h24l-3 12H23z"/><path d="M32 44V30"/><path d="M32 32c0-7-5-11-12-11 0 7 5 11 12 11z"/><path d="M32 28c0-6 4-10 11-10 0 6-4 10-11 10z"/>',
+  note: '<path d="M16 12h32v28L36 52H16z"/><path d="M36 52V40h12"/><path d="M22 22h20M22 29h20M22 36h10"/>',
+  clock: '<circle cx="32" cy="32" r="20"/><path d="M32 20v12l8 5"/>',
+  chart: '<path d="M12 52h40"/><path d="M18 52V42M28 52V34M38 52V38M48 52V26"/><path d="M16 30l12-8 10 5 12-12" stroke-dasharray="3 3"/>',
+  check: '<circle cx="32" cy="32" r="20"/><path d="M23 33l6 6 12-13"/>'
+};
+
+function emptyState(art, title, text, tag = 'li') {
+  return `<${tag} class="empty empty-art">
+    <svg viewBox="0 0 64 64" aria-hidden="true">${EMPTY_ART[art] || ''}</svg>
+    <span><strong>${title}</strong>${text ? `<span>${text}</span>` : ''}</span>
+  </${tag}>`;
+}
+
 async function persist(...keys) {
   const patch = {};
   keys.forEach((k) => { patch[k] = data[k]; });
@@ -178,6 +208,10 @@ function renderTimer() {
   $('ringProgress').style.strokeDashoffset = String(RING_C * (1 - Math.min(1, Math.max(0, frac))));
   $('ringProgress').style.opacity = frac > 0.001 ? '1' : '0';
   document.body.dataset.state = S.state;
+  const inFocus = S.state === 'focus' || S.state === 'paused';
+  const sessionProject = inFocus && settings.projectTint !== false && S.projectId ? projectById(S.projectId) : null;
+  document.body.classList.toggle('has-proj', !!sessionProject);
+  if (sessionProject) document.body.style.setProperty('--proj', sessionProject.color);
 
   const inSession = S.state === 'focus' || S.state === 'paused';
   const pending = S.state === 'breakPending';
@@ -226,7 +260,12 @@ function renderTimer() {
     autoPaused: S.autoPaused,
     pendingReason: S.pendingReason,
     goalSec: (settings.dailyGoalMin || 0) * 60,
-    todaySec: todayFocusSec()
+    todaySec: todayFocusSec(),
+    // Colors for the mini timer, so it matches the accent and the session's project.
+    colors: (() => {
+      const cs = getComputedStyle(document.body);
+      return { glow: cs.getPropertyValue('--glow').trim(), deep: cs.getPropertyValue('--pane-bg').trim(), accent: cs.getPropertyValue('--pine-deep').trim() };
+    })()
   });
 }
 
@@ -298,6 +337,7 @@ function finishFocus(early) {
   const end = Date.now();
   const remaining = S.state === 'paused' ? S.remaining : Math.max(0, S.endsAt - end);
   const focusSec = Math.round((S.total - (early ? remaining : 0)) / 1000);
+  if (!early && typeof playChime === 'function') playChime('session');
 
   S.pendingSession = {
     id: uid(),
@@ -447,6 +487,7 @@ async function saveCheckin(primary) {
     lastLogAt = Date.now();
     resetTally();
     if (typeof checkGoal === 'function') checkGoal();
+    if (typeof checkMilestones === 'function') checkMilestones();
     if (typeof checkProjectGoals === 'function') checkProjectGoals();
 
     if (primary) {
@@ -541,6 +582,7 @@ async function recordBreak(skipped) {
 async function onBreakEnded({ skipped }) {
   if (S.state !== 'break') return;
   await recordBreak(skipped);
+  if (!skipped && typeof playChime === 'function') playChime('break');
   showNudge(skipped ? 'Break skipped. What is next?' : 'Break over. What is next?', 'info', true);
   $('task').focus();
 }

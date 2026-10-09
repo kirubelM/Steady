@@ -35,9 +35,9 @@ function renderLog() {
   $('summary').textContent = parts.length ? parts.join(', ') + '.' : '';
 
   if (!entries.length) {
-    $('logList').innerHTML = `<li class="empty">${viewDay === today
-      ? 'Nothing logged yet. Start a focus session, or use "Add entry" to record something you did.'
-      : 'Nothing was logged on this day. Use "Add entry" to fill it in.'}</li>`;
+    $('logList').innerHTML = viewDay === today
+      ? emptyState('clock', 'Nothing logged yet', 'Start a focus session, or use "Add entry" to record something you did.')
+      : emptyState('clock', 'Nothing was logged on this day', 'Use "Add entry" to fill it in.');
     return;
   }
 
@@ -261,7 +261,7 @@ function renderParking() {
         ${p.done ? '' : `<button class="link small-link" data-park-task="${p.id}" type="button">Add to today's plan</button>`}
         <button class="del" data-park-del="${p.id}" type="button" aria-label="Delete item">×</button>
       </li>`).join('')
-    : '<li class="empty">Nothing parked. Your head is clear.</li>';
+    : emptyState('note', 'Nothing parked', 'Your head is clear. Press Ctrl+Shift+Space from any app to jot a thought down.');
   $('clearDone').hidden = !items.some((p) => p.done);
 }
 
@@ -279,11 +279,13 @@ const NUM_FIELDS = {
   idlePauseMin: [1, 60], dailyGoalMin: [0, 720], weeklyReviewDay: [0, 6]
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
-  'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks'];
+  'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
+  'projectTint', 'dayTint', 'chimes'];
 const TEXT_FIELDS = {
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
+  accent: (v) => (['pine', 'ocean', 'plum', 'terracotta', 'graphite'].includes(v) ? v : null),
   workStart: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null)
 };
@@ -346,6 +348,7 @@ async function saveSettings(ev) {
   await persist('settings');
   await api.applyStartup();
   if (themeChanged) api.setTheme();
+  applyAppearance();
   fillSettingsForm();
   const inSession = S.state === 'focus' || S.state === 'paused';
   $('settingsSaved').textContent = inSession ? 'Saved. Timing changes apply from your next session.' : 'Saved.';
@@ -377,6 +380,7 @@ function showSettingsCat(cat) {
     box.hidden = ![...box.querySelectorAll('[data-cat]')].some((el) => !el.hidden);
   });
   $('tab-settings').scrollTop = 0;
+  playEnter(document.querySelector('.settings-body'));
   if (cat === 'distractions') renderBlockPermission();
 }
 
@@ -406,7 +410,33 @@ function bindBlockPermission() {
     'Permission removed. Blocking will need it again before it can work.'));
 }
 
+// Accent color and the time-of-day tint.
+function applyAppearance() {
+  document.documentElement.dataset.accent = settings.accent || 'pine';
+  applyDayTint();
+}
+
+// A faint wash over the page that shifts from cool morning light to warm evening light.
+function applyDayTint() {
+  const h = new Date().getHours() + new Date().getMinutes() / 60;
+  const stops = [
+    [0, '70, 80, 140, 0.07'], [6, '120, 160, 210, 0.07'], [10, '120, 170, 200, 0.03'],
+    [13, '255, 255, 255, 0'], [16, '235, 180, 100, 0.05'], [19, '225, 130, 90, 0.08'], [22, '90, 80, 150, 0.08'], [24, '70, 80, 140, 0.07']
+  ];
+  let i = 0;
+  while (i < stops.length - 2 && h >= stops[i + 1][0]) i++;
+  const [h0, c0] = stops[i];
+  const [h1, c1] = stops[i + 1];
+  const t = (h - h0) / (h1 - h0);
+  const a = c0.split(',').map(Number);
+  const b = c1.split(',').map(Number);
+  const mix = a.map((v, k) => (k < 3 ? Math.round(v + (b[k] - v) * t) : +(v + (b[k] - v) * t).toFixed(3)));
+  document.documentElement.style.setProperty('--daytint', settings.dayTint === false ? 'transparent' : `rgba(${mix.join(', ')})`);
+}
+
 function bindSettingsNav() {
+  applyAppearance();
+  setInterval(applyDayTint, 10 * 60000);
   bindBlockPermission();
   $('settingsNav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cat-btn]');
