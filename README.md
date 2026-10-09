@@ -10,6 +10,10 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.4.1
+
+- **Site blocking without running as administrator.** Go to Settings, then Distractions, and click "Allow site blocking" once. Windows shows one admin prompt, and blocking then keeps working after updates and restarts. "Remove permission" undoes it. Before, running Steady as administrator didn't help if Steady was still open in the tray, and updates reopened it without admin rights.
+
 ## What's new in 1.4
 
 - **A timer that shows how you're doing.** During a session, the timer pane has a slowly moving green background and the ring glows softly. When paused, the color drains and the ring pulses. Breaks turn the pane warm amber. Once you reach your daily goal, the ring turns gold, with a short celebration the moment you hit it.
@@ -130,7 +134,7 @@ The mini timer is a small floating window that stays on top of other apps during
 
 **Insights.** Focus time per day, your best hours, top apps, distraction trends, breaks and streaks, over 7, 30 or 90 days.
 
-**Site blocking (optional).** Blocks sites completely during sessions by temporarily editing the Windows hosts file. This needs Steady to run as administrator. The block is removed after each session, when you quit, and on startup.
+**Site blocking (optional).** Blocks sites completely during sessions by temporarily editing the Windows hosts file. The first time, go to Settings, then Distractions, and click "Allow site blocking": Windows shows one admin prompt, after which Steady can edit the hosts file without running as administrator ("Remove permission" undoes it). New sites are blocked right away; one already open in your browser may keep loading for about a minute. The block is removed after each session, when you quit, and on startup.
 
 **Start at sign-in.** In the installed version, go to Settings, then Startup, and tick "Open Steady when I sign in to Windows". With "Start quietly in the system tray" ticked, it starts in the tray without opening a window.
 

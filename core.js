@@ -276,7 +276,11 @@ async function startFocus(opts = {}) {
 
   if (settings.blockSites && settings.blockedSites.length) {
     const r = await api.applyBlock(settings.blockedSites);
-    if (!r.ok) showNudge(r.error, 'warn', false);
+    if (!r.ok) {
+      showNudge(r.error, 'warn', false, /permission/.test(r.error)
+        ? { label: 'Open settings', fn: () => { showTab('settings'); showSettingsCat('distractions'); } }
+        : undefined);
+    }
   }
 }
 

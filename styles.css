@@ -973,3 +973,5 @@ body.goal-met[data-state="idle"] .phase { color: var(--amber-ink); font-weight: 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; }
 }
+.block-perm { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--tint-pine); }
+.block-perm .field-note { margin: 0; }

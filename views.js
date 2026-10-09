@@ -377,9 +377,37 @@ function showSettingsCat(cat) {
     box.hidden = ![...box.querySelectorAll('[data-cat]')].some((el) => !el.hidden);
   });
   $('tab-settings').scrollTop = 0;
+  if (cat === 'distractions') renderBlockPermission();
+}
+
+/* Site blocking: the one-time permission to edit the hosts file. */
+async function renderBlockPermission(message) {
+  const st = await api.blockStatus();
+  $('blockPermRow').hidden = !st.supported;
+  if (!st.supported) return;
+  $('blockAllowBtn').hidden = st.allowed;
+  $('blockRevokeBtn').hidden = !st.allowed;
+  $('blockPermText').textContent = message || (st.allowed
+    ? 'Site blocking is allowed. Steady can edit the hosts file without running as administrator. A site already open in your browser may keep loading for about a minute after a session starts.'
+    : 'Blocking sites means editing the Windows hosts file. Allow it once and it keeps working after updates and restarts. Windows will show one admin prompt.');
+}
+
+function bindBlockPermission() {
+  const run = async (btn, fn, done) => {
+    btn.disabled = true;
+    $('blockPermText').textContent = 'Waiting for Windows…';
+    const r = await fn();
+    btn.disabled = false;
+    renderBlockPermission(r.ok ? done : r.error);
+  };
+  $('blockAllowBtn').addEventListener('click', () => run($('blockAllowBtn'), api.allowBlocking,
+    'Done. Site blocking is allowed and will work in your next focus session.'));
+  $('blockRevokeBtn').addEventListener('click', () => run($('blockRevokeBtn'), api.removeBlockingPermission,
+    'Permission removed. Blocking will need it again before it can work.'));
 }
 
 function bindSettingsNav() {
+  bindBlockPermission();
   $('settingsNav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cat-btn]');
     if (b) showSettingsCat(b.dataset.catBtn);

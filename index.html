@@ -385,7 +385,14 @@
             <label class="stack">Nudge me when a window title contains (one per line)
               <textarea name="distractionKeywords" rows="5"></textarea>
             </label>
-            <label class="check"><input name="blockSites" type="checkbox"> Block these sites during focus sessions (needs Steady to run as administrator)</label>
+            <label class="check"><input name="blockSites" type="checkbox"> Block these sites during focus sessions</label>
+            <div id="blockPermRow" class="block-perm" hidden>
+              <p id="blockPermText" class="field-note"></p>
+              <div class="button-row">
+                <button id="blockAllowBtn" class="btn small" type="button">Allow site blocking</button>
+                <button id="blockRevokeBtn" class="link" type="button" hidden>Remove permission</button>
+              </div>
+            </div>
             <label class="stack">Sites to block (one per line)
               <textarea name="blockedSites" rows="5"></textarea>
             </label>

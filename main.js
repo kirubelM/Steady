@@ -573,8 +573,51 @@ function flushDns() {
 
 function permissionMessage(e) {
   return (e.code === 'EPERM' || e.code === 'EACCES')
-    ? 'Site blocking needs admin rights. Close Steady, right-click it and choose "Run as administrator", or turn blocking off in Settings.'
+    ? 'Site blocking needs permission to edit the hosts file. Go to Settings, then Distractions, and click "Allow site blocking".'
     : `Couldn't update the hosts file: ${e.message}`;
+}
+
+/* One-time permission: let this Windows account edit the hosts file, so blocking works
+   without running Steady as administrator (which is lost after every update or restart). */
+
+function canEditHosts() {
+  if (process.platform !== 'win32') return false;
+  try {
+    fs.closeSync(fs.openSync(HOSTS, 'r+')); // opens for writing without changing anything
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function currentUserSid() {
+  return new Promise((resolve) => {
+    exec('whoami /user /fo csv /nh', { windowsHide: true }, (err, out) => {
+      const m = !err && String(out).match(/"(S-1-[\d-]+)"/);
+      resolve(m ? m[1] : null);
+    });
+  });
+}
+
+// Runs icacls on the hosts file through a single Windows admin (UAC) prompt.
+async function changeHostsAccess(grant) {
+  if (process.platform !== 'win32') return { ok: false, error: 'Site blocking only works on Windows.' };
+  const sid = await currentUserSid();
+  if (!sid) return { ok: false, error: "Couldn't identify your Windows account." };
+  const args = grant ? `"${HOSTS}" /grant *${sid}:(M)` : `"${HOSTS}" /remove:g *${sid}`;
+  const ps = `try { $p = Start-Process -FilePath icacls.exe -ArgumentList '${args.replace(/'/g, "''")}' -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode } catch { exit 1223 }`;
+  return new Promise((resolve) => {
+    const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    child.on('close', (code) => {
+      const allowed = canEditHosts();
+      if (code === 1223) resolve({ ok: false, allowed, error: 'Permission was not given.' });
+      else if (grant && !allowed) resolve({ ok: false, allowed, error: "Windows didn't allow the change. Try again, or run Steady as administrator." });
+      else {
+        log.info(grant ? 'Site blocking allowed for this account' : 'Site blocking permission removed');
+        resolve({ ok: true, allowed });
+      }
+    });
+  });
 }
 
 function applyBlock(sites) {
@@ -707,6 +750,9 @@ ipcMain.on('break:start', (_e, opts) => startBreak(opts));
 ipcMain.on('break:done', (_e, { skipped }) => endBreak(skipped));
 ipcMain.on('break:snooze', () => snoozeBreak());
 ipcMain.handle('block:apply', (_e, sites) => applyBlock(sites));
+ipcMain.handle('block:status', () => ({ supported: process.platform === 'win32', allowed: canEditHosts() }));
+ipcMain.handle('block:grant', () => changeHostsAccess(true));
+ipcMain.handle('block:revoke', () => { clearBlock(); return changeHostsAccess(false); });
 ipcMain.handle('block:clear', () => clearBlock());
 ipcMain.handle('startup:supported', () => startupSupported());
 ipcMain.handle('startup:apply', () => { applyStartup(); return startupSupported(); });
