@@ -200,8 +200,7 @@ function renderTimer() {
   else if (S.state === 'checkin') status = 'Log your session';
   else if (pending) status = S.pendingReason === 'meeting' ? 'Break starts after your call' : `Break at ${fmtTime(S.breakDueAt)}`;
   else {
-    const n = sessionsToday();
-    status = n ? `${plural(n, 'session')} done today` : 'Ready when you are';
+    status = '';
   }
   $('status').textContent = status;
   document.title = inSession ? `${fmtClock(rem)} – Steady` : 'Steady';

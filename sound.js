@@ -205,12 +205,14 @@ function renderSoundControls() {
     .map((o) => `<option value="${o.id}" ${o.id === settings.sound ? 'selected' : ''}>${o.name}</option>`).join('');
   $('soundVolume').value = String(Math.round((settings.soundVolume ?? 0.5) * 100));
   $('soundVolume').disabled = settings.sound === 'off';
+  $('soundVolume').hidden = settings.sound === 'off';
 }
 
 function bindSound() {
   $('soundSelect').addEventListener('change', async (e) => {
     settings.sound = e.target.value;
     $('soundVolume').disabled = settings.sound === 'off';
+    $('soundVolume').hidden = settings.sound === 'off';
     await persist('settings');
     if (settings.sound === 'off') { Sound.stop(); return; }
     if (!wanted()) {

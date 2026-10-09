@@ -75,8 +75,8 @@
       </div>
 
       <div class="hint">
-        <p>From any app: <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Space</kbd> to capture a thought or task. Press <kbd>Ctrl</kbd> <kbd>K</kbd> here for every command.</p>
         <button id="miniLink" class="link" type="button">Show mini timer</button>
+        <button id="shortcutsLink" class="link" type="button" title="Quick capture, the command menu and every other shortcut">Keyboard shortcuts <kbd>?</kbd></button>
       </div>
     </section>
 
@@ -146,7 +146,8 @@
 
         <section id="doneSection" class="plan-section">
           <h3>Done</h3>
-          <form id="doneForm" class="task-form">
+          <button id="doneOpen" class="link sub-add-link done-open" type="button">+ Log something you did</button>
+          <form id="doneForm" class="task-form" hidden>
             <label for="doneInput" class="sr-only">Something you did</label>
             <input id="doneInput" type="text" maxlength="200" placeholder="Add something you finished, e.g. Called the vendor" autocomplete="off">
             <label for="doneMinutes" class="sr-only">Minutes spent (optional)</label>

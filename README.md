@@ -10,6 +10,12 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.6
+
+- **Less clutter on the Plan page.** The "sessions left" estimate moved into the Tasks tile. With no meetings, the schedule is a single line instead of an empty timeline. Tasks show just their project and repeat, with the progress bar covering sessions. The move-up, move-down and add-subtask buttons appear when you hover a task; Focus is always there.
+- **Simpler forms.** The estimate picker shows only while you're adding a task, and the Done list's form is behind a "+ Log something you did" link.
+- **Calmer timer pane.** The status line only appears during sessions and breaks. The volume slider only shows when a focus sound is on, and the shortcut hint is now a small "Keyboard shortcuts" link.
+
 ## What's new in 1.3.5
 
 - **Smoother scrolling.** Scrollbars are slim and match the app's colors, with no arrow buttons, and they only show while you hover or scroll. The tab bar gets a soft shadow when a page scrolls under it, content stays centered in wide windows, and nothing shifts sideways when a scrollbar appears.

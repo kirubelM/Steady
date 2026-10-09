@@ -140,6 +140,7 @@ function renderSchedule(day, sessionsNeeded) {
     hours.push(`<span class="tl-hour" style="left:${pct(atDay(day, m))}%">${shortHourLabel(m / 60)}</span>`);
   }
 
+  const quiet = !off && !Cal.error && !timed.length; // nothing to draw on a timeline
   let summary;
   if (off) {
     summary = 'Connect your calendar in Settings to see meetings here and how much focus time you really have.';
@@ -148,7 +149,7 @@ function renderSchedule(day, sessionsNeeded) {
   } else if (!freeMs) {
     summary = isToday && Date.now() > dayEnd ? 'Your working hours are over for today.' : 'No free time left in your working hours.';
   } else {
-    summary = `${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
+    summary = `${quiet ? 'No meetings. ' : ''}${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
     if (sessionsNeeded && sessionsNeeded > fit) summary += ` Your plan needs about ${sessionsNeeded}, so something may have to move to another day.`;
     else if (sessionsNeeded) summary += ` Your plan needs about ${sessionsNeeded}, so it fits.`;
   }
@@ -161,12 +162,12 @@ function renderSchedule(day, sessionsNeeded) {
     </div>
     <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(summary)}</p>
     ${!off && !Cal.error && Cal.warning ? `<p class="insight-note warn-text">${esc(Cal.warning)}</p>` : ''}
-    ${off ? '' : `<div class="timeline" aria-hidden="true">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
+    ${off || quiet ? '' : `<div class="timeline" aria-hidden="true">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
     ${allDay.length ? `<p class="allday">${allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)"${many ? ` title="${esc(ev.cal)}"` : ''}>${esc(ev.title)}</span>`).join('')}</p>` : ''}
     ${timed.length ? `<ul class="meet-list">${timed.map((ev) => `<li class="${ev.end < Date.now() ? 'past' : ''}">
         <span class="when">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</span>
         <span>${esc(ev.title)}${ev.busy ? '' : ' <span class="muted-note">(free)</span>'}${many ? `<span class="cal-name">${esc(ev.cal)}</span>` : ''}</span>
-      </li>`).join('')}</ul>` : (off || Cal.error ? '' : '<p class="insight-note">No meetings.</p>')}
+      </li>`).join('')}</ul>` : ''}
   `;
   const btn = $('calRefresh');
   if (btn) btn.onclick = () => loadCalendar(true, day);

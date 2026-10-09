@@ -123,11 +123,8 @@ function taskMeta(t) {
   const parts = [];
   const active = (S.state === 'focus' || S.state === 'paused') && S.taskId === t.id;
   if (active) parts.push('In progress');
-  if (t.est) parts.push(`${count} of ${plural(t.est, 'session')}`);
-  else if (count) parts.push(plural(count, 'session'));
+  if (!t.est && count) parts.push(plural(count, 'session'));
   if (sec) parts.push(fmtMins(sec));
-  const preset = t.presetId && presetById(t.presetId);
-  if (preset && !t.done) parts.push(`${preset.focusMin}-min sessions`);
   if (t.done && t.doneAt) parts.push(`done at ${fmtTime(t.doneAt)}`);
   const r = t.recurId && recurById(t.recurId);
   if (r) parts.push(`↻ ${repeatLabel(r).replace('Repeats ', '')}`);
@@ -137,6 +134,7 @@ function taskMeta(t) {
 /* ---------- At a glance: the day's key numbers above the plan ---------- */
 
 let glanceAt = 0;
+let glanceSessions = 0; // sessions the open tasks still need, from renderPlan
 let lastGlance = '';
 
 function glanceRing(pct, met) {
@@ -182,7 +180,9 @@ function renderGlance(force = false) {
   tiles.push(glanceTile(
     'Tasks',
     tasks.length ? `${doneN} of ${tasks.length}` : 'None yet',
-    tasks.length ? (doneN === tasks.length ? 'All done' : `${tasks.length - doneN} to go`) : 'Add a few below',
+    tasks.length
+      ? (doneN === tasks.length ? 'All done' : `${tasks.length - doneN} to go${glanceSessions ? `, about ${plural(glanceSessions, 'session')}` : ''}`)
+      : 'Add a few below',
     `<div class="g-bar" aria-hidden="true"><span style="width:${tasks.length ? (doneN / tasks.length) * 100 : 0}%"></span></div>`
   ));
 
@@ -522,7 +522,8 @@ function renderPlan() {
       summary += ` Going by your past estimates, plan for about ${realistic.sessions}.`;
     }
   }
-  $('planSummary').textContent = summary;
+  $('planSummary').textContent = isFuture ? summary : '';
+  glanceSessions = realistic && realistic.sessions > estLeft ? realistic.sessions : estLeft;
   if (typeof renderSchedule === 'function') renderSchedule(planDay, realistic ? realistic.sessions : estLeft);
   renderGlance(true);
   if (typeof renderProjectGoals === 'function') renderProjectGoals();
@@ -596,6 +597,9 @@ function renderPlan() {
       : `<li class="empty">${isToday ? 'Nothing yet. Finished sessions, completed tasks and anything you add here show up in this list.' : 'Nothing was logged on this day.'}</li>`;
   }
 
+  $('doneForm').hidden = !doneFormOpen;
+  $('doneOpen').hidden = doneFormOpen;
+
   // Notes for the day (don't overwrite while typing)
   if (document.activeElement !== $('dayNotes') || $('dayNotes').dataset.day !== planDay) {
     $('dayNotes').value = (data.notes && data.notes[planDay]) || '';
@@ -613,6 +617,8 @@ function renderPlan() {
   lastNextUp = null;
   renderNextUp();
 }
+
+let doneFormOpen = false;
 
 let lastNextUp = null;
 function renderNextUp() {
@@ -723,6 +729,23 @@ function bindPlan() {
     $('taskInput').focus();
   });
 
+  $('doneOpen').addEventListener('click', () => {
+    doneFormOpen = true;
+    renderPlan();
+    $('doneInput').focus();
+  });
+  $('doneForm').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { doneFormOpen = false; renderPlan(); }
+  });
+  $('doneForm').addEventListener('focusout', () => {
+    // Fold the form away again once you leave it empty.
+    setTimeout(() => {
+      if (!$('doneForm').contains(document.activeElement) && !$('doneInput').value.trim() && !$('doneMinutes').value) {
+        doneFormOpen = false;
+        renderPlan();
+      }
+    }, 150);
+  });
   $('doneForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const text = $('doneInput').value.trim();

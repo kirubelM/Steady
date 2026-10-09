@@ -829,3 +829,23 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 @media (prefers-reduced-motion: no-preference) { .tab, .review-body, .palette-list { scroll-behavior: smooth; } }
 /* Long dialogs scroll, but Save/Cancel stay pinned to the bottom. */
 .dialog .dialog-actions { position: sticky; bottom: -24px; z-index: 1; background: var(--paper); margin: 20px -26px -24px; padding: 14px 26px 22px; box-shadow: 0 -8px 12px -10px rgba(31, 45, 51, 0.25); }
+
+/* ---------- 1.3.6 declutter ---------- */
+
+/* Reorder and add-subtask buttons appear on hover or keyboard focus; Focus stays visible. */
+.task-actions [data-task-move], .task-actions [data-sub-new] { opacity: 0; transition: opacity 120ms ease; }
+.task:hover .task-actions [data-task-move], .task:hover .task-actions [data-sub-new],
+.task:focus-within .task-actions [data-task-move], .task:focus-within .task-actions [data-sub-new] { opacity: 1; }
+
+/* The estimate picker only shows while you're adding a task. */
+#taskForm:not(:focus-within):has(#taskInput:placeholder-shown) #taskEst { display: none; }
+
+/* Done: a link until you open the form. */
+.done-open { margin: 8px 0 4px; margin-left: 0; }
+
+/* Bottom of the timer pane: two small links on one row. */
+.hint { flex-direction: row; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.hint .link { font-size: 0.82rem; color: var(--pane-muted); }
+.hint .link:hover { color: var(--pane-ink); }
+.hint kbd { font-size: 0.72rem; padding: 0 5px; margin-left: 2px; }
+.g-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }

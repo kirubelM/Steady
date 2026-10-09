@@ -110,6 +110,7 @@ function bind() {
     if (fn) fn();
   });
   $('miniLink').addEventListener('click', () => api.command('mini-toggle'));
+  $('shortcutsLink').addEventListener('click', openShortcuts);
   api.onMiniVisible((shown) => {
     miniShown = shown;
     $('miniLink').textContent = shown ? 'Hide mini timer' : 'Show mini timer';
