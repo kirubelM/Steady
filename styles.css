@@ -833,9 +833,21 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 /* ---------- 1.3.6 declutter ---------- */
 
 /* Reorder and add-subtask buttons appear on hover or keyboard focus; Focus stays visible. */
-.task-actions [data-task-move], .task-actions [data-sub-new] { opacity: 0; transition: opacity 120ms ease; }
-.task:hover .task-actions [data-task-move], .task:hover .task-actions [data-sub-new],
-.task:focus-within .task-actions [data-task-move], .task:focus-within .task-actions [data-sub-new] { opacity: 1; }
+.task-actions [data-sub-new] { opacity: 0; transition: opacity 120ms ease; }
+.task:hover .task-actions [data-sub-new], .task:focus-within .task-actions [data-sub-new] { opacity: 1; }
+
+/* Drag to reorder tasks */
+.task { position: relative; }
+.task[draggable="true"] { cursor: grab; }
+.task[draggable="true"] input, .task[draggable="true"] button { cursor: pointer; }
+.task-grip {
+  position: absolute; left: -17px; top: 17px; width: 8px; height: 14px; opacity: 0; transition: opacity 120ms ease;
+  background-image: radial-gradient(currentColor 1px, transparent 1.2px); background-size: 4px 4px; color: var(--muted);
+}
+.task:hover .task-grip, .task:focus-within .task-grip { opacity: 0.85; }
+.task.dragging { opacity: 0.45; }
+.task.drop-before { box-shadow: inset 0 3px 0 var(--pine); }
+.task.drop-after { box-shadow: inset 0 -3px 0 var(--pine); }
 
 /* The estimate picker only shows while you're adding a task. */
 #taskForm:not(:focus-within):has(#taskInput:placeholder-shown) #taskEst { display: none; }

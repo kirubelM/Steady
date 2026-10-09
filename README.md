@@ -10,6 +10,10 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+## What's new in 1.3.8
+
+- **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. This replaces the up and down arrow buttons.
+
 ## What's new in 1.3.7
 
 - **Settings by category.** Settings are grouped into Focus, Breaks, Projects and tasks, Calendar, Distractions, Appearance and startup, Data and backups, and Help and about, and you see one group at a time. Steady remembers the last group you opened.

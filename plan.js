@@ -73,6 +73,19 @@ async function moveTask(id, dir) {
   renderPlan();
 }
 
+// Drag and drop: put task `id` just before or after `targetId` among the day's open tasks.
+async function placeTask(id, targetId, after) {
+  const t = findTask(id);
+  if (!t || id === targetId) return;
+  const list = tasksFor(t.day).filter((x) => !x.done && x.id !== id);
+  const i = list.findIndex((x) => x.id === targetId);
+  if (i < 0) return;
+  list.splice(after ? i + 1 : i, 0, t);
+  list.forEach((x, n) => { x.order = n; });
+  await persist('tasks');
+  renderPlan();
+}
+
 async function moveToDay(ids, day) {
   ids.forEach((id) => {
     const t = findTask(id);
@@ -530,13 +543,13 @@ function renderPlan() {
 
   const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
   $('taskList').innerHTML = tasks.length
-    ? tasks.map((t, i) => {
+    ? tasks.map((t) => {
       const meta = taskMeta(t);
-      const firstOpen = !t.done && i === 0;
-      const lastOpen = !t.done && i === open.length - 1;
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
-      return `<li class="task${t.done ? ' done' : ''}"${color ? ` style="--pc:${color}"` : ''}>
+      const movable = !t.done && open.length > 1;
+      return `<li class="task${t.done ? ' done' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
+        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder (or Alt+↑ / Alt+↓)"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
@@ -544,10 +557,8 @@ function renderPlan() {
           ${progress !== null && !t.done ? `<span class="task-progress" aria-hidden="true"><span style="width:${(progress * 100).toFixed(0)}%"></span></span>` : ''}
         </button>
         <div class="task-actions">
-          ${t.done ? '' : `${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}
-          <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="-1" aria-label="Move up" ${firstOpen ? 'disabled' : ''}>↑</button>
-          <button class="icon-btn small" type="button" data-task-move="${t.id}" data-dir="1" aria-label="Move down" ${lastOpen ? 'disabled' : ''}>↓</button>
-          ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}`}
+          ${t.done ? '' : `${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
+          ${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}`}
         </div>
         ${subtaskBlock(t, canFocus)}
       </li>`;
@@ -647,6 +658,61 @@ async function maybeNudgePlan() {
     'info', false, { label: 'Open plan', fn: () => { planDay = todayKey(); showTab('plan'); } }
   );
   $('nudge').dataset.kind = 'plan';
+}
+
+/* ---------- Reordering tasks: drag a row, or Alt+Up / Alt+Down ---------- */
+
+function bindTaskDrag() {
+  const list = $('taskList');
+  let dragId = null;
+  const clearDrop = () => list.querySelectorAll('.drop-before, .drop-after')
+    .forEach((r) => r.classList.remove('drop-before', 'drop-after'));
+  const targetRow = (e) => e.target.closest?.('[data-task-row][draggable="true"]');
+
+  list.addEventListener('dragstart', (e) => {
+    if (e.target.closest?.('[data-sub-row]')) return; // a subtask is being dragged
+    const row = e.target.closest?.('[data-task-row]');
+    if (!row || row.getAttribute('draggable') !== 'true') return;
+    dragId = row.dataset.taskRow;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragId);
+    requestAnimationFrame(() => row.classList.add('dragging'));
+  });
+  list.addEventListener('dragover', (e) => {
+    const row = dragId && targetRow(e);
+    if (!row) return;
+    e.preventDefault();
+    clearDrop();
+    if (row.dataset.taskRow === dragId) return;
+    // Judge by the task's own line, not its subtasks, so tall rows behave.
+    const r = row.getBoundingClientRect();
+    row.classList.add(e.clientY < r.top + Math.min(r.height / 2, 28) ? 'drop-before' : 'drop-after');
+  });
+  list.addEventListener('drop', (e) => {
+    const row = dragId && targetRow(e);
+    if (!row) return;
+    e.preventDefault();
+    const after = row.classList.contains('drop-after');
+    const id = dragId;
+    dragId = null;
+    clearDrop();
+    placeTask(id, row.dataset.taskRow, after);
+  });
+  list.addEventListener('dragend', () => {
+    dragId = null;
+    clearDrop();
+    list.querySelectorAll('.task.dragging').forEach((r) => r.classList.remove('dragging'));
+  });
+
+  list.addEventListener('keydown', async (e) => {
+    if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    const row = e.target.closest('[data-task-row]');
+    if (!row || e.target.matches('input[type="text"]')) return;
+    e.preventDefault();
+    const id = row.dataset.taskRow;
+    await moveTask(id, e.key === 'ArrowUp' ? -1 : 1);
+    list.querySelector(`[data-task-edit="${id}"]`)?.focus();
+  });
 }
 
 /* ---------- Task editor ---------- */
@@ -760,7 +826,6 @@ function bindPlan() {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.taskStart) startTask(b.dataset.taskStart);
-    else if (b.dataset.taskMove) moveTask(b.dataset.taskMove, Number(b.dataset.dir));
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
@@ -773,6 +838,7 @@ function bindPlan() {
     if (id) setTaskDone(id, e.target.checked);
   });
   bindSubtasks();
+  bindTaskDrag();
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
     data.meta.tomorrowNote = null;
