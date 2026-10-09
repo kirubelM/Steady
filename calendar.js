@@ -281,4 +281,27 @@ async function fromLink(url, rangeStart, rangeEnd, fetchFn) {
   }
 }
 
-module.exports = { fromOutlook, fromLink, eventsFromIcs };
+// Combines the results of fetching several calendars. A meeting that shows up in two calendars
+// (for example Google subscribed inside Outlook) is listed once. Fails only if every calendar failed.
+function mergeResults(cals, results) {
+  const failed = cals
+    .map((c, i) => ({ name: c.name, error: results[i].error }))
+    .filter((_f, i) => !results[i].ok);
+  if (failed.length === cals.length) {
+    return { ok: false, error: cals.length > 1 ? `${failed[0].name}: ${failed[0].error}` : failed[0].error };
+  }
+  const merged = new Map();
+  results.forEach((r, i) => {
+    if (!r.ok) return;
+    for (const ev of r.events) {
+      const key = `${ev.title}|${ev.start}|${ev.end}`;
+      const seen = merged.get(key);
+      if (seen) seen.busy = seen.busy || ev.busy;
+      else merged.set(key, { ...ev, cal: cals[i].name });
+    }
+  });
+  const events = [...merged.values()].sort((a, b) => a.start - b.start);
+  return { ok: true, events, failed };
+}
+
+module.exports = { fromOutlook, fromLink, eventsFromIcs, mergeResults };

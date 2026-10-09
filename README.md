@@ -10,6 +10,13 @@ A Windows desktop app for planning your day, focus sessions, screen breaks, dist
 
 To build an installer, run `npm run dist`. The installer appears in the `dist` folder.
 
+Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calendars, saved-data upgrades, streaks and milestones) and that every file the app needs is included in the installer. The tests also run on GitHub for every push, and a release is only built if they pass.
+
+## What's new in 1.5.1
+
+- **Sturdier data loading.** If the data file is damaged in an unusual way (for example it holds nothing but `null`), Steady now loads with defaults instead of failing to start.
+- **Automatic checks.** 46 tests run on every change and before every release, so mistakes are caught before an update reaches you.
+
 ## What's new in 1.5
 
 - **Accent colors.** Choose Pine, Ocean, Plum, Terracotta or Graphite in Settings, then Appearance and startup. Buttons, rings, charts and the focus background all follow it.
