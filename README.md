@@ -12,6 +12,15 @@ To build an installer, run `npm run dist`. The installer appears in the `dist` f
 
 Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calendars, saved-data upgrades, streaks and milestones) and that every file the app needs is included in the installer. The tests also run on GitHub for every push, and a release is only built if they pass.
 
+## What's new in 1.6
+
+- **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or set a time in the task editor. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
+- **Plan my day.** On today's page, "Plan my day" gathers leftovers, tasks due soon but planned for later, and parked thoughts. It ticks what fits in your free time (urgent ones always), and adds your choices to today.
+- **Due dates and stars.** Give a task a due date in the task editor and star the important ones (☆ on each task). Starred and overdue tasks rise to the top, "Overdue by a day" and "Due today" labels show on tasks, the Tasks tile counts them, and there's a new "Priority" sort.
+- **Session goals.** Before a session, optionally write what done looks like. It shows under the timer, the check-in asks whether you got there, and your hit rate appears in the daily review and Insights.
+- **What's next after a break.** When a break ends, Steady offers to start the task you were on (or the top of your list). It never starts on its own, and you can turn the prompt off in Settings, then Breaks.
+- **A welcome for new installs.** A first launch on a fresh install walks through setting a daily goal, a first project and task, and starting a session.
+
 ## What's new in 1.5.1
 
 - **Sturdier data loading.** If the data file is damaged in an unusual way (for example it holds nothing but `null`), Steady now loads with defaults instead of failing to start.

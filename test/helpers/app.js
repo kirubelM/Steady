@@ -8,7 +8,7 @@ const { normalize } = require('../../datamodel');
 const ROOT = path.join(__dirname, '..', '..');
 // Same order as index.html, so later scripts see the earlier ones.
 const SCRIPTS = ['core.js', 'projects.js', 'sound.js', 'views.js', 'insights.js', 'plan.js', 'review.js',
-  'recurring.js', 'schedule.js', 'goals.js', 'shortcuts.js', 'datacare.js'];
+  'recurring.js', 'schedule.js', 'planning.js', 'goals.js', 'shortcuts.js', 'datacare.js'];
 
 // An element that accepts anything: enough for code that touches the page as a side effect.
 function fakeElement() {
@@ -78,7 +78,7 @@ function loadApp(raw = {}) {
   sandbox.__data = normalize(structuredClone(raw));
   run('data = __data; settings = data.settings;');
   // Drawing is not under test; skip it so logic runs without a page.
-  run(`renderPlan = () => {}; renderFocusSubs = () => {}; renderRecurringSettings = () => {};
+  run(`renderPlan = () => {}; renderFocusSubs = () => {}; renderRecurringSettings = () => {}; fillSettingsForm = () => {}; renderTimer = () => {}; renderParking = () => {};
        showNudge = (text, tone, auto, action) => { __nudges.push({ text, action: action && action.label, fn: action && action.fn }); };
        hideNudge = () => {}; playChime = () => {};`.replace('__nudges', '(globalThis.__nudges = globalThis.__nudges || [])'));
   return { run, sandbox, saved, nudges: () => sandbox.__nudges || [] };

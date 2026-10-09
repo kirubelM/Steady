@@ -42,6 +42,7 @@ const DEFAULTS = {
     projectTint: true,
     dayTint: true,
     chimes: false,
+    nextPrompt: true,
     backupKeepDays: 30,
     startAtLogin: false,
     startMinimized: true,

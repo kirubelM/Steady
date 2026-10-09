@@ -238,7 +238,15 @@ function renderGlance(force = false) {
     'Tasks',
     tasks.length ? `${doneN} of ${tasks.length}` : 'None yet',
     tasks.length
-      ? (doneN === tasks.length ? 'All done' : `${tasks.length - doneN} to go${glanceSessions ? `, about ${plural(glanceSessions, 'session')}` : ''}`)
+      ? (doneN === tasks.length ? 'All done' : (() => {
+        const overdue = tasks.filter((x) => dueStatus(x)?.kind === 'overdue').length;
+        const starred = tasks.filter((x) => x.starred && !x.done).length;
+        const flags = [overdue ? `${overdue} overdue` : '', starred ? `${starred} starred` : ''].filter(Boolean);
+        // Keep it to two short lines: flags win over the sessions estimate.
+        return flags.length
+          ? `${flags.join(', ')}, ${tasks.length - doneN} to go`
+          : `${tasks.length - doneN} to go${glanceSessions ? `, about ${plural(glanceSessions, 'session')}` : ''}`;
+      })())
       : 'Add a few below',
     `<div class="g-bar" aria-hidden="true"><span style="width:${tasks.length ? (doneN / tasks.length) * 100 : 0}%"></span></div>`,
     tasks.length ? { n: doneN, kind: 'of', of: tasks.length } : null
@@ -566,6 +574,7 @@ function renderPlan() {
   $('planDate').textContent = new Date(planDay + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   $('planToday').hidden = isToday;
   $('reviewBtn').hidden = isFuture;
+  $('planDayBtn').hidden = !isToday;
   $('taskInput').placeholder = isToday ? 'Add a task for today' : isFuture ? `Add a task for ${dayTitle(planDay).toLowerCase()}` : 'Add a task for this day';
 
   const note = data.meta.tomorrowNote;
@@ -596,23 +605,26 @@ function renderPlan() {
   const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
   const shown = viewTasks(tasks);
   const dragOk = taskView.sort === 'manual' && taskView.project === 'all';
+  taskReorderOk = dragOk;
   renderTaskView(tasks, shown);
   $('taskList').innerHTML = shown.length
     ? shown.map((t) => {
       const meta = taskMeta(t);
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
-      const movable = dragOk && !t.done && open.length > 1;
+      const movable = !t.done; // reorder in the list, or drop onto the schedule to block time
+      const due = dueStatus(t);
       return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
-        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder (or Alt+↑ / Alt+↓)"></span>' : ''}
+        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder, or onto the schedule to block time"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
-          <span class="task-meta">${projectChip(t.projectId)}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
+          <span class="task-meta">${projectChip(t.projectId)}${due ? `<span class="due-chip due-${due.kind}">${esc(due.label)}</span>` : ''}${t.block && !t.done ? `<span class="block-chip">${fmtTime(atDay(t.block.day, t.block.startMin))}</span>` : ''}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
           ${progress !== null && !t.done ? `<span class="task-progress" aria-hidden="true"><span style="width:${(progress * 100).toFixed(0)}%"></span></span>` : ''}
         </button>
         <div class="task-actions">
-          ${t.done ? '' : `${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
+          ${t.done ? '' : `<button class="star-btn${t.starred ? ' on' : ''}" type="button" data-task-star="${t.id}" aria-pressed="${!!t.starred}" aria-label="${t.starred ? 'Unstar' : 'Star'} ${esc(t.text)}" title="${t.starred ? 'Starred' : 'Star this task'}">${t.starred ? '★' : '☆'}</button>
+          ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
           ${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}`}
         </div>
         ${subtaskBlock(t, canFocus)}
@@ -695,7 +707,8 @@ let doneFormOpen = false;
 
 let lastNextUp = null;
 function renderNextUp() {
-  const next = S.state === 'idle' && !$('task').value.trim() ? openTodayTasks()[0] : null;
+  // The top of the list as you see it, so starred and overdue tasks come first.
+  const next = S.state === 'idle' && !$('task').value.trim() ? viewTasks(todayTasks()).find((t) => !t.done) : null;
   const label = next ? next.id + next.text : '';
   if (label === lastNextUp) return;
   lastNextUp = label;
@@ -725,7 +738,7 @@ async function maybeNudgePlan() {
 /* ---------- Filtering and sorting the To do list ---------- */
 
 const TASK_SORTS = [
-  ['manual', 'My order'], ['project', 'Project'], ['left', 'Most sessions left'],
+  ['manual', 'My order'], ['priority', 'Priority'], ['project', 'Project'], ['left', 'Most sessions left'],
   ['progress', 'Least progress'], ['name', 'Name A–Z'], ['newest', 'Newest first']
 ];
 const taskView = { project: 'all', sort: 'manual', hideDone: false };
@@ -747,7 +760,9 @@ function viewTasks(tasks) {
   if (taskView.hideDone) list = list.filter((t) => !t.done);
   const byName = (a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' });
   const cmp = {
-    manual: () => 0,
+    // Starred and urgent tasks float up; otherwise your own order.
+    manual: (a, b) => floatsUp(b) - floatsUp(a),
+    priority: priorityCompare,
     project: (a, b) => (projectName(a.projectId) || '￿').localeCompare(projectName(b.projectId) || '￿'),
     left: (a, b) => sessionsLeft(b) - sessionsLeft(a),
     progress: (a, b) => (taskProgress(a) ?? 0) - (taskProgress(b) ?? 0),
@@ -796,6 +811,8 @@ function bindTaskView() {
 
 /* ---------- Reordering tasks: drag a row, or Alt+Up / Alt+Down ---------- */
 
+let taskReorderOk = true; // false while the list is sorted or filtered
+
 function bindTaskDrag() {
   const list = $('taskList');
   let dragId = null;
@@ -810,10 +827,11 @@ function bindTaskDrag() {
     dragId = row.dataset.taskRow;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', dragId);
+    e.dataTransfer.setData('application/x-steady-task', dragId);
     requestAnimationFrame(() => row.classList.add('dragging'));
   });
   list.addEventListener('dragover', (e) => {
-    const row = dragId && targetRow(e);
+    const row = dragId && taskReorderOk && targetRow(e);
     if (!row) return;
     e.preventDefault();
     clearDrop();
@@ -823,7 +841,7 @@ function bindTaskDrag() {
     row.classList.add(e.clientY < r.top + Math.min(r.height / 2, 28) ? 'drop-before' : 'drop-after');
   });
   list.addEventListener('drop', (e) => {
-    const row = dragId && targetRow(e);
+    const row = dragId && taskReorderOk && targetRow(e);
     if (!row) return;
     e.preventDefault();
     const after = row.classList.contains('drop-after');
@@ -841,7 +859,7 @@ function bindTaskDrag() {
   list.addEventListener('keydown', async (e) => {
     if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
     const row = e.target.closest('[data-task-row]');
-    if (!row || e.target.matches('input[type="text"]') || row.getAttribute('draggable') !== 'true') return;
+    if (!row || e.target.matches('input[type="text"]') || row.getAttribute('draggable') !== 'true' || !taskReorderOk) return;
     e.preventDefault();
     const id = row.dataset.taskRow;
     await moveTask(id, e.key === 'ArrowUp' ? -1 : 1);
@@ -887,6 +905,10 @@ function openTaskDialog(id) {
   $('taskEditRepeat').innerHTML = REPEAT_OPTIONS.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('');
   $('taskEditRepeat').value = r ? r.freq : '';
   editingSubs = (t.subtasks || []).map((x) => ({ ...x }));
+  $('taskEditDue').value = t.due || '';
+  $('taskEditStar').checked = !!t.starred;
+  $('taskEditBlockStart').value = t.block ? `${String(Math.floor(t.block.startMin / 60)).padStart(2, '0')}:${String(t.block.startMin % 60).padStart(2, '0')}` : '';
+  $('taskEditBlockMins').value = t.block ? String(t.block.mins) : '';
   $('taskEditSubInput').value = '';
   renderSubEditor();
   $('taskDialog').showModal();
@@ -908,6 +930,16 @@ async function saveTaskDialog() {
   if (done !== t.done) { t.done = done; t.doneAt = done ? Date.now() : null; }
   if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
   t.subtasks = editingSubs.filter((x) => x.text.trim());
+  t.due = $('taskEditDue').value || null;
+  t.starred = $('taskEditStar').checked;
+  const blockStart = $('taskEditBlockStart').value;
+  if (blockStart) {
+    const [h, m] = blockStart.split(':').map(Number);
+    const len = Number($('taskEditBlockMins').value) || defaultBlockMins(t);
+    t.block = { day: t.day, startMin: Math.round((h * 60 + m) / 15) * 15, mins: Math.max(15, Math.min(480, len)) };
+  } else {
+    t.block = null;
+  }
   const freq = $('taskEditRepeat').value;
   if (freq || t.recurId) await setRepeat(t, freq);
   await persist('tasks');
@@ -960,6 +992,7 @@ function bindPlan() {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.taskStart) startTask(b.dataset.taskStart);
+    else if (b.dataset.taskStar) toggleStar(b.dataset.taskStar);
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);

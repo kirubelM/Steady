@@ -209,6 +209,7 @@ function bind() {
   bindCalendars();
 
   bindScrollPolish();
+  bindPlanning();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
   bindPlan();
@@ -244,7 +245,8 @@ async function init() {
   await materializeRecurring();
   renderPlan();
   showTab('plan');
-  maybeNudgePlan();
+  if (shouldWelcome()) openWelcome();
+  else maybeNudgePlan();
   renderRecurringSettings();
   loadCalendar();
 

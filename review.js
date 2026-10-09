@@ -231,6 +231,8 @@ function buildDay(key) {
   if (sessions.length) detail.push(`${Math.round((onTrack / sessions.length) * 100)}% of sessions went to plan`);
   if (breaks.length) detail.push(`${breaks.filter((b) => !b.skipped).length} of ${plural(breaks.length, 'break')} taken`);
   if (drifts) detail.push(plural(drifts, 'drift'));
+  const gs = goalStats(sessions);
+  if (gs.set) detail.push(`${gs.hit} of ${plural(gs.set, 'session goal')} reached${gs.partly ? `, ${gs.partly} partly` : ''}`);
 
   let html = `<p class="rv-headline">${headline}</p>`;
   if (goalSec) html += `<div class="rv-bar"><span style="width:${Math.min(100, (focusSec / goalSec) * 100).toFixed(1)}%"></span></div>`;

@@ -225,9 +225,12 @@ function renderTimer() {
   const showInput = S.state === 'idle';
   $('presetBar').hidden = !showInput;
   $('focusProjectRow').hidden = !showInput;
+  $('goalRow').hidden = !showInput;
   $('task').hidden = !showInput;
   document.querySelector('.task-field label').hidden = !showInput;
   $('currentTask').hidden = !inSession;
+  $('currentGoal').hidden = !inSession || !S.goal;
+  $('currentGoal').textContent = S.goal ? `Goal: ${S.goal}` : '';
   $('currentTask').textContent = S.task;
   if (typeof renderNextUp === 'function') renderNextUp();
 
@@ -290,6 +293,8 @@ async function startFocus(opts = {}) {
   S.task = text || 'Untitled focus';
   S.taskId = opts.taskId ?? (typeof matchTask === 'function' ? matchTask(S.task) : null);
   S.subId = opts.subId || null;
+  S.goal = String(opts.goal ?? $('sessionGoal').value ?? '').trim().slice(0, 120);
+  $('sessionGoal').value = '';
   const task = S.taskId && typeof findTask === 'function' ? findTask(S.taskId) : null;
   if (task && task.presetId && presetById(task.presetId) && !opts.keepPreset) selectedPresetId = task.presetId;
   renderPresetBar();
@@ -347,6 +352,7 @@ function finishFocus(early) {
     task: S.task,
     taskId: S.taskId,
     subId: S.subId || null,
+    goal: S.goal || null,
     projectId: S.projectId || null,
     presetId: S.presetId,
     plannedMin: Math.round(S.total / 60000),
@@ -444,6 +450,11 @@ function openCheckin(kind) {
       : '';
     $('checkinProject').innerHTML = projectOptions(p.projectId);
     const task = p.taskId && typeof findTask === 'function' ? findTask(p.taskId) : null;
+    $('goalCheck').hidden = !p.goal;
+    if (p.goal) {
+      $('goalCheckLegend').textContent = `Your goal was "${p.goal}". Did you get there?`;
+      document.querySelector('input[name="goalHit"][value="yes"]').checked = true;
+    }
     const sub = task && p.subId ? (task.subtasks || []).find((x) => x.id === p.subId) : null;
     $('checkinDoneRow').hidden = sub ? sub.done : !task || task.done;
     $('checkinDone').checked = false;
@@ -457,6 +468,7 @@ function openCheckin(kind) {
     apps = topApps();
     $('checkinDrift').textContent = '';
     $('checkinDoneRow').hidden = true;
+    $('goalCheck').hidden = true;
     $('checkinProject').innerHTML = projectOptions(null);
   }
 
@@ -476,7 +488,8 @@ async function saveCheckin(primary) {
 
   if (S.checkinKind === 'session') {
     const p = S.pendingSession;
-    data.entries.push({ ...p, note: note || p.task, rating, projectId });
+    const goalHit = p.goal ? document.querySelector('input[name="goalHit"]:checked')?.value || 'yes' : null;
+    data.entries.push({ ...p, note: note || p.task, rating, projectId, ...(goalHit ? { goalHit } : {}) });
     S.pendingSession = null;
     if (!$('checkinDoneRow').hidden && $('checkinDone').checked) {
       if (p.subId && typeof setSubtaskDone === 'function') await setSubtaskDone(p.taskId, p.subId, true);
@@ -583,7 +596,8 @@ async function onBreakEnded({ skipped }) {
   if (S.state !== 'break') return;
   await recordBreak(skipped);
   if (!skipped && typeof playChime === 'function') playChime('break');
-  showNudge(skipped ? 'Break skipped. What is next?' : 'Break over. What is next?', 'info', true);
+  if (typeof promptNextTask === 'function') promptNextTask(skipped);
+  else showNudge(skipped ? 'Break skipped. What is next?' : 'Break over. What is next?', 'info', true);
   $('task').focus();
 }
 
@@ -681,6 +695,7 @@ function tick() {
   }
 
   if (typeof reviewTick === 'function') reviewTick(now);
+  if (typeof blockTick === 'function' && now % 15000 < 1000) blockTick(now);
   if (typeof calendarTick === 'function' && now % 60000 < 1000) calendarTick(now);
   else if (typeof calendarTick === 'function' && S.state === 'focus' && Cal.warnedSession !== S.start && Cal.events.length) calendarTick(now);
   renderTimer();

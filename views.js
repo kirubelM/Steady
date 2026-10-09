@@ -280,7 +280,7 @@ const NUM_FIELDS = {
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
-  'projectTint', 'dayTint', 'chimes'];
+  'projectTint', 'dayTint', 'chimes', 'nextPrompt'];
 const TEXT_FIELDS = {
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),

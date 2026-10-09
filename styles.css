@@ -1142,3 +1142,63 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .glance { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
 .g-tile:has(.g-ring) .g-value { white-space: nowrap; display: block; }
 @media (max-width: 1000px) { .glance { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- 1.6 planning features ---------- */
+
+/* Stars and due dates on tasks */
+.star-btn { font: inherit; font-size: 1.05rem; line-height: 1; background: none; border: 0; padding: 4px; cursor: pointer; color: var(--muted); opacity: 0; transition: opacity 120ms ease, transform 120ms ease, color 120ms ease; }
+.task:hover .star-btn, .task:focus-within .star-btn, .star-btn.on { opacity: 1; }
+.star-btn.on { color: var(--amber); }
+.star-btn:hover { transform: scale(1.15); color: var(--amber); }
+.due-chip, .block-chip { display: inline-flex; align-items: center; padding: 0 8px; margin-right: 4px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.due-chip.due-overdue { background: var(--tint-berry); color: var(--berry); }
+.due-chip.due-today { background: var(--tint-amber); color: var(--amber-ink); }
+.due-chip.due-soon, .due-chip.due-later { background: var(--tint-pine); color: var(--muted); }
+.block-chip { background: var(--tint-pine); color: var(--pine); }
+.block-chip::before { content: "◷"; margin-right: 4px; font-weight: 400; }
+.task-star-field { align-self: end; margin: 0 0 8px; }
+
+/* Time blocks on the timeline */
+.timeline.droppable { margin-bottom: 30px; }
+.tl-task {
+  position: absolute; top: 0; bottom: 0; z-index: 1; border-radius: 4px; cursor: grab; overflow: hidden;
+  background: color-mix(in srgb, var(--bc, var(--pine)) 85%, transparent);
+  box-shadow: 0 0 0 1px var(--card, var(--paper)); display: flex; align-items: center;
+}
+.tl-task em { font-style: normal; font-size: 0.7rem; font-weight: 600; color: #fff; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-ghost { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--pine); z-index: 3; pointer-events: none; }
+.tl-ghost::after { content: attr(data-time); position: absolute; top: -20px; left: 4px; font-size: 0.72rem; font-weight: 600; color: var(--pine); white-space: nowrap; }
+.timeline.droppable:has(.tl-ghost) { outline: 2px dashed color-mix(in srgb, var(--pine) 45%, transparent); outline-offset: 3px; }
+.tl-hint { margin: -12px 0 4px; }
+.block-list li { grid-template-columns: 11.5rem 1fr auto; align-items: center; }
+.block-name { font-weight: 500; }
+.block-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Plan my day */
+.plan-head-actions { display: flex; gap: 8px; }
+.plan-pick { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 46vh; overflow-y: auto; }
+.plan-pick label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-weight: 400; }
+.plan-pick label:hover { background: var(--tint-pine); }
+.plan-pick input { width: 17px; height: 17px; accent-color: var(--pine); margin: 0; }
+.plan-pick-text { display: flex; flex-direction: column; min-width: 0; }
+.plan-pick-text span { font-size: 0.8rem; color: var(--muted); }
+.plan-pick-mins { font-size: 0.85rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Session goal */
+.session-goal input { width: 100%; padding: 7px 12px; font-size: 0.9rem; border-style: dashed; }
+.current-goal { margin: 0; font-size: 0.9rem; color: var(--pane-muted); }
+.current-goal::before { content: "◎ "; }
+.goal-check { margin-top: 10px; }
+
+/* Welcome */
+.welcome { width: min(500px, 94vw); }
+.welcome-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+.welcome-dots i { width: 22px; height: 4px; border-radius: 2px; background: var(--line); transition: background 300ms ease; }
+.welcome-dots i.on { background: var(--pine); }
+.welcome section { animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.welcome-goals { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.welcome-goals label { position: relative; cursor: pointer; }
+.welcome-goals input { position: absolute; opacity: 0; }
+.welcome-goals span { display: inline-block; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); font-family: var(--font-num); font-size: 1rem; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; }
+.welcome-goals input:checked + span { background: var(--pine); border-color: var(--pine); color: var(--on-accent); }
+.welcome-goals input:focus-visible + span { outline: 2px solid var(--amber); outline-offset: 2px; }

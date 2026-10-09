@@ -79,7 +79,8 @@ function freeBlocks(day) {
   const to = atDay(day, minutesOf(settings.workEnd));
   if (day === dayKey(Date.now())) from = Math.max(from, Date.now());
   if (to <= from) return [];
-  const busy = eventsOn(day)
+  const blocked = typeof taskBlocksOn === 'function' ? taskBlocksOn(day).map((b) => ({ start: b.start, end: b.end, busy: true })) : [];
+  const busy = [...eventsOn(day), ...blocked]
     .filter((ev) => ev.busy && !ev.allDay)
     .map((ev) => [Math.max(ev.start, from), Math.min(ev.end, to)])
     .filter(([a, b]) => b > a)
@@ -121,6 +122,8 @@ function renderSchedule(day, sessionsNeeded) {
   const freeMs = blocks.reduce((a, [s, e]) => a + (e - s), 0);
   const fit = sessionsThatFit(blocks);
   const isToday = day === dayKey(Date.now());
+  const taskBlocks = typeof taskBlocksOn === 'function' ? taskBlocksOn(day) : [];
+  const canBlock = !isPast;
 
   // Timeline across working hours
   const pct = (t) => Math.max(0, Math.min(100, ((t - dayStart) / span) * 100));
@@ -134,22 +137,32 @@ function renderSchedule(day, sessionsNeeded) {
   blocks.forEach(([a, b]) => {
     segs.push(`<span class="tl-free" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%" data-tip="${esc(`Free ${fmtTime(a)} – ${fmtTime(b)}\n${fmtMins((b - a) / 1000)}`)}"></span>`);
   });
+  taskBlocks.forEach((b) => {
+    const a = pct(b.start);
+    const w = Math.max(1.5, pct(b.end) - a);
+    const color = projectById(b.task.projectId)?.color;
+    segs.push(`<span class="tl-task" draggable="true" data-block-task="${b.task.id}" style="left:${a}%;width:${w}%${color ? `;--bc:${color}` : ''}" data-tip="${esc(`${fmtTime(b.start)} – ${fmtTime(b.end)}\n${b.task.text}\nDrag to move`)}">${w > 9 ? `<em>${esc(b.task.text)}</em>` : ''}</span>`);
+  });
   if (isToday && Date.now() > dayStart && Date.now() < dayEnd) segs.push(`<span class="tl-now" style="left:${pct(Date.now())}%"></span>`);
   const hours = [];
   for (let m = Math.ceil(startMin / 60) * 60; m <= endMin; m += 120) {
     hours.push(`<span class="tl-hour" style="left:${pct(atDay(day, m))}%">${shortHourLabel(m / 60)}</span>`);
   }
 
-  const quiet = !off && !Cal.error && !timed.length; // nothing to draw on a timeline
+  // Past days only need a timeline if something happened on it; today and later it's where tasks are dropped.
+  const quiet = !canBlock && !off && !Cal.error && !timed.length && !taskBlocks.length;
+  const blockedMs = taskBlocks.reduce((a, b) => a + (b.end - b.start), 0);
   let summary;
-  if (off) {
-    summary = 'Connect your calendar in Settings to see meetings here and how much focus time you really have.';
+  if (off && !freeMs) {
+    summary = 'Connect your calendar in Settings to see meetings here too.';
+  } else if (off) {
+    summary = `${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}${blockedMs ? ` after ${fmtMins(blockedMs / 1000)} blocked for tasks` : ''}. Connect your calendar in Settings to see meetings here too.`;
   } else if (Cal.error) {
     summary = Cal.error;
   } else if (!freeMs) {
     summary = isToday && Date.now() > dayEnd ? 'Your working hours are over for today.' : 'No free time left in your working hours.';
   } else {
-    summary = `${quiet ? 'No meetings. ' : ''}${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
+    summary = `${!timed.length ? 'No meetings. ' : ''}${blockedMs ? `${fmtMins(blockedMs / 1000)} blocked for tasks. ` : ''}${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
     if (sessionsNeeded && sessionsNeeded > fit) summary += ` Your plan needs about ${sessionsNeeded}, so something may have to move to another day.`;
     else if (sessionsNeeded) summary += ` Your plan needs about ${sessionsNeeded}, so it fits.`;
   }
@@ -162,7 +175,16 @@ function renderSchedule(day, sessionsNeeded) {
     </div>
     <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(summary)}</p>
     ${!off && !Cal.error && Cal.warning ? `<p class="insight-note warn-text">${esc(Cal.warning)}</p>` : ''}
-    ${off || quiet ? '' : `<div class="timeline" aria-hidden="true">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
+    ${(off && !canBlock) || quiet ? '' : `<div class="timeline${canBlock ? ' droppable' : ''}" aria-label="Timeline of your working hours${canBlock ? '. Drop a task here to block time for it' : ''}">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
+    ${canBlock && !taskBlocks.length ? '<p class="field-note tl-hint">Drag a task from your list onto the timeline to block time for it.</p>' : ''}
+    ${taskBlocks.length ? `<ul class="meet-list block-list">${taskBlocks.map((b) => `<li class="${b.end < Date.now() ? 'past' : ''}">
+        <span class="when">${fmtTime(b.start)} – ${fmtTime(b.end)}</span>
+        <span class="block-name">${esc(b.task.text)}</span>
+        <span class="block-actions">
+          ${isToday && (S.state === 'idle' || S.state === 'breakPending') && b.end > Date.now() ? `<button class="link" type="button" data-block-start="${b.task.id}">Focus</button>` : ''}
+          <button class="del" type="button" data-unblock="${b.task.id}" aria-label="Remove the time block for ${esc(b.task.text)}" title="Remove block">×</button>
+        </span>
+      </li>`).join('')}</ul>` : ''}
     ${allDay.length ? `<p class="allday">${allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)"${many ? ` title="${esc(ev.cal)}"` : ''}>${esc(ev.title)}</span>`).join('')}</p>` : ''}
     ${timed.length ? `<ul class="meet-list">${timed.map((ev) => `<li class="${ev.end < Date.now() ? 'past' : ''}">
         <span class="when">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</span>

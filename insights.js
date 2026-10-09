@@ -574,6 +574,7 @@ function renderInsights() {
         <p><strong>${plural(st.current, 'day')}</strong> current streak</p>
         <p><strong>${plural(st.longest, 'day')}</strong> longest streak</p>
         <p><strong>${fmtMins(restSec)}</strong> spent resting</p>
+        ${(() => { const g = goalStats(sessions); return g.set ? `<p><strong>${g.hit} of ${g.set}</strong> session goals reached${g.partly ? ` (${g.partly} partly)` : ''}</p>` : ''; })()}
         ${settings.dailyGoalMin ? `<p><strong>${goalDays} of ${workedDays}</strong> working days met your goal</p>` : ''}
       </div>
       ${milestonesHtml()}

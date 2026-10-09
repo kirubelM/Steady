@@ -41,9 +41,14 @@
           <label for="focusProject" class="sr-only">Project</label>
           <select id="focusProject" class="project-select" data-none="No project"></select>
         </div>
+        <div id="goalRow" class="session-goal">
+          <label for="sessionGoal" class="sr-only">What does done look like? (optional)</label>
+          <input id="sessionGoal" type="text" maxlength="120" placeholder="Done looks like… (optional)" autocomplete="off">
+        </div>
         <p id="nextUp" class="next-up" hidden>Up next from your plan: <button id="nextUpBtn" class="link" type="button"></button></p>
         <p id="currentTask" class="current-task" hidden></p>
         <p id="currentProject" class="current-project" hidden></p>
+        <p id="currentGoal" class="current-goal" hidden></p>
         <div id="focusSubs" class="focus-subs" hidden></div>
       </div>
 
@@ -105,7 +110,10 @@
             <button id="planNext" class="icon-btn" type="button" aria-label="Next day">›</button>
             <button id="planToday" class="link" type="button" hidden>Back to today</button>
           </div>
-          <button id="reviewBtn" class="btn small" type="button">Review my day</button>
+          <div class="plan-head-actions">
+            <button id="planDayBtn" class="btn small" type="button">Plan my day</button>
+            <button id="reviewBtn" class="btn small" type="button">Review my day</button>
+          </div>
         </div>
 
         <section id="glance" class="glance" aria-label="At a glance" hidden></section>
@@ -294,6 +302,7 @@
             <label>Snooze a break for <span><input name="snoozeMin" type="number" min="1" max="30"> min</span></label>
             <label>Snoozes allowed per break <span><input name="maxSnoozes" type="number" min="0" max="5"></span></label>
             <label class="check"><input name="meetingAware" type="checkbox"> Hold breaks and reminders while I'm in a call or presenting</label>
+            <label class="check"><input name="nextPrompt" type="checkbox"> After a break, offer to start the next task (it never starts on its own)</label>
           </fieldset>
 
           <fieldset data-cat="appearance">
@@ -485,6 +494,13 @@
       </label>
     </div>
 
+    <fieldset id="goalCheck" class="rating goal-check" hidden>
+      <legend id="goalCheckLegend">Did you get there?</legend>
+      <label><input type="radio" name="goalHit" value="yes" checked> Yes</label>
+      <label><input type="radio" name="goalHit" value="partly"> Partly</label>
+      <label><input type="radio" name="goalHit" value="no"> Not this time</label>
+    </fieldset>
+
     <label id="checkinDoneRow" class="checkin-done" hidden>
       <input id="checkinDone" type="checkbox"> <span id="checkinDoneLabel"></span>
     </label>
@@ -530,6 +546,10 @@
       </label>
       <label class="field">Session length <select id="taskEditPreset"></select></label>
       <label class="field">Repeats <select id="taskEditRepeat"></select></label>
+      <label class="field">Due <input id="taskEditDue" type="date"></label>
+      <label class="field">Block time from <input id="taskEditBlockStart" type="time" step="900"></label>
+      <label class="field">for (minutes) <input id="taskEditBlockMins" type="number" min="15" max="480" step="5" placeholder="Auto"></label>
+      <label class="checkin-done task-star-field"><input id="taskEditStar" type="checkbox"> Star this task</label>
     </div>
     <div class="field">
       <span>Subtasks</span>
@@ -546,6 +566,54 @@
       <button id="taskEditCancel" class="btn quiet" type="button">Cancel</button>
       <button id="taskEditDelete" class="btn danger" type="button">Delete task</button>
     </div>
+  </dialog>
+
+  <!-- Plan my day -->
+  <dialog id="planDialog" class="dialog" aria-labelledby="planDialogTitle">
+    <h2 id="planDialogTitle">Plan my day</h2>
+    <p id="planIntro" class="checkin-meta"></p>
+    <ul id="planList" class="plan-pick"></ul>
+    <p id="planTotal" class="field-note"></p>
+    <div class="dialog-actions">
+      <button id="planApply" class="btn primary" type="button">Add to today</button>
+      <button id="planCancel" class="btn quiet" type="button">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- First launch -->
+  <dialog id="welcome" class="dialog welcome" aria-labelledby="welcomeTitle">
+    <div class="welcome-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <section data-welcome-step="1">
+      <h2 id="welcomeTitle">Welcome to Steady</h2>
+      <p class="checkin-meta">Steady helps you plan a few things, focus on them in sessions, and take real breaks. First, how much focused time would make a good day?</p>
+      <div class="welcome-goals" role="radiogroup" aria-label="Daily focus goal">
+        <label><input type="radio" name="welcomeGoal" value="120"><span>2 h</span></label>
+        <label><input type="radio" name="welcomeGoal" value="180"><span>3 h</span></label>
+        <label><input type="radio" name="welcomeGoal" value="240" checked><span>4 h</span></label>
+        <label><input type="radio" name="welcomeGoal" value="300"><span>5 h</span></label>
+        <label><input type="radio" name="welcomeGoal" value="0"><span>No goal</span></label>
+      </div>
+      <div class="dialog-actions"><button id="welcomeNext1" class="btn primary" type="button">Next</button></div>
+    </section>
+    <section data-welcome-step="2" hidden>
+      <h2>What are you working on?</h2>
+      <p class="checkin-meta">Both are optional, and you can add more later.</p>
+      <label class="field">A project, like a client or an area of work <input id="welcomeProject" type="text" maxlength="40" placeholder="e.g. Client A" autocomplete="off"></label>
+      <label class="field">One thing you want to get done today <input id="welcomeTask" type="text" maxlength="140" placeholder="e.g. Draft the budget summary" autocomplete="off"></label>
+      <div class="dialog-actions">
+        <button id="welcomeNext2" class="btn primary" type="button">Next</button>
+        <button id="welcomeBack2" class="btn quiet" type="button">Back</button>
+      </div>
+    </section>
+    <section data-welcome-step="3" hidden>
+      <h2>You're set</h2>
+      <p class="checkin-meta">Start a session and Steady counts the time toward your goal. When it ends, you'll jot down what you did and take a break. Press <kbd>Ctrl</kbd> <kbd>K</kbd> any time to find any command.</p>
+      <div class="dialog-actions">
+        <button id="welcomeStart" class="btn primary" type="button">Start my first session</button>
+        <button id="welcomeExplore" class="btn quiet" type="button">Look around first</button>
+        <button id="welcomeBack3" class="btn quiet" type="button">Back</button>
+      </div>
+    </section>
   </dialog>
 
   <!-- Edit or add a log entry -->
@@ -620,6 +688,7 @@
   <script src="review.js"></script>
   <script src="recurring.js"></script>
   <script src="schedule.js"></script>
+  <script src="planning.js"></script>
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>
