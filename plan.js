@@ -169,7 +169,7 @@ let glanceCountUp = true; // count the numbers up the next time the tiles are dr
 
 // Numbers in the tiles roll up from zero when the Plan page opens.
 function animateGlance() {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (reducedMotion()) return;
   $('glance').querySelectorAll('[data-num]').forEach((el) => {
     const target = Number(el.dataset.num);
     const kind = el.dataset.kind;
@@ -353,6 +353,7 @@ async function setSubtaskDone(taskId, subId, done) {
   const t = findTask(taskId);
   const s = findSub(taskId, subId);
   if (!t || !s) return;
+  if (s.done !== !!done) s.doneAt = done ? Date.now() : null;
   s.done = !!done;
   await updateSubtasks(taskId, () => {});
   const subs = t.subtasks || [];
@@ -660,26 +661,20 @@ function renderPlan() {
     const total = items.reduce((a, g) => a + g.sec, 0);
     $('doneSummary').textContent = items.length ? `${plural(items.length, 'thing')}${total ? `, ${fmtMins(total)} logged` : ''}.` : '';
     $('doneList').innerHTML = items.length
-      ? items.map((g) => {
+      ? items.map((g, index) => {
         const meta = [];
         if (g.taskDone) meta.push(`Task finished at ${fmtTime(g.taskDone.doneAt)}`);
         if (g.sessions) meta.push(plural(g.sessions, 'focus session'));
         if (g.manual.length && !g.sessions) meta.push(g.manual.length > 1 ? `Added ${g.manual.length} times` : `Added at ${fmtTime(g.manual[0].end)}`);
-        const editable = !g.taskDone && g.manual.length === 1;
         const color = projectById(g.projectId)?.color;
         return `<li class="done-item${g.taskDone ? ' is-task' : ''}"${color ? ` style="--pc:${color}"` : ''}>
           <span class="done-mark" aria-hidden="true">${g.taskDone ? '✓' : '•'}</span>
-          ${editable
-            ? `<button class="task-main" type="button" data-entry-edit="${g.manual[0].id}" title="Edit">`
-            : '<div class="task-main">'}
+          <div class="task-main">
             <span class="task-text">${esc(g.text)}</span>
             <span class="task-meta">${projectChip(g.projectId)}<span>${esc(meta.join(', '))}</span></span>
-          ${editable ? '</button>' : '</div>'}
-          <span class="done-actions">
-          ${g.taskDone ? '<button class="link" type="button" data-task-edit="' + g.taskDone.id + '">Edit task</button>' : ''}
-          ${g.manual.map(e => '<button class="link" type="button" data-entry-edit="' + e.id + '">Edit ' + e.type + ' at ' + fmtTime(e.start) + '</button>').join('')}
-          </span>
+          </div>
           <span class="done-time">${g.sec ? fmtMins(Math.max(60, g.sec)) : ''}</span>
+          <button class="done-edit-btn" type="button" data-done-edit="${index}" aria-label="Edit ${esc(g.text)}">Edit <span aria-hidden="true">&#9998;</span></button>
         </li>`;
       }).join('')
       : isToday ? emptyState('check', 'Nothing finished yet', 'Sessions, completed tasks and anything you log show up here.')
@@ -933,7 +928,10 @@ async function saveTaskDialog() {
   const done = $('taskEditDone').checked;
   if (done !== t.done) { t.done = done; t.doneAt = done ? Date.now() : null; }
   if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
-  t.subtasks = editingSubs.filter((x) => x.text.trim());
+  t.subtasks = editingSubs.filter((x) => x.text.trim()).map(s => {
+    const old = (t.subtasks || []).find(x => x.id === s.id);
+    return { ...s, doneAt: s.done ? (old?.done && old.doneAt ? old.doneAt : Date.now()) : null };
+  });
   t.due = $('taskEditDue').value || null;
   t.starred = $('taskEditStar').checked;
   const blockStart = $('taskEditBlockStart').value;
@@ -995,7 +993,8 @@ function bindPlan() {
   const onListClick = (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.taskStart) startTask(b.dataset.taskStart);
+    if (b.dataset.doneEdit !== undefined) openDoneEditor(Number(b.dataset.doneEdit));
+    else if (b.dataset.taskStart) startTask(b.dataset.taskStart);
     else if (b.dataset.taskStar) toggleStar(b.dataset.taskStar);
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
@@ -1004,11 +1003,19 @@ function bindPlan() {
   $('taskList').addEventListener('click', onListClick);
   $('leftoverList').addEventListener('click', onListClick);
   $('doneList').addEventListener('click', onListClick);
+  $('doneEditClose').addEventListener('click', () => $('doneEditDialog').close());
+  $('doneEditChoices').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $('doneEditDialog').close();
+    if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
+    else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
+  });
   $('taskList').addEventListener('change', (e) => {
     const id = e.target.dataset?.taskDone;
     if (!id) return;
     const row = e.target.closest('.task');
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = reducedMotion();
     if (e.target.checked && row && !reduce) {
       row.classList.add('completing');
       setTimeout(() => setTaskDone(id, true), 650);
@@ -1083,4 +1090,21 @@ function bindPlan() {
     if (id) startTask(id);
   });
   $('task').addEventListener('input', renderNextUp);
+}
+
+function openDoneEditor(index) {
+  const group = doneItems(planDay)[index];
+  if (!group) return;
+  const choices = [
+    ...(group.taskDone ? [{kind:'task',id:group.taskDone.id,title:'Completed task',detail:'Title, project, subtasks and completion'}] : []),
+    ...group.manual.map(e => ({kind:'entry',id:e.id,title:entryLabel(e),detail:fmtTime(e.start) + (workSec(e) ? ' / ' + fmtMins(workSec(e)) : '')}))
+  ];
+  if (choices.length === 1) {
+    if (choices[0].kind === 'task') openTaskDialog(choices[0].id);
+    else openEntryDialog(choices[0].id);
+    return;
+  }
+  $('doneEditName').textContent = group.text;
+  $('doneEditChoices').innerHTML = choices.map(c => '<button class="done-edit-choice" type="button" data-' + c.kind + '-edit="' + c.id + '"><span><strong>' + esc(c.title) + '</strong><small>' + esc(c.detail) + '</small></span><span aria-hidden="true">&#8250;</span></button>').join('');
+  $('doneEditDialog').showModal();
 }

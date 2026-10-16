@@ -7,7 +7,7 @@ const { normalize } = require('../../datamodel');
 
 const ROOT = path.join(__dirname, '..', '..');
 // Same order as index.html, so later scripts see the earlier ones.
-const SCRIPTS = ['core.js', 'projects.js', 'sound.js', 'views.js', 'insights.js', 'plan.js', 'review.js',
+const SCRIPTS = ['motion.js', 'core.js', 'projects.js', 'sound.js', 'views.js', 'insights.js', 'plan.js', 'review.js',
   'recurring.js', 'schedule.js', 'planning.js', 'goals.js', 'shortcuts.js', 'datacare.js'];
 
 // An element that accepts anything: enough for code that touches the page as a side effect.
@@ -48,12 +48,14 @@ function loadApp(raw = {}) {
     performance: { now: () => 0 },
     structuredClone,
     localStorage: { getItem: () => null, setItem() {} },
-    matchMedia: () => ({ matches: true }), // pretend "reduce motion" is on: no animation timers
+    matchMedia: () => ({ matches: true, addEventListener() {} }), // pretend "reduce motion" is on: no animation timers
     getComputedStyle: () => ({ getPropertyValue: () => '' }),
     Event: class {},
     addEventListener() {},
     window: null,
     document: {
+      addEventListener() {},
+      styleSheets: [],
       getElementById: (id) => { if (!elements.has(id)) elements.set(id, fakeElement()); return elements.get(id); },
       querySelector: () => null,
       querySelectorAll: () => [],

@@ -12,9 +12,21 @@ To build an installer, run `npm run dist`. The installer appears in the `dist` f
 
 Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calendars, saved-data upgrades, streaks and milestones) and that every file the app needs is included in the installer. The tests also run on GitHub for every push, and a release is only built if they pass.
 
+## Release notes
+
+Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
+
+## What's new in 1.8.0
+
+- **Choose your motion.** In Settings > Appearance and startup, choose Follow Windows, Full motion, or Reduced motion. Full motion enables existing animations even when Windows reduces them. Your choice applies to the main window, mini timer and break screens.
+- **Parking lot history.** Open and Completed items are separate. Completed items are grouped by completion day, newest first, with collapsible day groups, Edit log and Reopen controls.
+- **A fuller daily work log.** Parking completions and newly completed subtasks join completed tasks, check-ins, focus sessions and manual entries. Parking completions also appear in Plan's Done list, history and CSV exports. Clearing the parking list preserves saved completion history; reopening an item removes its completion marker. Completion markers add no duplicate time. Older undated parking and subtask completions cannot be assigned to a day reliably.
+- **Cleaner Done editing.** Completed work uses rounded cards, time badges and a single Edit control. Grouped activity opens a chooser for the task, sessions or check-ins you want to change.
+- **Release feature notes.** GitHub releases include the features and fixes added in that version.
+
 ## What's new in 1.7.0
 
-- Record missed work from Work log ? Missed check-in: choose a day's to-do, enter minutes, and save. Between-session check-ins also ask how long you worked and can complete the selected task.
+- Record missed work from Work log > Missed check-in: choose a day's to-do, enter minutes, and save. Between-session check-ins also ask how long you worked and can complete the selected task.
 - Edit tasks, sessions, check-ins and manual entries directly from Plan's Done section. Work log edit buttons stay visible.
 - Completed to-dos appear in the work log and history as completion markers without adding duplicate time.
 - Zoom with Ctrl+plus (or Ctrl+=), Ctrl+minus, Ctrl+0 to reset, or Ctrl+mouse wheel.

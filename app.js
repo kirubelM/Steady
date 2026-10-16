@@ -205,10 +205,7 @@ function bind() {
   $('parkList').addEventListener('change', async (e) => {
     const id = e.target.dataset?.toggle;
     if (!id) return;
-    const item = data.parking.find((p) => p.id === id);
-    if (item) item.done = e.target.checked;
-    await persist('parking');
-    renderParking();
+    await setParkingDone(id, e.target.checked);
   });
   $('parkList').addEventListener('click', async (e) => {
     if (e.target.dataset?.parkTask) {
@@ -221,10 +218,10 @@ function bind() {
     await persist('parking');
     renderParking();
   });
-  $('clearDone').addEventListener('click', async () => {
-    data.parking = data.parking.filter((p) => !p.done);
-    await persist('parking');
-    renderParking();
+  $('parkCompleted').addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (button?.dataset.parkReopen) reopenParking(button.dataset.parkReopen);
+    else if (button?.dataset.parkLog) openEntryDialog(button.dataset.parkLog);
   });
 
   $('settingsForm').addEventListener('submit', saveSettings);

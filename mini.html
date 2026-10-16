@@ -64,6 +64,7 @@
     button:focus-visible { outline: 2px solid #E9C77B; outline-offset: 1px; }
     button svg { width: 16px; height: 16px; transform: none; }
     @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 <body data-state="idle">
@@ -89,6 +90,7 @@
       </button>
     </div>
   </div>
+  <script src="motion.js"></script>
   <script src="mini.js"></script>
 </body>
 </html>

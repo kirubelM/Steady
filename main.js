@@ -664,7 +664,10 @@ ipcMain.handle('data:load', () => data);
 ipcMain.handle('data:save', (_e, patch) => {
   Object.assign(data, patch);
   saveData();
-  if (patch.settings) updateMini();
+  if (patch.settings) {
+    updateMini();
+    for (const win of BrowserWindow.getAllWindows()) win.webContents.send('motion:changed', data.settings.motion);
+  }
   return true;
 });
 

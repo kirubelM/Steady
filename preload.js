@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('steady', {
   platform: process.platform,
+  onMotionChanged: (cb) => ipcRenderer.on('motion:changed', (_e, value) => cb(value)),
   load: () => ipcRenderer.invoke('data:load'),
   save: (patch) => ipcRenderer.invoke('data:save', patch),
   notify: (title, body) => ipcRenderer.send('notify', { title, body }),

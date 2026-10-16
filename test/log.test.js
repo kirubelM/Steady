@@ -55,3 +55,53 @@ test('missed check-ins save the entered duration and task link', async () => {
  assert.equal(app.run('workSec(data.entries[0])'), 2700);
  assert.equal(app.run('data.entries[0].taskId'), 't');
 });
+
+
+test('parking completion is dated when finished, survives clearing, and adds no time', async () => {
+ const app = loadApp({parking: [{id:'p', text:'Call supplier', done:false, at:now}]});
+ await app.run("setParkingDone('p', true)");
+ assert.equal(app.run('data.entries.length'), 1);
+ assert.equal(app.run('data.entries[0].start === data.parking[0].doneAt'), true);
+ assert.equal(app.run('workSec(data.entries[0])'), 0);
+ assert.match(app.run('entryHtml(data.entries[0])'), /Parking item completed/);
+ await app.run("setParkingDone('p', true)");
+ assert.equal(app.run('data.entries.length'), 1);
+ app.run('data.parking = []');
+ assert.equal(app.run('workEntries().length'), 1);
+});
+
+test('undoing parking completion removes only its marker and preserves check-ins', async () => {
+ const app = loadApp({entries, parking:[{id:'p',text:'Emails',done:false,at:now}]});
+ await app.run("setParkingDone('p', true)");
+ await app.run("setParkingDone('p', false)");
+ assert.equal(app.run('data.entries.length'), entries.length);
+ assert.equal(app.run("data.entries.some(e => e.id === 'c')"), true);
+ assert.equal(app.run('data.parking[0].doneAt'), null);
+});
+
+test('completed subtasks appear on the completion day without adding session time', async () => {
+ const app = loadApp({tasks:[{id:'t',text:'Report',day:'2026-10-16',done:false,subtasks:[{id:'sub',text:'Proofread',done:false}]}], entries});
+ await app.run("setSubtaskDone('t', 'sub', true)");
+ assert.equal(app.run('workEntries().length'), entries.length + 1);
+ assert.equal(app.run('workSec(workEntries().find(e => e.subtaskCompletion))'), 0);
+ assert.match(app.run('entryHtml(workEntries().find(e => e.subtaskCompletion))'), /Subtask completed/);
+ await app.run("setSubtaskDone('t', 'sub', false)");
+ assert.equal(app.run('workEntries().length'), entries.length);
+});
+
+
+test('parking completed groups use completion day, retain cleared records and separate unknown dates', () => {
+ const app = loadApp({parking:[{id:'p',text:'Original',done:true,doneAt:now},{id:'old',text:'Old item',done:true,at:now}], entries:[{id:'e',type:'manual',parkingCompletion:'p',note:'Updated',start:now,end:now},{id:'cleared',type:'manual',parkingCompletion:'gone',note:'Cleared item',start:now-86400000,end:now-86400000}]});
+ assert.equal(app.run('completedParkingGroups().length'), 3);
+ assert.equal(app.run('completedParkingGroups()[0].items.length'), 1);
+ assert.equal(app.run('completedParkingGroups()[0].items[0].text'), 'Updated');
+ assert.equal(app.run('completedParkingGroups()[2].day'), 'unknown');
+});
+
+test('reopening a cleared parking completion restores the open item and removes its worklog marker', async () => {
+ const app = loadApp({entries:[{id:'e',type:'manual',parkingCompletion:'p',note:'Follow up',start:now,end:now}]});
+ await app.run("reopenParking('p')");
+ assert.equal(app.run('data.parking[0].text'), 'Follow up');
+ assert.equal(app.run('data.parking[0].done'), false);
+ assert.equal(app.run('data.entries.length'), 0);
+});

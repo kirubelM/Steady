@@ -30,6 +30,9 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare feature notes
+        run: node scripts/release-notes.js
+
       - run: npm ci
 
       - name: Run tests
@@ -37,5 +40,11 @@ jobs:
 
       - name: Build and publish
         run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add feature notes to the published release
+        shell: bash
+        run: gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

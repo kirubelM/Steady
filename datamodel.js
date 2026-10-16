@@ -24,6 +24,7 @@ const DEFAULTS = {
     weeklyReviewDay: 5,
     miniMode: 'focus',
     theme: 'system',
+    motion: 'system',
     compactAuto: false,
     sound: 'off',
     soundVolume: 0.5,

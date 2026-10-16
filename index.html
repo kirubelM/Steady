@@ -258,8 +258,13 @@
           <input id="parkInput" type="text" maxlength="200" placeholder="Reply to Sam about Friday" autocomplete="off">
           <button class="btn primary" type="submit">Park it</button>
         </form>
+        <h3>Open</h3>
         <ul id="parkList" class="park-list"></ul>
-        <button id="clearDone" class="link" type="button" hidden>Clear finished items</button>
+        <section class="park-completed-section" aria-labelledby="parkCompletedTitle">
+          <h3 id="parkCompletedTitle">Completed</h3>
+          <p id="parkCompletedSummary" class="summary"></p>
+          <div id="parkCompleted"></div>
+        </section>
       </div>
 
       <!-- Settings -->
@@ -316,6 +321,14 @@
                 <option value="dark">Dark</option>
               </select></span>
             </label>
+            <label>Motion
+              <span><select name="motion">
+                <option value="system">Follow Windows</option>
+                <option value="full">Full motion</option>
+                <option value="reduced">Reduced motion</option>
+              </select></span>
+            </label>
+            <p class="field-note">Full motion enables animations even when Windows reduces them. Reduced motion turns animations and smooth scrolling off.</p>
             <div class="field-row"><span>Accent color</span>
               <span class="accent-pick" role="radiogroup" aria-label="Accent color">
 <label title="Rose"><input type="radio" name="accent" value="rose" aria-label="Rose"><span style="--sw:#AD4269"></span></label>
@@ -687,6 +700,14 @@
 
   <div id="tip" class="tip" role="tooltip" hidden></div>
 
+  <dialog id="doneEditDialog" class="dialog" aria-labelledby="doneEditTitle">
+    <h2 id="doneEditTitle">Edit completed work</h2>
+    <p id="doneEditName" class="done-edit-name"></p>
+    <p class="summary">Choose the task or logged activity to update.</p>
+    <div id="doneEditChoices" class="done-edit-choices"></div>
+    <div class="dialog-actions"><button id="doneEditClose" class="btn" type="button">Close</button></div>
+  </dialog>
+  <script src="motion.js"></script>
   <script src="core.js"></script>
   <script src="projects.js"></script>
   <script src="sound.js"></script>

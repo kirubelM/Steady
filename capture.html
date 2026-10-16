@@ -41,6 +41,7 @@
     .hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
     .hint kbd { font-family: inherit; font-size: 0.75rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
     .saved { color: var(--pine); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 <body>
@@ -60,6 +61,7 @@
     </div>
     <p id="hint" class="hint"><kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type, <kbd>Esc</kbd> closes</p>
   </div>
+  <script src="motion.js"></script>
   <script src="capture.js"></script>
 </body>
 </html>

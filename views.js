@@ -2,8 +2,15 @@
 
 const WORK_TYPES = ['session', 'checkin', 'manual'];
 
+function entryLabel(e) {
+  return e.parkingCompletion ? 'Parking item completed' : e.subtaskCompletion ? 'Subtask completed' : e.taskCompletion ? 'Task completed' : ENTRY_TYPES[e.type]?.label || 'Added by you';
+}
 function workEntries() {
- return [...data.entries, ...data.tasks.filter(t => t.done && t.doneAt).map(t => ({id: 'task:' + t.id, type: 'manual', taskCompletion: t.id, note: t.text, projectId: t.projectId, start: t.doneAt, end: t.doneAt}))];
+ return [...data.entries, ...data.tasks.filter(t => t.done && t.doneAt).map(t => ({id: 'task:' + t.id, type: 'manual', taskCompletion: t.id, note: t.text, projectId: t.projectId, start: t.doneAt, end: t.doneAt})),
+ ...data.tasks.flatMap(t => (t.subtasks || []).filter(s => s.done && s.doneAt).map(s => ({
+   id: 'subtask:' + t.id + ':' + s.id, type: 'manual', subtaskCompletion: s.id, taskId: t.id,
+   note: t.text + ': ' + s.text, projectId: t.projectId, start: s.doneAt, end: s.doneAt
+ })))];
 }
 function workSec(e) {
   if (e.type === 'session') return e.focusSec || 0;
@@ -103,7 +110,7 @@ function entryHtml(e) {
     ${node}
     <div class="when">${when}</div>
     <div class="entry-body">
-      <span class="type-badge">${e.taskCompletion ? 'Task completed' : ENTRY_TYPES[type].label}</span>
+      <span class="type-badge">${entryLabel(e)}</span>
       <p class="note">${esc(e.note)}</p>
       ${goal}
       <p class="meta">${e.rating ? `<span class="chip ${esc(e.rating)}">${RATING_LABELS[e.rating]}</span>` : ''}${projectChip(e.projectId)}${meta.join('. ')}</p>
@@ -139,7 +146,7 @@ async function exportCsv() {
       dayKey(e.start),
       fmtTime(e.start),
       fmtTime(e.end),
-      e.type === 'break' ? `${e.kind} break${e.skipped ? ' (skipped)' : ''}` : e.type === 'manual' ? 'added' : e.type,
+      e.type === 'break' ? `${e.kind} break${e.skipped ? ' (skipped)' : ''}` : e.parkingCompletion || e.taskCompletion || e.subtaskCompletion ? entryLabel(e) : e.type === 'manual' ? 'added' : e.type,
       e.note || '',
       projectName(e.projectId),
       e.type === 'break' ? '' : (RATING_LABELS[e.rating] || ''),
@@ -165,6 +172,7 @@ function toTimeInput(t) {
 }
 
 function openEntryDialog(id, day) {
+  if (id?.startsWith('subtask:')) { openTaskDialog(id.split(':')[1]); return; }
   if (id?.startsWith('task:')) { openTaskDialog(id.slice(5)); return; }
   const e = id ? data.entries.find((x) => x.id === id) : null;
   editingEntryId = e ? e.id : null;
@@ -180,7 +188,7 @@ function openEntryDialog(id, day) {
   $('entryMinutes').value = e ? Math.round(workSec(e) / 60) : 30;
   $('entryRating').value = e && e.rating ? e.rating : '';
   $('entryDelete').hidden = !e;
-  $('entryKind').textContent = !e ? '' : e.type === 'session' ? 'Focus session' : e.type === 'checkin' ? 'Check-in' : 'Added by you';
+  $('entryKind').textContent = e ? entryLabel(e) : '';
   $('entryError').textContent = '';
   fillEntryTasks();
   $('entryTask').value = e?.taskId || '';
@@ -215,6 +223,7 @@ async function saveEntryDialog() {
 
   await persist('entries');
   $('entryDialog').close();
+  renderParking();
   viewDay = dayKey(start) <= dayKey(Date.now()) ? dayKey(start) : viewDay;
   renderLog();
   renderPlan();
@@ -222,8 +231,14 @@ async function saveEntryDialog() {
 }
 
 async function deleteEntry(id) {
+  const entry = data.entries.find(e => e.id === id);
+  if (entry?.parkingCompletion) {
+    const item = data.parking.find(p => p.id === entry.parkingCompletion);
+    if (item) { item.done = false; item.doneAt = null; await persist('parking'); }
+  }
   data.entries = data.entries.filter((x) => x.id !== id);
   await persist('entries');
+  renderParking();
   renderLog();
   renderPlan();
   renderTimer();
@@ -311,18 +326,69 @@ function setLogView(view) {
 
 /* ---------- Parking lot ---------- */
 
+function completedParkingGroups() {
+  const entries = data.entries.filter(e => e.parkingCompletion).map(e => ({
+    id: e.parkingCompletion, text: e.note, doneAt: e.start, entryId: e.id
+  }));
+  const logged = new Set(entries.map(e => e.id));
+  entries.push(...data.parking.filter(p => p.done && !logged.has(p.id)).map(p => ({
+    id: p.id, text: p.text, doneAt: p.doneAt || null, entryId: null
+  })));
+  const groups = new Map();
+  entries.sort((a,b) => (b.doneAt || 0) - (a.doneAt || 0)).forEach(item => {
+    const day = item.doneAt ? dayKey(item.doneAt) : 'unknown';
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day).push(item);
+  });
+  return [...groups].map(([day, items]) => ({day, items}));
+}
+
 function renderParking() {
-  const items = data.parking;
+  const items = data.parking.filter(p => !p.done);
   $('parkList').innerHTML = items.length
-    ? items.map((p) => `<li class="${p.done ? 'done' : ''}">
-        <label><input type="checkbox" data-toggle="${p.id}" ${p.done ? 'checked' : ''}>
-          <span>${esc(p.text)}</span></label>
-        <time>${fmtTime(p.at)}</time>
-        ${p.done ? '' : `<button class="link small-link" data-park-task="${p.id}" type="button">Add to today's plan</button>`}
-        <button class="del" data-park-del="${p.id}" type="button" aria-label="Delete item">×</button>
-      </li>`).join('')
-    : emptyState('note', 'Nothing parked', 'Your head is clear. Press Ctrl+Shift+Space from any app to jot a thought down.');
-  $('clearDone').hidden = !items.some((p) => p.done);
+    ? items.map(p => '<li><label><input type="checkbox" data-toggle="' + p.id + '"><span>' + esc(p.text) + '</span></label>' +
+      '<time>' + fmtTime(p.at) + '</time><button class="link small-link" data-park-task="' + p.id + '" type="button">Add to today?s plan</button>' +
+      '<button class="del" data-park-del="' + p.id + '" type="button" aria-label="Delete item">&times;</button></li>').join('')
+    : emptyState('note', 'Nothing parked', 'Add a thought here to come back to later.');
+  const groups = completedParkingGroups();
+  $('parkCompletedSummary').textContent = groups.reduce((n,g) => n + g.items.length, 0) + ' completed';
+  $('parkCompleted').innerHTML = groups.length ? groups.map(g => {
+    const label = g.day === 'unknown' ? 'Completion date unknown' : g.day === todayKey() ? 'Today' :
+      new Date(g.day + 'T12:00').toLocaleDateString([], {weekday:'long', month:'short', day:'numeric', year:'numeric'});
+    return '<details class="park-day" open><summary>' + esc(label) + ' (' + g.items.length + ')</summary><ul class="park-list">' +
+      g.items.map(item => '<li class="done"><span class="park-completed-text">' + esc(item.text) + '</span>' +
+        (item.doneAt ? '<time>' + fmtTime(item.doneAt) + '</time>' : '') +
+        (item.entryId ? '<button class="link" type="button" data-park-log="' + item.entryId + '">Edit log</button>' : '') +
+        '<button class="link" type="button" data-park-reopen="' + item.id + '">Reopen</button></li>').join('') + '</ul></details>';
+  }).join('') : '<p class="summary">Completed parking items will appear here, grouped by day, and in your work log.</p>';
+}
+
+async function reopenParking(id) {
+  let item = data.parking.find(p => p.id === id);
+  if (!item) {
+    const entry = data.entries.find(e => e.parkingCompletion === id);
+    if (!entry) return;
+    item = {id, text: entry.note, at: entry.start, done: true, doneAt: entry.start};
+    data.parking.unshift(item);
+  }
+  await setParkingDone(id, false);
+}
+
+// Keep a saved completion entry so clearing the parking lot preserves the day's history.
+async function setParkingDone(id, done) {
+  const item = data.parking.find(p => p.id === id);
+  if (!item || item.done === !!done) return;
+  item.done = !!done;
+  item.doneAt = done ? Date.now() : null;
+  data.entries = data.entries.filter(e => e.parkingCompletion !== id);
+  if (done) data.entries.push({
+    id: uid(), type: 'manual', parkingCompletion: id, note: item.text,
+    start: item.doneAt, end: item.doneAt
+  });
+  await persist('parking', 'entries');
+  renderParking();
+  renderLog();
+  renderPlan();
 }
 
 async function addParking(text) {
@@ -342,6 +408,7 @@ const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
   'projectTint', 'dayTint', 'chimes', 'nextPrompt'];
 const TEXT_FIELDS = {
+  motion: (v) => (['system', 'full', 'reduced'].includes(v) ? v : null),
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
@@ -472,6 +539,7 @@ function bindBlockPermission() {
 
 // Accent color and the time-of-day tint.
 function applyAppearance() {
+  applyMotion(settings.motion);
   document.documentElement.dataset.accent = settings.accent || 'pine';
   applyDayTint();
 }
