@@ -12,6 +12,14 @@ To build an installer, run `npm run dist`. The installer appears in the `dist` f
 
 Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calendars, saved-data upgrades, streaks and milestones) and that every file the app needs is included in the installer. The tests also run on GitHub for every push, and a release is only built if they pass.
 
+## What's new in 1.7.0
+
+- Record missed work from Work log ? Missed check-in: choose a day's to-do, enter minutes, and save. Between-session check-ins also ask how long you worked and can complete the selected task.
+- Edit tasks, sessions, check-ins and manual entries directly from Plan's Done section. Work log edit buttons stay visible.
+- Completed to-dos appear in the work log and history as completion markers without adding duplicate time.
+- Zoom with Ctrl+plus (or Ctrl+=), Ctrl+minus, Ctrl+0 to reset, or Ctrl+mouse wheel.
+- Rose, Indigo and Sunflower accents, a tinted panel, animated dialogs and responsive cards. Reduced-motion preferences are respected.
+
 ## What's new in 1.6.1
 
 - **A clearer work log.** Each kind of entry has its own color, icon and label. Focus sessions are solid cards (with the project's color on the edge), check-ins are soft blue cards, things you added yourself are dashed violet cards, and breaks are slim amber strips (skipped ones greyed out). Session goals show on their session with whether you reached them. Chips at the top filter by type and show how many of each there were.

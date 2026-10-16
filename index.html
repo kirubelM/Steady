@@ -199,6 +199,7 @@
             <button type="button" data-logview="history" aria-pressed="false">History</button>
           </div>
           <div class="log-actions">
+            <button id="missedCheckinBtn" class="btn small" type="button">Missed check-in</button>
             <button id="addEntryBtn" class="btn small" type="button">Add entry</button>
             <button id="exportBtn" class="btn small" type="button">Export CSV</button>
           </div>
@@ -317,6 +318,9 @@
             </label>
             <div class="field-row"><span>Accent color</span>
               <span class="accent-pick" role="radiogroup" aria-label="Accent color">
+<label title="Rose"><input type="radio" name="accent" value="rose" aria-label="Rose"><span style="--sw:#AD4269"></span></label>
+<label title="Indigo"><input type="radio" name="accent" value="indigo" aria-label="Indigo"><span style="--sw:#5753B5"></span></label>
+<label title="Sunflower"><input type="radio" name="accent" value="sunflower" aria-label="Sunflower"><span style="--sw:#886208"></span></label>
                 <label title="Pine"><input type="radio" name="accent" value="pine" aria-label="Pine"><span style="--sw:#2E6B62"></span></label>
                 <label title="Ocean"><input type="radio" name="accent" value="ocean" aria-label="Ocean"><span style="--sw:#2F6690"></span></label>
                 <label title="Plum"><input type="radio" name="accent" value="plum" aria-label="Plum"><span style="--sw:#74508F"></span></label>
@@ -481,6 +485,8 @@
   <dialog id="checkin" class="dialog" aria-labelledby="checkinTitle">
     <h2 id="checkinTitle">Session done. What did you get done?</h2>
     <label for="checkinNote" class="sr-only">What you worked on</label>
+    <label id="checkinMinutesRow" class="field">How long did you work? (minutes)<input id="checkinMinutes" type="number" min="1" max="720" value="30"></label>
+    <label id="checkinTaskRow" class="field">From today's to-do <select id="checkinTask"></select></label>
     <textarea id="checkinNote" rows="3" maxlength="500" placeholder="Finished the intro and outlined section 2"></textarea>
 
     <div class="dialog-row">
@@ -620,6 +626,7 @@
   <!-- Edit or add a log entry -->
   <dialog id="entryDialog" class="dialog" aria-labelledby="entryTitle">
     <h2 id="entryTitle">Edit entry</h2>
+    <label class="field">From this day's to-do <select id="entryTask"></select></label>
     <p id="entryKind" class="checkin-meta"></p>
     <label class="field">What you worked on
       <textarea id="entryNote" rows="2" maxlength="500"></textarea>

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('steady', {
   clearBlock: () => ipcRenderer.invoke('block:clear'),
   exportCsv: (csv) => ipcRenderer.invoke('export:csv', csv),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+  zoom: (direction) => ipcRenderer.send('window:zoom', direction),
   setTheme: () => ipcRenderer.send('theme:set'),
   setCompact: (on) => ipcRenderer.send('window:compact', on),
   publishState: (st) => ipcRenderer.send('state:publish', st),

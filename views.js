@@ -2,6 +2,9 @@
 
 const WORK_TYPES = ['session', 'checkin', 'manual'];
 
+function workEntries() {
+ return [...data.entries, ...data.tasks.filter(t => t.done && t.doneAt).map(t => ({id: 'task:' + t.id, type: 'manual', taskCompletion: t.id, note: t.text, projectId: t.projectId, start: t.doneAt, end: t.doneAt}))];
+}
 function workSec(e) {
   if (e.type === 'session') return e.focusSec || 0;
   return Math.max(0, (e.end - e.start) / 1000);
@@ -13,7 +16,7 @@ function renderLog() {
   $('datePick').value = viewDay;
   $('datePick').max = dayKey(Date.now());
   const today = dayKey(Date.now());
-  const entries = data.entries
+  const entries = workEntries()
     .filter((e) => dayKey(e.start) === viewDay)
     .sort((a, b) => b.start - a.start);
 
@@ -100,7 +103,7 @@ function entryHtml(e) {
     ${node}
     <div class="when">${when}</div>
     <div class="entry-body">
-      <span class="type-badge">${ENTRY_TYPES[type].label}</span>
+      <span class="type-badge">${e.taskCompletion ? 'Task completed' : ENTRY_TYPES[type].label}</span>
       <p class="note">${esc(e.note)}</p>
       ${goal}
       <p class="meta">${e.rating ? `<span class="chip ${esc(e.rating)}">${RATING_LABELS[e.rating]}</span>` : ''}${projectChip(e.projectId)}${meta.join('. ')}</p>
@@ -131,7 +134,7 @@ function shiftDay(n) {
 async function exportCsv() {
   const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const rows = [['Date', 'Start', 'End', 'Type', 'What I worked on', 'Project', 'How it went', 'Minutes', 'Top apps', 'Drifts']];
-  [...data.entries].sort((a, b) => a.start - b.start).forEach((e) => {
+  workEntries().sort((a, b) => a.start - b.start).forEach((e) => {
     rows.push([
       dayKey(e.start),
       fmtTime(e.start),
@@ -152,6 +155,9 @@ async function exportCsv() {
 /* ---------- Entry editor (edit anything in the log, or add something you did) ---------- */
 
 let editingEntryId = null;
+function fillEntryTasks() {
+ $('entryTask').innerHTML = '<option value="">Write my own</option>' + tasksFor($('entryDate').value).map(t => '<option value="' + t.id + '">' + esc(t.text) + '</option>').join('');
+}
 
 function toTimeInput(t) {
   const d = new Date(t);
@@ -159,6 +165,7 @@ function toTimeInput(t) {
 }
 
 function openEntryDialog(id, day) {
+  if (id?.startsWith('task:')) { openTaskDialog(id.slice(5)); return; }
   const e = id ? data.entries.find((x) => x.id === id) : null;
   editingEntryId = e ? e.id : null;
   const now = Date.now();
@@ -175,6 +182,8 @@ function openEntryDialog(id, day) {
   $('entryDelete').hidden = !e;
   $('entryKind').textContent = !e ? '' : e.type === 'session' ? 'Focus session' : e.type === 'checkin' ? 'Check-in' : 'Added by you';
   $('entryError').textContent = '';
+  fillEntryTasks();
+  $('entryTask').value = e?.taskId || '';
   $('entryDialog').showModal();
   $('entryNote').focus();
 }
@@ -196,6 +205,7 @@ async function saveEntryDialog() {
     e = { id: uid(), type: 'manual' };
     data.entries.push(e);
   }
+  e.taskId = $('entryTask').value || null;
   e.note = note;
   e.projectId = projectId;
   e.rating = rating || (e.type === 'manual' ? null : e.rating || 'on-track');
@@ -226,7 +236,7 @@ const HISTORY_DAYS = 60;
 
 function renderHistory() {
   const q = $('historySearch').value.trim().toLowerCase();
-  const work = data.entries.filter((e) => WORK_TYPES.includes(e.type) && e.note);
+  const work = workEntries().filter((e) => WORK_TYPES.includes(e.type) && e.note);
   const matches = q
     ? work.filter((e) => e.note.toLowerCase().includes(q) || projectName(e.projectId).toLowerCase().includes(q))
     : work;
@@ -335,7 +345,7 @@ const TEXT_FIELDS = {
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
-  accent: (v) => (['pine', 'ocean', 'plum', 'terracotta', 'graphite'].includes(v) ? v : null),
+  accent: (v) => (['pine', 'ocean', 'plum', 'terracotta', 'graphite', 'rose', 'indigo', 'sunflower'].includes(v) ? v : null),
   workStart: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null)
 };

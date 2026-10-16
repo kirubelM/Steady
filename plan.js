@@ -517,7 +517,7 @@ function doneItems(day) {
       const g = groups.get(k) || { text: e.note.trim(), sec: 0, sessions: 0, manual: [], first: e.start, projectId: null, taskDone: null };
       g.sec += workSec(e);
       if (e.type === 'session') g.sessions++;
-      if (e.type === 'manual') g.manual.push(e);
+      g.manual.push(e);
       g.projectId = g.projectId || e.projectId || null;
       groups.set(k, g);
     });
@@ -665,7 +665,7 @@ function renderPlan() {
         if (g.taskDone) meta.push(`Task finished at ${fmtTime(g.taskDone.doneAt)}`);
         if (g.sessions) meta.push(plural(g.sessions, 'focus session'));
         if (g.manual.length && !g.sessions) meta.push(g.manual.length > 1 ? `Added ${g.manual.length} times` : `Added at ${fmtTime(g.manual[0].end)}`);
-        const editable = g.manual.length === 1 && !g.sessions;
+        const editable = !g.taskDone && g.manual.length === 1;
         const color = projectById(g.projectId)?.color;
         return `<li class="done-item${g.taskDone ? ' is-task' : ''}"${color ? ` style="--pc:${color}"` : ''}>
           <span class="done-mark" aria-hidden="true">${g.taskDone ? '✓' : '•'}</span>
@@ -675,6 +675,10 @@ function renderPlan() {
             <span class="task-text">${esc(g.text)}</span>
             <span class="task-meta">${projectChip(g.projectId)}<span>${esc(meta.join(', '))}</span></span>
           ${editable ? '</button>' : '</div>'}
+          <span class="done-actions">
+          ${g.taskDone ? '<button class="link" type="button" data-task-edit="' + g.taskDone.id + '">Edit task</button>' : ''}
+          ${g.manual.map(e => '<button class="link" type="button" data-entry-edit="' + e.id + '">Edit ' + e.type + ' at ' + fmtTime(e.start) + '</button>').join('')}
+          </span>
           <span class="done-time">${g.sec ? fmtMins(Math.max(60, g.sec)) : ''}</span>
         </li>`;
       }).join('')

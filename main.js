@@ -75,6 +75,12 @@ function notify(title, body) {
 
 /* ---------- Main window ---------- */
 
+ipcMain.on('window:zoom', (event, direction) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents || ![-1, 0, 1].includes(direction)) return;
+  const wc = mainWindow.webContents;
+  wc.setZoomLevel(direction === 0 ? 0 : Math.max(-3, Math.min(3, wc.getZoomLevel() + direction * 0.5)));
+});
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1140,
@@ -92,6 +98,12 @@ function createMainWindow() {
       backgroundThrottling: false,
       autoplayPolicy: 'no-user-gesture-required' // focus sounds start without a click
     }
+  });
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || !input.control || !['+', '=', '-', '0'].includes(input.key)) return;
+    event.preventDefault();
+    const wc = mainWindow.webContents;
+    wc.setZoomLevel(input.key === '0' ? 0 : Math.max(-3, Math.min(3, wc.getZoomLevel() + (input.key === '-' ? -0.5 : 0.5))));
   });
   mainWindow.loadFile('index.html');
   mainWindow.webContents.on('did-finish-load', () => { miniShownSent = null; updateMini(); });

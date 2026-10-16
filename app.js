@@ -30,6 +30,12 @@ function bindScrollPolish() {
   });
 }
 
+document.addEventListener('wheel', (event) => {
+  if (!event.ctrlKey || !event.deltaY) return;
+  event.preventDefault();
+  api.zoom(event.deltaY < 0 ? 1 : -1);
+}, { passive: false });
+
 /* ---------- Compact view ---------- */
 
 let compact = false;
@@ -119,6 +125,16 @@ function bind() {
   $('compactBtn').addEventListener('click', () => { autoCompacted = false; setCompact(!compact); });
 
   // Check-in and away dialogs
+  $('checkinTask').addEventListener('change', () => {
+    const task = findTask($('checkinTask').value);
+    $('checkinDoneRow').hidden = !task || task.done;
+    $('checkinDone').checked = false;
+    if (task) {
+      $('checkinNote').value = task.text;
+      $('checkinProject').value = task.projectId || '';
+      $('checkinDoneLabel').textContent = 'Mark "' + task.text + '" as done in my plan';
+    }
+  });
   $('checkinPrimary').addEventListener('click', () => saveCheckin(true));
   $('checkinSecondary').addEventListener('click', () => saveCheckin(false));
   $('checkinNote').addEventListener('keydown', (e) => {
@@ -140,6 +156,12 @@ function bind() {
   $('prevDay').addEventListener('click', () => shiftDay(-1));
   $('nextDay').addEventListener('click', () => shiftDay(1));
   $('exportBtn').addEventListener('click', exportCsv);
+  $('missedCheckinBtn').addEventListener('click', () => openEntryDialog(null, logView === 'day' ? viewDay : dayKey(Date.now())));
+  $('entryDate').addEventListener('change', fillEntryTasks);
+  $('entryTask').addEventListener('change', () => {
+    const task = findTask($('entryTask').value);
+    if (task) { $('entryNote').value = task.text; $('entryProject').value = task.projectId || ''; }
+  });
   $('addEntryBtn').addEventListener('click', () => openEntryDialog(null, logView === 'day' ? viewDay : dayKey(Date.now())));
   document.querySelectorAll('[data-logview]').forEach((b) => b.addEventListener('click', () => setLogView(b.dataset.logview)));
   $('datePick').addEventListener('change', (e) => {

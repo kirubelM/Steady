@@ -35,3 +35,23 @@ test('the filter shows only types present, with counts', () => {
   const fewer = app.run(`document.getElementById('logFilter').innerHTML`);
   assert.doesNotMatch(fewer, /Breaks/);
 });
+
+
+test('completed to-dos appear in the work log without adding time, and reopening removes them', async () => {
+ const app = loadApp({tasks: [{id:'t', text:'Send report', day:'2026-10-16', done:true, doneAt:now, order:0}], entries});
+ assert.equal(app.run('workEntries().length'), 5);
+ assert.equal(app.run('workSec(workEntries().find(e => e.taskCompletion))'), 0);
+ assert.match(app.run('entryHtml(workEntries().find(e => e.taskCompletion))'), /Task completed/);
+ app.run("openTaskDialog = (id) => { globalThis.openedTask = id; }; openEntryDialog('task:t')");
+ assert.equal(app.run("openedTask"), "t");
+ await app.run("setTaskDone('t', false)");
+ assert.equal(app.run('workEntries().length'), 4);
+});
+
+test('missed check-ins save the entered duration and task link', async () => {
+ const app = loadApp();
+ app.run("S.checkinKind = 'checkin'; $('checkinNote').value = 'Report'; $('checkinMinutes').value = '45'; $('checkinTask').value = 't'; $('checkinDoneRow').hidden = true;");
+ await app.run('saveCheckin(true)');
+ assert.equal(app.run('workSec(data.entries[0])'), 2700);
+ assert.equal(app.run('data.entries[0].taskId'), 't');
+});

@@ -434,6 +434,10 @@ function openCheckin(kind) {
   S.checkinKind = kind;
   const dlg = $('checkin');
   let apps;
+  $('checkinMinutesRow').hidden = kind === 'session';
+  $('checkinTaskRow').hidden = kind === 'session';
+  $('checkinMinutes').value = Math.max(1, Math.min(720, Math.round((Date.now() - lastLogAt) / 60000)));
+  $('checkinTask').innerHTML = '<option value="">Write my own</option>' + todayTasks().map(t => '<option value="' + t.id + '">' + esc(t.text) + '</option>').join('');
 
   if (kind === 'session') {
     const p = S.pendingSession;
@@ -511,10 +515,13 @@ async function saveCheckin(primary) {
     }
   } else {
     if (primary && note) {
+      const mins = Number($('checkinMinutes').value);
+      if (!Number.isFinite(mins) || mins < 1 || mins > 720) { $('checkinMinutes').focus(); return; }
       data.entries.push({
-        id: uid(), type: 'checkin', start: lastLogAt, end: Date.now(), note, rating, projectId, apps: topApps()
+        id: uid(), type: 'checkin', start: Date.now() - mins * 60000, end: Date.now(), note, rating, projectId, taskId: $('checkinTask').value || null, apps: topApps()
       });
       await persist('entries');
+      if (!$('checkinDoneRow').hidden && $('checkinDone').checked) await setTaskDone($('checkinTask').value, true);
     }
     $('checkin').close();
     lastLogAt = Date.now();
