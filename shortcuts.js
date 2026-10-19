@@ -72,7 +72,12 @@ function onKeydown(e) {
   }
   if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !isTyping(document.activeElement)) {
     const n = e.key === 'ArrowLeft' ? -1 : 1;
-    if (!$('tab-plan').hidden || !$('tab-day').hidden) { e.preventDefault(); planDay = shiftKey(planDay, n); renderPlan(); ensureCalendarFor(planDay); }
+    if (!$('tab-plan').hidden || !$('tab-day').hidden) {
+      e.preventDefault();
+      planDay = shiftKey(planDay, !$('tab-day').hidden && dayView.mode === 'week' ? n * 7 : n);
+      renderPlan();
+      ensureCalendarFor(planDay);
+    }
     else if (!$('tab-log').hidden) { e.preventDefault(); shiftDay(n); }
     return;
   }

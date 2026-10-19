@@ -16,6 +16,14 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
+## What's new in 1.12.0
+
+- **Week view.** The Day tab has a Day / Week switch. The week view shows Monday to Sunday side by side: drag a task between days as well as hours, drop tasks from the "No time yet" list onto any day, and click a day's heading to open it. With a task selected, Left and Right move it a day.
+- **Type a time when you add a task.** "Write report 2pm 1h", "Standup 9:15am for 15 min" or "Design review 2-3:30pm" adds the task and schedules it in one go. A line under the box shows what will be scheduled before you press Add.
+- **Missed tasks get a second chance.** When a scheduled task's time passes and it isn't done, Steady offers to move it to the next free time that fits. Missed tasks are marked on the Day view and listed on the Plan page, each with "Next free time" and "Tomorrow" buttons.
+- **Plan vs. done in your review.** The end-of-day review shows how much you planned against what you logged, and which scheduled tasks got done or slipped.
+- **A heads-up before scheduled tasks.** Steady reminds you 5 minutes before a scheduled task starts. In Settings, under Calendar, you can also have focus start automatically when a task's time comes, as long as nothing else is running.
+
 ## What's new in 1.11.0
 
 - **See what you actually did on the Day view.** Tick "Show what's done" on the Day tab to split the calendar into Planned and Done. Focus sessions, check-ins and work you logged appear at the times they happened, and finished tasks show as a tick at the time you completed them. Click any of them to edit it. Steady remembers whether the switch is on.
@@ -201,7 +209,7 @@ The mini timer is a small floating window that stays on top of other apps during
 
 **Parking lot.** Press Ctrl+Shift+Space from anywhere to jot down a stray thought. Later, click "Add to today's plan" to turn it into a task.
 
-**Day view.** The Day tab shows the day as a calendar: your meetings, the tasks you've given a time, and a red line for now. Drag a task from the "No time yet" list onto an hour to schedule it, or click "Next free time". Drag a block to move it, drag its bottom edge to make it longer or shorter, or drag it back to the list to clear its time; everything snaps to 15 minutes. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it. Click a block to edit the task. Tick "Show what's done" to see your focus sessions, check-ins, logged work and finished tasks in a Done column next to the plan. On the Plan tab, the clock next to a task sets its time too, and the Schedule card sums up your free time and what's next.
+**Day view.** The Day tab shows the day (or, with the Week switch, the whole week) as a calendar: your meetings, the tasks you've given a time, and a red line for now. Drag a task from the "No time yet" list onto an hour to schedule it, or click "Next free time". Drag a block to move it, drag its bottom edge to make it longer or shorter, or drag it back to the list to clear its time; everything snaps to 15 minutes. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it. Click a block to edit the task. Tick "Show what's done" to see your focus sessions, check-ins, logged work and finished tasks in a Done column next to the plan. On the Plan tab, the clock next to a task sets its time too, and the Schedule card sums up your free time and what's next.
 
 **Work log.** Day view shows a timeline for any date. History view lists what you worked on each day and lets you search everything, for example "budget".
 

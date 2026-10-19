@@ -43,13 +43,15 @@ function nextOrder(day) {
 let freshTaskId = null; // the task just added, so it can ease in
 
 async function addTask(text, est = 0, day = todayKey(), projectId = null) {
-  freshTaskId = uid();
+  const id = uid();
+  freshTaskId = id;
   data.tasks.push({
-    id: freshTaskId, text: text.trim(), day, est: Number(est) || 0, projectId: projectId || null,
+    id, text: text.trim(), day, est: Number(est) || 0, projectId: projectId || null,
     done: false, doneAt: null, createdAt: Date.now(), order: nextOrder(day)
   });
   await persist('tasks');
   renderPlan();
+  return id;
 }
 
 async function setTaskDone(id, done) {
@@ -983,8 +985,13 @@ function bindPlan() {
     e.preventDefault();
     const text = $('taskInput').value.trim();
     if (!text) return;
-    addTask(text, $('taskEst').value, planDay, $('taskProject').value || null);
+    const when = planDay >= todayKey() ? parseTaskTime(text) : null;
+    const day = planDay;
+    addTask(when ? when.text : text, $('taskEst').value, day, $('taskProject').value || null).then((id) => {
+      if (when) setBlock(id, day, when.startMin, when.mins || defaultBlockMins(findTask(id)));
+    });
     $('taskInput').value = '';
+    showTimeHint();
     $('taskEst').value = '0';
     $('taskInput').focus();
   });
@@ -1120,6 +1127,7 @@ function bindPlan() {
     $('estHint').hidden = !hint;
   };
   $('taskEst').addEventListener('change', showEstHint);
+  $('taskInput').addEventListener('input', showTimeHint);
   $('taskProject').addEventListener('change', showEstHint);
   $('taskForm').addEventListener('submit', () => setTimeout(showEstHint, 0));
 

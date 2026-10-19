@@ -131,19 +131,154 @@ async function saveTimeForm(form) {
   if (block) showNudge(`Scheduled for ${fmtTime(atDay(block.day, block.startMin))}. Steady will remind you when it's time.`, 'info', true);
 }
 
-// Reminds you when a block starts. Runs from the timer tick.
+/* ---------- Typing a time when adding a task: "Write report 2pm 1h" ---------- */
+
+// Minutes after midnight from an hour, optional minutes and am/pm. Bare hours before 7 mean the afternoon.
+function clockMinutes(h, m, ap) {
+  let hour = Number(h);
+  const min = Number(m || 0);
+  if (hour > 23 || min > 59) return null;
+  const mer = (ap || '').toLowerCase().replace(/\./g, '');
+  if (mer.startsWith('p') && hour < 12) hour += 12;
+  else if (mer.startsWith('a') && hour === 12) hour = 0;
+  else if (!mer && hour >= 1 && hour < 7) hour += 12;
+  return hour * 60 + min;
+}
+
+// Finds a start time (and optionally a length) in a task's text. Returns the text without them, or null.
+// A time needs am/pm, a colon, "at" or "noon", so "Call 3 vendors" stays as it is.
+function parseTaskTime(input) {
+  let text = ` ${input} `;
+  let startMin = null;
+  let mins = 0;
+  const cut = (m) => { text = text.replace(m[0], ' '); };
+  const AP = '(a\\.?m\\.?|p\\.?m\\.?|a|p)';
+  const range = text.match(new RegExp(`\\s(?:from\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*${AP}?\\s*(?:-|–|to)\\s*(\\d{1,2})(?::(\\d{2}))?\\s*${AP}?(?=[\\s,.]|$)`, 'i'));
+  if (range && (range[3] || range[6] || range[2] || range[5])) {
+    const endAp = range[6] || '';
+    const a = clockMinutes(range[1], range[2], range[3] || endAp);
+    const b = clockMinutes(range[4], range[5], endAp || range[3]);
+    if (a !== null && b !== null && b > a) { startMin = a; mins = b - a; cut(range); }
+  }
+  if (startMin === null) {
+    const patterns = [
+      new RegExp(`\\s(?:at\\s+)?(\\d{1,2})(?::(\\d{2}))?\\s*${AP}(?=[\\s,.]|$)`, 'i'),
+      /\s(?:at\s+)?(\d{1,2}):(\d{2})(?=[\s,.]|$)/i,
+      /\sat\s+(\d{1,2})(?=[\s,.]|$)/i
+    ];
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (!m) continue;
+      const v = clockMinutes(m[1], m[2], m[3]);
+      if (v !== null) { startMin = v; cut(m); break; }
+    }
+    const noon = startMin === null && text.match(/\s(?:at\s+)?noon(?=[\s,.]|$)/i);
+    if (noon) { startMin = 720; cut(noon); }
+  }
+  if (startMin === null) return null;
+  if (!mins) {
+    const hm = text.match(/\s(?:for\s+)?(\d+(?:\.\d+)?)\s*(?:h|hrs?|hours?)\s*(?:(\d+)\s*(?:m|mins?|minutes?))?(?=[\s,.]|$)/i);
+    const mOnly = !hm && text.match(/\s(?:for\s+)?(\d+)\s*(?:m|mins?|minutes?)(?=[\s,.]|$)/i);
+    if (hm) { mins = Math.round(Number(hm[1]) * 60) + Number(hm[2] || 0); cut(hm); }
+    else if (mOnly) { mins = Number(mOnly[1]); cut(mOnly); }
+  }
+  const rest = text.replace(/\s+/g, ' ').replace(/[\s,]+(at|for|from)?[\s,]*$/i, '').trim();
+  if (!rest) return null;
+  return { text: rest, startMin, mins: mins ? Math.max(15, Math.min(480, mins)) : 0 };
+}
+
+// Shows what a typed time will do before the task is added.
+function showTimeHint() {
+  const when = planDay >= todayKey() ? parseTaskTime($('taskInput').value) : null;
+  $('timeHint').hidden = !when;
+  if (!when) return;
+  const end = when.mins ? ` – ${fmtTime(atDay(planDay, when.startMin + when.mins))}` : '';
+  $('timeHint').textContent = `"${when.text}" will be scheduled at ${fmtTime(atDay(planDay, when.startMin))}${end}.`;
+}
+
+/* ---------- Plan vs. done ---------- */
+
+// Every task scheduled on `day`, finished or not, with the focus time spent on it that day.
+function planVsDone(day) {
+  const scheduled = data.tasks
+    .filter((t) => t.block && t.block.day === day)
+    .sort((a, b) => a.block.startMin - b.block.startMin)
+    .map((t) => ({
+      task: t,
+      start: atDay(day, t.block.startMin),
+      end: atDay(day, t.block.startMin + t.block.mins),
+      done: !!t.done,
+      sec: data.entries.filter((e) => e.type === 'session' && e.taskId === t.id && dayKey(e.start) === day)
+        .reduce((a, e) => a + (e.focusSec || 0), 0)
+    }));
+  const workedSec = data.entries.filter((e) => WORK_TYPES.includes(e.type) && dayKey(e.start) === day)
+    .reduce((a, e) => a + workSec(e), 0);
+  return {
+    scheduled,
+    plannedSec: scheduled.reduce((a, s) => a + (s.end - s.start) / 1000, 0),
+    workedSec,
+    doneCount: scheduled.filter((s) => s.done).length
+  };
+}
+
+// Today's blocks whose time has passed without the task being finished (and that you're not working on now).
+function missedBlocks(now = Date.now()) {
+  const busyWith = (S.state === 'focus' || S.state === 'paused') ? S.taskId : null;
+  return taskBlocksOn(dayKey(now)).filter((b) => b.end <= now && b.task.id !== busyWith);
+}
+
+// Moves a block to the next free stretch today that fits it, or to tomorrow when nothing does.
+async function rescheduleBlock(id, where = 'next') {
+  const t = findTask(id);
+  if (!t || !t.block) return;
+  const mins = t.block.mins;
+  const today = todayKey();
+  let day = where === 'tomorrow' ? shiftKey(today, 1) : today;
+  let start = null;
+  if (where !== 'tomorrow') {
+    const midnight = atDay(today, 0);
+    const fit = freeBlocks(today)
+      .map(([a, b]) => [Math.ceil((a - midnight) / 60000 / 15) * 15, (b - midnight) / 60000])
+      .find(([a, b]) => b - a >= mins);
+    if (fit) start = fit[0];
+    else day = shiftKey(today, 1);
+  }
+  if (start === null) start = suggestStart(day, mins);
+  const block = await setBlock(id, day, start, mins);
+  if (block) showNudge(`Moved "${t.text}" to ${day === today ? '' : 'tomorrow at '}${fmtTime(atDay(block.day, block.startMin))}.`, 'info', true);
+}
+
+// Runs from the timer tick: a heads-up 5 minutes before a block, a reminder (or an automatic start) when it begins,
+// and an offer to move it when it ends unfinished.
 const blockNotified = new Set();
 function blockTick(now) {
   const today = dayKey(now);
+  const free = S.state === 'idle' || S.state === 'breakPending';
+  const once = (key) => (blockNotified.has(key) ? false : (blockNotified.add(key), true));
   for (const b of taskBlocksOn(today)) {
     const key = `${b.task.id}|${b.start}`;
-    if (blockNotified.has(key) || now < b.start || now > b.start + 60000) continue;
-    blockNotified.add(key);
-    api.notify(`Time for "${b.task.text}"`, `Blocked until ${fmtTime(b.end)}.`);
-    if (S.state === 'idle' || S.state === 'breakPending') {
-      showNudge(`It's ${fmtTime(b.start)}: time for "${b.task.text}".`, 'info', false, { label: 'Start focus', fn: () => startTask(b.task.id) });
-    } else if (S.taskId !== b.task.id) {
-      showNudge(`"${b.task.text}" was blocked to start now. Finish this session first.`, 'info', true);
+    if (settings.blockHeadsUp !== false && now >= b.start - 5 * 60000 && now < b.start - 4 * 60000 && once(`soon|${key}`)) {
+      api.notify(`"${b.task.text}" starts at ${fmtTime(b.start)}`, 'In 5 minutes.');
+      if (S.state === 'focus' && S.taskId !== b.task.id) showNudge(`"${b.task.text}" is scheduled to start at ${fmtTime(b.start)}. Time to wrap up.`, 'info', true);
+    }
+    if (now >= b.start && now <= b.start + 60000 && once(key)) {
+      if (free && settings.blockAutoStart) {
+        api.notify(`Started "${b.task.text}"`, `Scheduled until ${fmtTime(b.end)}.`);
+        startTask(b.task.id);
+        showNudge(`Started focusing on "${b.task.text}" because it was scheduled now.`, 'info', true);
+      } else {
+        api.notify(`Time for "${b.task.text}"`, `Scheduled until ${fmtTime(b.end)}.`);
+        if (free) {
+          showNudge(`It's ${fmtTime(b.start)}: time for "${b.task.text}".`, 'info', false, { label: 'Start focus', fn: () => startTask(b.task.id) });
+        } else if (S.taskId !== b.task.id) {
+          showNudge(`"${b.task.text}" was scheduled to start now. Finish this session first.`, 'info', true);
+        }
+      }
+    }
+    if (now >= b.end && now <= b.end + 2 * 60000 && missedBlocks(now).some((m) => m.task.id === b.task.id) && once(`missed|${key}`)) {
+      showNudge(`"${b.task.text}" was scheduled until ${fmtTime(b.end)} and isn't done.`, 'info', false,
+        { label: 'Move to next free time', fn: () => rescheduleBlock(b.task.id, 'next') });
+      if (!$('tab-plan').hidden || !$('tab-day').hidden) renderPlan(); // show it as missed
     }
   }
 }
@@ -329,6 +464,8 @@ function bindPlanning() {
     if (!b) return;
     if (b.dataset.openDay !== undefined) showTab('day');
     else if (b.dataset.blockStart) startTask(b.dataset.blockStart);
+    else if (b.dataset.reschedNext) rescheduleBlock(b.dataset.reschedNext, 'next');
+    else if (b.dataset.reschedTomorrow) rescheduleBlock(b.dataset.reschedTomorrow, 'tomorrow');
   });
 
   $('welcomeNext1').addEventListener('click', () => showWelcomeStep(2));

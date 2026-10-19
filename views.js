@@ -406,7 +406,7 @@ const NUM_FIELDS = {
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
-  'projectTint', 'dayTint', 'chimes', 'nextPrompt'];
+  'projectTint', 'dayTint', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart'];
 const TEXT_FIELDS = {
   motion: (v) => (['system', 'full', 'reduced'].includes(v) ? v : null),
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),

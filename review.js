@@ -247,6 +247,14 @@ function buildDay(key) {
     if (best) html += `<p class="rv-detail">Your best stretch was ${fmtTime(best.start)} – ${fmtTime(best.end)}: ${fmtMins(best.sec)} of focus across ${best.n} sessions.</p>`;
   }
 
+  const pvd = typeof planVsDone === 'function' ? planVsDone(key) : { scheduled: [] };
+  if (pvd.scheduled.length) {
+    const slipped = pvd.scheduled.filter((s) => !s.done);
+    html += `<h3>Plan vs. done</h3><p class="rv-detail">You planned ${fmtMins(pvd.plannedSec)} for ${plural(pvd.scheduled.length, 'task')} and logged ${fmtMins(pvd.workedSec)} of work. ${pvd.doneCount} of ${pvd.scheduled.length} scheduled ${pvd.scheduled.length === 1 ? 'task is' : 'tasks are'} done${slipped.length ? `; ${slipped.map((s) => s.task.text).join(', ')} slipped` : ''}.</p>`
+      + listHtml(pvd.scheduled.map((s) => `<li class="${s.done ? 'pvd-done' : 'pvd-slipped'}"><span><span class="pvd-mark" aria-hidden="true">${s.done ? '✓' : '○'}</span>${esc(s.task.text)} <span class="rv-when">${fmtTime(s.start)} – ${fmtTime(s.end)}</span></span>`
+        + `<span class="rv-time">${s.sec ? `${fmtMins(Math.max(60, s.sec))} focused` : s.done ? 'Done' : 'Not started'}</span></li>`), 'pvd');
+  }
+
   if (work.length) {
     html += `<h3>What you worked on</h3>` + listHtml(work.map((g) =>
       `<li><span>${esc(g.note)} ${projectChip(g.projectId)}</span><span class="rv-time">${g.sec ? fmtMins(Math.max(60, g.sec)) : ''}</span></li>`));
@@ -273,6 +281,10 @@ function buildDay(key) {
     ? `Focused ${fmtMins(focusSec)} across ${plural(sessions.length, 'session')}${goalSec ? ` (goal ${fmtMins(goalSec)})` : ''}`
     : 'No focus sessions');
   if (work.length) lines.push('', 'Worked on:', ...work.map((g) => `- ${g.note}${g.projectId ? ` [${projectName(g.projectId)}]` : ''}${g.sec ? ` (${fmtMins(Math.max(60, g.sec))})` : ''}`));
+  if (pvd.scheduled.length) {
+    lines.push('', `Plan vs. done: planned ${fmtMins(pvd.plannedSec)}, logged ${fmtMins(pvd.workedSec)}, ${pvd.doneCount} of ${pvd.scheduled.length} scheduled tasks done`,
+      ...pvd.scheduled.map((s) => `- ${s.done ? '[done]' : '[slipped]'} ${s.task.text} (${fmtTime(s.start)} – ${fmtTime(s.end)})`));
+  }
   if (finished.length) lines.push('', 'Finished:', ...finished.map((t) => `- ${t.text}`));
   if (open.length) lines.push('', 'Still open:', ...open.map((t) => `- ${t.text}`));
 

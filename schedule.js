@@ -151,6 +151,7 @@ function renderSchedule(day, sessionsNeeded) {
   const isToday = day === dayKey(Date.now());
   const info = scheduleSummary(day, sessionsNeeded);
   const next = isToday ? upNext(day) : null;
+  const missed = isToday && typeof missedBlocks === 'function' ? missedBlocks().slice(0, 3) : [];
   const canFocus = S.state === 'idle' || S.state === 'breakPending';
   box.innerHTML = `
     <div class="sched-head">
@@ -163,6 +164,10 @@ function renderSchedule(day, sessionsNeeded) {
     ${next ? `<p class="sched-next"><span>${next.start <= Date.now() ? 'Now' : 'Next'}:</span> <strong>${esc(next.title)}</strong>
       <span class="muted-note">${fmtTime(next.start)} – ${fmtTime(next.end)}</span>
       ${next.taskId && canFocus ? `<button class="link" type="button" data-block-start="${next.taskId}">Focus</button>` : ''}</p>` : ''}
+    ${missed.length ? `<ul class="sched-missed">${missed.map((b) => `<li><span><span class="missed-label">Missed:</span> <strong>${esc(b.task.text)}</strong>
+      <span class="muted-note">${fmtTime(b.start)} – ${fmtTime(b.end)}</span></span>
+      <span><button class="link" type="button" data-resched-next="${b.task.id}">Next free time</button>
+      <button class="link" type="button" data-resched-tomorrow="${b.task.id}">Tomorrow</button></span></li>`).join('')}</ul>` : ''}
   `;
 }
 

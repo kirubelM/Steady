@@ -140,7 +140,7 @@
           </div>
           <form id="taskForm" class="task-form">
             <label for="taskInput" class="sr-only">New task</label>
-            <input id="taskInput" type="text" maxlength="140" placeholder="Add a task for today" autocomplete="off">
+            <input id="taskInput" type="text" maxlength="140" placeholder="Add a task for today, e.g. Write report 2pm 1h" autocomplete="off">
             <label for="taskProject" class="sr-only">Project</label>
             <select id="taskProject" class="project-select" data-none="No project"></select>
             <label for="taskEst" class="sr-only">Estimated sessions</label>
@@ -154,6 +154,7 @@
             </select>
             <button class="btn primary" type="submit">Add</button>
           </form>
+          <p id="timeHint" class="field-note time-hint" hidden></p>
           <p id="estHint" class="field-note est-hint" hidden></p>
           <p id="planSummary" class="summary"></p>
           <p id="taskViewNote" class="field-note task-view-note" hidden></p>
@@ -205,6 +206,10 @@
             <button id="dayToday" class="link" type="button" hidden>Back to today</button>
           </div>
           <div class="plan-head-actions">
+            <div class="range day-mode" role="group" aria-label="Calendar view">
+              <button type="button" data-day-mode="day" aria-pressed="true">Day</button>
+              <button type="button" data-day-mode="week" aria-pressed="false">Week</button>
+            </div>
             <label id="dayDoneToggle" class="day-toggle" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
             <button id="dayRefresh" class="link" type="button" hidden>Refresh calendar</button>
           </div>
@@ -434,6 +439,8 @@
             <p id="calLinkNote" class="field-note">In Outlook on the web, go to Settings, then Calendar, then Shared calendars, and publish your calendar to get an ICS link. In Google Calendar, use "Secret address in iCal format". Keep the link private; anyone with it can see your calendar.</p>
             <label>My workday starts <span><input name="workStart" type="time"></span></label>
             <label>My workday ends <span><input name="workEnd" type="time"></span></label>
+            <label class="check"><input name="blockHeadsUp" type="checkbox"> Remind me 5 minutes before a scheduled task starts</label>
+            <label class="check"><input name="blockAutoStart" type="checkbox"> Start focusing automatically when a scheduled task's time comes (only if nothing else is running)</label>
           </fieldset>
 
           <fieldset data-cat="focus">

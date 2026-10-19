@@ -593,6 +593,10 @@ button.task-main:hover { background: var(--tint-pine); }
 .rv-list li:last-child { border-bottom: 0; }
 .rv-list.done li > span:first-child::before { content: "✓"; color: var(--pine); font-weight: 700; margin-right: 8px; }
 .rv-list.open li > span:first-child::before { content: "○"; color: var(--muted); margin-right: 8px; }
+.pvd-mark { display: inline-block; width: 1.2em; font-weight: 700; color: var(--pine); }
+.pvd-slipped .pvd-mark { color: var(--amber-ink); }
+.pvd-slipped .rv-time { color: var(--amber-ink); }
+.rv-when { margin-left: 6px; font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
 .rv-time { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rv-note-label { display: block; font-weight: 600; margin: 20px 0 6px; }
 #reviewNote { width: 100%; }
@@ -1155,6 +1159,12 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 /* Plan page: what's on now or next */
 .sched-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 6px 0 0; font-size: 0.92rem; }
 .sched-next > span:first-child { color: var(--muted); }
+.sched-missed { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.sched-missed li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 10px; border-radius: 8px; background: var(--tint-amber); }
+.sched-missed .missed-label { color: var(--amber-ink); font-weight: 600; }
+.sched-missed .link { color: var(--pine); margin-left: 8px; }
+.cal-task.missed { opacity: 1; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--bc, var(--pine)) 55%, transparent) 0 6px, color-mix(in srgb, var(--bc, var(--pine)) 40%, transparent) 6px 12px); box-shadow: inset 0 0 0 2px var(--amber); }
+.cal-task.missed .cal-task-actions { opacity: 1; }
 
 /* Day view: the day as a calendar */
 .day-summary { margin: 10px 0 4px; }
@@ -1208,6 +1218,21 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .day-layout.stacked { grid-template-columns: 1fr; gap: 12px; }
 .day-layout.stacked .day-side { position: static; }
 .day-layout.stacked .day-todo-list { max-height: 30vh; }
+.day-mode { margin-right: 4px; }
+.day-cal.week .cal-col.cal-plan { border-left: 1px solid var(--line); }
+.day-cal.week .cal-col.past-day { background: color-mix(in srgb, var(--fog) 55%, transparent); }
+.day-cal.week .cal-col.today { background: color-mix(in srgb, var(--pine) 5%, transparent); }
+.day-cal.week .cal-task, .day-cal.week .cal-meet { margin-left: 1px; padding: 2px 5px; font-size: 0.74rem; }
+.day-cal.week .cal-task strong, .day-cal.week .cal-meet strong { padding-right: 0; }
+.day-cal.week .cal-task-actions { top: auto; bottom: 2px; }
+.day-cal.week .cal-now { left: 0; right: 0; }
+.day-cal.week .cal-now::before { display: none; }
+.cal-days-head { display: grid; grid-template-columns: repeat(7, 1fr); margin: 0 4px 8px 66px; }
+.cal-days-head button { font: inherit; background: none; border: 0; border-radius: 8px; padding: 4px 0; cursor: pointer; color: var(--muted); display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.cal-days-head button span { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-days-head button strong { font-size: 1rem; color: var(--ink); }
+.cal-days-head button:hover { background: var(--tint-pine); }
+.cal-days-head button.today strong { color: var(--on-accent); background: var(--pine); border-radius: 999px; min-width: 1.8em; }
 .day-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; white-space: nowrap; }
 .day-toggle input { accent-color: var(--pine); margin: 0; }
 .day-toggle .muted-note { font-size: 0.8rem; }

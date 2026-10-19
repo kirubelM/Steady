@@ -44,6 +44,8 @@ const DEFAULTS = {
     dayTint: true,
     chimes: false,
     nextPrompt: true,
+    blockHeadsUp: true,
+    blockAutoStart: false,
     backupKeepDays: 30,
     startAtLogin: false,
     startMinimized: true,
