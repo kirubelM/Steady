@@ -38,7 +38,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 ## What's new in 1.6
 
-- **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or set a time in the task editor. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
+- **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or click the clock next to a task to pick a start time and length. The time then shows on the task's row. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
 - **Plan my day.** On today's page, "Plan my day" gathers leftovers, tasks due soon but planned for later, and parked thoughts. It ticks what fits in your free time (urgent ones always), and adds your choices to today.
 - **Due dates and stars.** Give a task a due date in the task editor and star the important ones (☆ on each task). Starred and overdue tasks rise to the top, "Overdue by a day" and "Due today" labels show on tasks, the Tasks tile counts them, and there's a new "Priority" sort.
 - **Session goals.** Before a session, optionally write what done looks like. It shows under the timer, the check-in asks whether you got there, and your hit rate appears in the daily review and Insights.
@@ -82,7 +82,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 ## What's new in 1.3.8
 
-- **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. This replaces the up and down arrow buttons.
+- **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. Starred and due tasks stay at the top; a drop always lands where the line showed. This replaces the up and down arrow buttons.
 
 ## What's new in 1.3.7
 

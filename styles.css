@@ -1155,6 +1155,15 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .due-chip.due-today { background: var(--tint-amber); color: var(--amber-ink); }
 .due-chip.due-soon, .due-chip.due-later { background: var(--tint-pine); color: var(--muted); }
 .block-chip { background: var(--tint-pine); color: var(--pine); }
+/* Scheduling a task at a time, from its row */
+.time-btn { font: inherit; display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 4px; cursor: pointer; color: var(--muted); opacity: 0.55; transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease; }
+.time-btn svg { width: 16px; height: 16px; }
+.task:hover .time-btn, .task:focus-within .time-btn, .time-btn[aria-expanded="true"] { opacity: 1; }
+.time-btn:hover { color: var(--pine); }
+.time-btn.on { opacity: 1; padding: 2px 9px 2px 7px; background: var(--tint-pine); color: var(--pine); font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.time-form { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -2px 0 2px; font-size: 0.88rem; }
+.time-form label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.time-form input, .time-form select { padding: 4px 6px; font-size: 0.88rem; }
 .block-chip::before { content: "◷"; margin-right: 4px; font-weight: 400; }
 .task-star-field { align-self: end; margin: 0 0 8px; }
 
