@@ -42,7 +42,7 @@ contextBridge.exposeInMainWorld('steady', {
   log: (level, msg, detail) => ipcRenderer.send('log:write', { level, msg, detail }),
   diagnostics: () => ipcRenderer.invoke('diag:get'),
   openLogs: () => ipcRenderer.send('diag:open-logs'),
-  releaseNotes: () => ipcRenderer.invoke('release:notes'),
+  releaseNotes: (since) => ipcRenderer.invoke('release:notes', since),
   appVersion: () => ipcRenderer.invoke('app:version'),
   checkUpdates: () => ipcRenderer.invoke('update:check'),
   installUpdate: () => ipcRenderer.send('update:install'),

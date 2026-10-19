@@ -268,7 +268,7 @@ async function init() {
   await materializeRecurring();
   renderPlan();
   showTab('plan');
-  if (shouldWelcome()) openWelcome();
+  if (shouldWelcome()) { openWelcome(); markWhatsNewSeen(); }
   else {
     await maybeShowWhatsNew();
     if (!anyDialogOpen()) maybeNudgePlan();

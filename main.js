@@ -659,9 +659,13 @@ function snoozeBreak() {
 
 /* ---------- IPC ---------- */
 
-ipcMain.handle('release:notes', () => {
-  const { releaseNotes } = require('./scripts/release-notes');
-  return { version: app.getVersion(), notes: releaseNotes(fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8'), app.getVersion()) };
+// Feature notes from the installed README: this version's, or every version after `since`.
+ipcMain.handle('release:notes', (_e, since) => {
+  const { releaseNotesSince } = require('./scripts/release-notes');
+  const version = app.getVersion();
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  const releases = releaseNotesSince(readme, since || null, version);
+  return { version, releases: since ? releases : releases.filter((r) => r.version === version) };
 });
 
 ipcMain.handle('data:load', () => data);

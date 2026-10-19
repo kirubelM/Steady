@@ -1358,7 +1358,9 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .whats-new-dialog { width: min(600px, calc(100vw - 48px)); }
 .whats-new-eyebrow { color: var(--pine); font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
 .whats-new-dialog h2 { margin-top: 6px; font-size: 1.5rem; }
-.whats-new-features { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+.whats-new-features { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; max-height: 55vh; overflow-y: auto; }
+.whats-new-version { margin: 8px 0 0; font-size: 0.8rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; }
+.whats-new-version:first-child { margin-top: 0; }
 .whats-new-feature { display: flex; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); }
 .whats-new-feature h3 { font-size: .95rem; }
 .whats-new-feature p { margin: 4px 0 0; font-size: .9rem; color: var(--muted); line-height: 1.6; }
