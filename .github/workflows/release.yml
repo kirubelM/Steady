@@ -48,9 +48,9 @@ jobs:
             echo "go=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # A tag made with -a is listed twice; the "^{}" line is the commit it points to.
+          # A tag made with -a is listed twice; the "^{}" line is the commit it points to. No tag yet means no match, which is fine.
           refs=$(git ls-remote --tags origin "refs/tags/$tag")
-          tagged=$(printf '%s\n' "$refs" | grep -F '^{}' | cut -f1)
+          tagged=$(printf '%s\n' "$refs" | { grep -F '^{}' || true; } | cut -f1)
           [ -n "$tagged" ] || tagged=$(printf '%s\n' "$refs" | head -n 1 | cut -f1)
           if [ "$GITHUB_REF_TYPE" = "branch" ] && [ -n "$tagged" ] && [ "$tagged" != "$GITHUB_SHA" ]; then
             echo "::warning::$tag is already tagged on another commit ($tagged) but not released. Delete that tag or bump the version."
