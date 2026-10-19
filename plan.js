@@ -628,11 +628,11 @@ function renderPlan() {
       const meta = taskMeta(t);
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
-      const movable = !t.done; // reorder in the list, or drop onto the schedule to block time
+      const movable = !t.done;
       const due = dueStatus(t);
       const timed = !t.done && (isToday || isFuture);
       return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && timeFor !== t.id ? ' draggable="true"' : ''}>
-        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder, or onto the schedule to block time"></span>' : ''}
+        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
@@ -725,6 +725,7 @@ function renderPlan() {
   if (tasks.length && isToday && $('nudge').dataset.kind === 'plan') hideNudge();
   lastNextUp = null;
   renderNextUp();
+  if (!$('tab-day').hidden) renderDay();
 }
 
 let doneFormOpen = false;

@@ -101,98 +101,69 @@ function sessionsThatFit(blocks) {
   return blocks.reduce((n, [a, b]) => n + Math.floor((b - a + p.breakMin * 60000) / cycle), 0);
 }
 
-function renderSchedule(day, sessionsNeeded) {
-  const box = $('scheduleSection');
-  const off = !calendarOn();
-  const many = settings.calendars.length > 1;
-  const isPast = day < dayKey(Date.now());
-  box.hidden = off && isPast;
-  if (box.hidden) return;
+let lastSessionsNeeded = 0; // from the Plan page, so the Day view can say whether the plan fits
 
+// One line about the day's free time, plus any calendar warning. Shared by the Plan page and the Day view.
+function scheduleSummary(day, sessionsNeeded = lastSessionsNeeded) {
+  const off = !calendarOn();
   const p = currentPreset();
-  const startMin = minutesOf(settings.workStart);
-  const endMin = minutesOf(settings.workEnd);
-  const dayStart = atDay(day, startMin);
-  const dayEnd = atDay(day, endMin);
-  const span = Math.max(1, dayEnd - dayStart);
-  const events = off ? [] : eventsOn(day);
-  const timed = events.filter((ev) => !ev.allDay);
-  const allDay = events.filter((ev) => ev.allDay);
+  const isToday = day === dayKey(Date.now());
+  const dayEnd = atDay(day, minutesOf(settings.workEnd));
+  const timed = off ? [] : eventsOn(day).filter((ev) => !ev.allDay);
   const blocks = freeBlocks(day);
   const freeMs = blocks.reduce((a, [s, e]) => a + (e - s), 0);
   const fit = sessionsThatFit(blocks);
-  const isToday = day === dayKey(Date.now());
   const taskBlocks = typeof taskBlocksOn === 'function' ? taskBlocksOn(day) : [];
-  const canBlock = !isPast;
-
-  // Timeline across working hours
-  const pct = (t) => Math.max(0, Math.min(100, ((t - dayStart) / span) * 100));
-  const segs = [];
-  timed.forEach((ev) => {
-    const a = pct(ev.start);
-    const b = pct(ev.end);
-    if (b <= 0 || a >= 100 || b - a <= 0) return;
-    segs.push(`<span class="tl-meet${ev.busy ? '' : ' free'}" style="left:${a}%;width:${Math.max(0.6, b - a)}%" data-tip="${esc(`${fmtTime(ev.start)} – ${fmtTime(ev.end)}\n${ev.title}${many ? `\n${ev.cal}` : ''}${ev.busy ? '' : '\nShown as free'}`)}"></span>`);
-  });
-  blocks.forEach(([a, b]) => {
-    segs.push(`<span class="tl-free" style="left:${pct(a)}%;width:${pct(b) - pct(a)}%" data-tip="${esc(`Free ${fmtTime(a)} – ${fmtTime(b)}\n${fmtMins((b - a) / 1000)}`)}"></span>`);
-  });
-  taskBlocks.forEach((b) => {
-    const a = pct(b.start);
-    const w = Math.max(1.5, pct(b.end) - a);
-    const color = projectById(b.task.projectId)?.color;
-    segs.push(`<span class="tl-task" draggable="true" data-block-task="${b.task.id}" style="left:${a}%;width:${w}%${color ? `;--bc:${color}` : ''}" data-tip="${esc(`${fmtTime(b.start)} – ${fmtTime(b.end)}\n${b.task.text}\nDrag to move`)}">${w > 9 ? `<em>${esc(b.task.text)}</em>` : ''}</span>`);
-  });
-  if (isToday && Date.now() > dayStart && Date.now() < dayEnd) segs.push(`<span class="tl-now" style="left:${pct(Date.now())}%"></span>`);
-  const hours = [];
-  for (let m = Math.ceil(startMin / 60) * 60; m <= endMin; m += 120) {
-    hours.push(`<span class="tl-hour" style="left:${pct(atDay(day, m))}%">${shortHourLabel(m / 60)}</span>`);
-  }
-
-  // Past days only need a timeline if something happened on it; today and later it's where tasks are dropped.
-  const quiet = !canBlock && !off && !Cal.error && !timed.length && !taskBlocks.length;
   const blockedMs = taskBlocks.reduce((a, b) => a + (b.end - b.start), 0);
-  let summary;
+  let text;
   if (off && !freeMs) {
-    summary = 'Connect your calendar in Settings to see meetings here too.';
+    text = 'Connect your calendar in Settings to see meetings here too.';
   } else if (off) {
-    summary = `${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}${blockedMs ? ` after ${fmtMins(blockedMs / 1000)} blocked for tasks` : ''}. Connect your calendar in Settings to see meetings here too.`;
+    text = `${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}${blockedMs ? ` after ${fmtMins(blockedMs / 1000)} scheduled for tasks` : ''}. Connect your calendar in Settings to see meetings here too.`;
   } else if (Cal.error) {
-    summary = Cal.error;
+    text = Cal.error;
   } else if (!freeMs) {
-    summary = isToday && Date.now() > dayEnd ? 'Your working hours are over for today.' : 'No free time left in your working hours.';
+    text = isToday && Date.now() > dayEnd ? 'Your working hours are over for today.' : 'No free time left in your working hours.';
   } else {
-    summary = `${!timed.length ? 'No meetings. ' : ''}${blockedMs ? `${fmtMins(blockedMs / 1000)} blocked for tasks. ` : ''}${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
-    if (sessionsNeeded && sessionsNeeded > fit) summary += ` Your plan needs about ${sessionsNeeded}, so something may have to move to another day.`;
-    else if (sessionsNeeded) summary += ` Your plan needs about ${sessionsNeeded}, so it fits.`;
+    text = `${!timed.length ? 'No meetings. ' : ''}${blockedMs ? `${fmtMins(blockedMs / 1000)} scheduled for tasks. ` : ''}${fmtMins(freeMs / 1000)} free${isToday ? ' for the rest of the day' : ''}, room for about ${plural(fit, 'session')} of ${p.focusMin} minutes.`;
+    if (sessionsNeeded && sessionsNeeded > fit) text += ` Your plan needs about ${sessionsNeeded}, so something may have to move to another day.`;
+    else if (sessionsNeeded) text += ` Your plan needs about ${sessionsNeeded}, so it fits.`;
   }
+  return { text, warning: !off && !Cal.error ? Cal.warning : null };
+}
 
+// What's on now or next today: a scheduled task or a busy meeting.
+function upNext(day, now = Date.now()) {
+  const tasks = (typeof taskBlocksOn === 'function' ? taskBlocksOn(day) : [])
+    .map((b) => ({ title: b.task.text, start: b.start, end: b.end, taskId: b.task.id }));
+  const meets = (calendarOn() ? eventsOn(day) : []).filter((ev) => ev.busy && !ev.allDay)
+    .map((ev) => ({ title: ev.title, start: ev.start, end: ev.end, taskId: null }));
+  return [...tasks, ...meets].filter((x) => x.end > now).sort((a, b) => a.start - b.start)[0] || null;
+}
+
+// The Plan page keeps a short summary; the full calendar lives on the Day tab.
+function renderSchedule(day, sessionsNeeded) {
+  const box = $('scheduleSection');
+  const isPast = day < dayKey(Date.now());
+  lastSessionsNeeded = sessionsNeeded || 0;
+  box.hidden = !calendarOn() && isPast && !taskBlocksOn(day).length;
+  if (box.hidden) return;
+  const isToday = day === dayKey(Date.now());
+  const info = scheduleSummary(day, sessionsNeeded);
+  const next = isToday ? upNext(day) : null;
+  const canFocus = S.state === 'idle' || S.state === 'breakPending';
   box.innerHTML = `
     <div class="sched-head">
       <h3>Schedule</h3>
       <span class="muted-note">${esc(settings.workStart)} to ${esc(settings.workEnd)}</span>
-      ${off ? '' : `<button class="link" type="button" id="calRefresh">${Cal.loading ? 'Updating…' : 'Refresh'}</button>`}
+      <button class="link" type="button" data-open-day>Open Day view</button>
     </div>
-    <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(summary)}</p>
-    ${!off && !Cal.error && Cal.warning ? `<p class="insight-note warn-text">${esc(Cal.warning)}</p>` : ''}
-    ${(off && !canBlock) || quiet ? '' : `<div class="timeline${canBlock ? ' droppable' : ''}" aria-label="Timeline of your working hours${canBlock ? '. Drop a task here to block time for it' : ''}">${segs.join('')}<div class="tl-hours">${hours.join('')}</div></div>`}
-    ${canBlock && !taskBlocks.length ? '<p class="field-note tl-hint">Drag a task from your list onto the timeline to block time for it.</p>' : ''}
-    ${taskBlocks.length ? `<ul class="meet-list block-list">${taskBlocks.map((b) => `<li class="${b.end < Date.now() ? 'past' : ''}">
-        <span class="when">${fmtTime(b.start)} – ${fmtTime(b.end)}</span>
-        <span class="block-name">${esc(b.task.text)}</span>
-        <span class="block-actions">
-          ${isToday && (S.state === 'idle' || S.state === 'breakPending') && b.end > Date.now() ? `<button class="link" type="button" data-block-start="${b.task.id}">Focus</button>` : ''}
-          <button class="del" type="button" data-unblock="${b.task.id}" aria-label="Remove the time block for ${esc(b.task.text)}" title="Remove block">×</button>
-        </span>
-      </li>`).join('')}</ul>` : ''}
-    ${allDay.length ? `<p class="allday">${allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)"${many ? ` title="${esc(ev.cal)}"` : ''}>${esc(ev.title)}</span>`).join('')}</p>` : ''}
-    ${timed.length ? `<ul class="meet-list">${timed.map((ev) => `<li class="${ev.end < Date.now() ? 'past' : ''}">
-        <span class="when">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</span>
-        <span>${esc(ev.title)}${ev.busy ? '' : ' <span class="muted-note">(free)</span>'}${many ? `<span class="cal-name">${esc(ev.cal)}</span>` : ''}</span>
-      </li>`).join('')}</ul>` : ''}
+    <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(info.text)}</p>
+    ${info.warning ? `<p class="insight-note warn-text">${esc(info.warning)}</p>` : ''}
+    ${next ? `<p class="sched-next"><span>${next.start <= Date.now() ? 'Now' : 'Next'}:</span> <strong>${esc(next.title)}</strong>
+      <span class="muted-note">${fmtTime(next.start)} – ${fmtTime(next.end)}</span>
+      ${next.taskId && canFocus ? `<button class="link" type="button" data-block-start="${next.taskId}">Focus</button>` : ''}</p>` : ''}
   `;
-  const btn = $('calRefresh');
-  if (btn) btn.onclick = () => loadCalendar(true, day);
 }
 
 function shortHourLabel(h) {

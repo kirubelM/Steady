@@ -40,6 +40,7 @@
       "recurring.js",
       "schedule.js",
       "planning.js",
+      "day.js",
       "goals.js",
       "shortcuts.js",
       "datacare.js",

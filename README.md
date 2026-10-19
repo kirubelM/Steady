@@ -38,7 +38,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 ## What's new in 1.6
 
-- **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or click the clock next to a task to pick a start time and length. The time then shows on the task's row. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
+- **Time-blocking.** Drag a task from your list onto the schedule's timeline to reserve time for it, or set a time in the task editor. Blocks show on the timeline in the project's color, count against your free time, and can be dragged to a new time or removed with ×. When a block starts, Steady reminds you and offers to start a session.
 - **Plan my day.** On today's page, "Plan my day" gathers leftovers, tasks due soon but planned for later, and parked thoughts. It ticks what fits in your free time (urgent ones always), and adds your choices to today.
 - **Due dates and stars.** Give a task a due date in the task editor and star the important ones (☆ on each task). Starred and overdue tasks rise to the top, "Overdue by a day" and "Due today" labels show on tasks, the Tasks tile counts them, and there's a new "Priority" sort.
 - **Session goals.** Before a session, optionally write what done looks like. It shows under the timer, the check-in asks whether you got there, and your hit rate appears in the daily review and Insights.
@@ -82,7 +82,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 ## What's new in 1.3.8
 
-- **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. Starred and due tasks stay at the top; a drop always lands where the line showed. This replaces the up and down arrow buttons.
+- **Drag to reorder tasks.** Drag a task in the To do list straight to where you want it; a line shows where it will land. With a task selected, Alt+Up and Alt+Down move it one step. This replaces the up and down arrow buttons.
 
 ## What's new in 1.3.7
 
@@ -184,6 +184,8 @@ The mini timer is a small floating window that stays on top of other apps during
 ## Other features
 
 **Parking lot.** Press Ctrl+Shift+Space from anywhere to jot down a stray thought. Later, click "Add to today's plan" to turn it into a task.
+
+**Day view.** The Day tab shows the day as a calendar: your meetings, the tasks you've given a time, and a red line for now. Drag a task from the "No time yet" list onto an hour to schedule it, or click "Next free time". Drag a block to move it, drag its bottom edge to make it longer or shorter, or drag it back to the list to clear its time; everything snaps to 15 minutes. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it. Click a block to edit the task. On the Plan tab, the clock next to a task sets its time too, and the Schedule card sums up your free time and what's next.
 
 **Work log.** Day view shows a timeline for any date. History view lists what you worked on each day and lets you search everything, for example "budget".
 
