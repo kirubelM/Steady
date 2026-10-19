@@ -26,7 +26,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 - **A better Refresh calendar button.** It shows when your calendar last updated, spins while it loads, confirms when it's done and says what went wrong if it can't connect. It's on the Plan page's Schedule card too, and offers to connect a calendar when none is set up. The Day tab now updates as soon as a refresh finishes.
 - **More room on the Day tab.** The "No time yet" list now sits beside the calendar in the Day view, the Week view and with "Show what's done" on, and the Day tab uses more of a wide window. The list only moves above the calendar when the window is too narrow for both.
 
-## What's new in 1.12.0
+## What's new in 1.12.2
 
 - **Week view.** The Day tab has a Day / Week switch. The week view shows Monday to Sunday side by side: drag a task between days as well as hours, drop tasks from the "No time yet" list onto any day, and click a day's heading to open it. With a task selected, Left and Right move it a day.
 - **Type a time when you add a task.** "Write report 2pm 1h", "Standup 9:15am for 15 min" or "Design review 2-3:30pm" adds the task and schedules it in one go. A line under the box shows what will be scheduled before you press Add.
