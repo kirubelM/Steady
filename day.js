@@ -321,7 +321,7 @@ function bindDay() {
   const clampStart = (start, mins) => Math.max(dayView.range[0], Math.min(Math.max(dayView.range[0], dayView.range[1] - mins), start));
   const refocus = (id) => cal.querySelector(`[data-cal-task="${id}"]`)?.focus();
   const refocusDone = (id) => cal.querySelector(`[data-done-entry="${CSS.escape(id)}"]`)?.focus();
-  const clearNest = () => document.querySelectorAll('#tab-day .drop-into').forEach((r) => r.classList.remove('drop-into'));
+  const clearNest = () => document.querySelectorAll('#tab-day .drop-into, #tab-day .as-sub').forEach((r) => r.classList.remove('drop-into', 'as-sub'));
   let doneDragEnd = 0; // when a finished item was last dropped, so the click that follows doesn't open it
 
   // Clicks: buttons on blocks, day headers and the side list.
@@ -515,6 +515,7 @@ function bindDay() {
     const target = el && (el.dataset.dayTask || el.dataset.calTask);
     if (!target || target === sideDragId) return null;
     el.classList.add('drop-into');
+    side.querySelector('.day-todo.dragging')?.classList.add('as-sub');
     return target;
   };
   side.addEventListener('dragover', (e) => {
@@ -533,7 +534,7 @@ function bindDay() {
   side.addEventListener('dragend', () => {
     sideDragId = null;
     clearNest();
-    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging'));
+    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging', 'as-sub'));
     cal.querySelector('.cal-ghost')?.remove();
   });
   // Shows where a drop would land; returns the day and start, or null over a past day.

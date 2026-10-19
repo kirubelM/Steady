@@ -113,3 +113,14 @@ test('Ctrl+Shift dropping a task on another makes it a subtask, moving its sessi
   assert.equal(get(`data.tasks.find((t) => t.text === 'Launch').subtasks.length`), 0);
   assert.equal(get('data.entries[0].taskId'), get(id('Write post')));
 });
+
+test('a drag counts as "make it a subtask" when Ctrl+Shift were held as it began, even if the drag events lack the keys', () => {
+  const { get, app } = setup({});
+  assert.equal(get(`nestKeys({ type: 'dragover', ctrlKey: false, shiftKey: false })`), false);
+  app.run(`heldKeys.atDragStart = true`);
+  assert.equal(get(`nestKeys({ type: 'dragover', ctrlKey: false, shiftKey: false })`), true);
+  assert.equal(get(`nestKeys({ type: 'drop' })`), true);
+  app.run(`heldKeys.atDragStart = false`);
+  assert.equal(get(`nestKeys({ type: 'drop', dataTransfer: { dropEffect: 'link' } })`), true);
+  assert.equal(get(`nestKeys({ type: 'drop', dataTransfer: { dropEffect: 'move' } })`), false);
+});

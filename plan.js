@@ -141,7 +141,20 @@ async function nestTask(id, parentId) {
 }
 
 // The drag counts as "make it a subtask" while Ctrl (or Cmd) and Shift are held.
-const nestKeys = (e) => !!((e.ctrlKey || e.metaKey) && e.shiftKey);
+// Windows runs its own loop during a drag, so drag events often arrive without the keys set and key
+// events stop. So it also counts when the keys were down as the drag began, or when the system
+// offers a "link" drop, which is what Ctrl+Shift asks it for.
+const heldKeys = { nest: false, atDragStart: false };
+const keysDown = (e) => !!((e.ctrlKey || e.metaKey) && e.shiftKey);
+for (const type of ['keydown', 'keyup', 'pointerdown', 'pointermove', 'mousedown', 'mousemove']) {
+  addEventListener(type, (e) => { heldKeys.nest = keysDown(e); }, true);
+}
+addEventListener('dragstart', (e) => { heldKeys.atDragStart = keysDown(e) || heldKeys.nest; }, true);
+addEventListener('dragend', () => { heldKeys.atDragStart = false; }, true);
+addEventListener('blur', () => { heldKeys.nest = false; heldKeys.atDragStart = false; });
+const nestKeys = (e) => keysDown(e) || (e.type?.startsWith('drag') || e.type === 'drop'
+  ? heldKeys.atDragStart || e.dataTransfer?.dropEffect === 'link'
+  : heldKeys.nest);
 
 async function moveToDay(ids, day) {
   ids.forEach((id) => {
@@ -906,6 +919,7 @@ function bindTaskDrag() {
       if (row.dataset.taskRow === dragId) { e.dataTransfer.dropEffect = 'none'; return; }
       e.dataTransfer.dropEffect = 'link';
       row.classList.add('drop-into');
+      list.querySelector('.task.dragging')?.classList.add('as-sub');
       return;
     }
     const row = dragId && taskReorderOk && targetRow(e);
@@ -913,6 +927,7 @@ function bindTaskDrag() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     clearDrop();
+    list.querySelector('.task.dragging')?.classList.remove('as-sub');
     if (row.dataset.taskRow === dragId) return;
     // Judge by the task's own line, not its subtasks, so tall rows behave.
     const r = row.getBoundingClientRect();
@@ -941,7 +956,7 @@ function bindTaskDrag() {
   list.addEventListener('dragend', () => {
     dragId = null;
     clearDrop();
-    list.querySelectorAll('.task.dragging').forEach((r) => r.classList.remove('dragging'));
+    list.querySelectorAll('.task.dragging').forEach((r) => r.classList.remove('dragging', 'as-sub'));
   });
 
   list.addEventListener('keydown', async (e) => {
@@ -953,6 +968,74 @@ function bindTaskDrag() {
     await moveTask(id, e.key === 'ArrowUp' ? -1 : 1);
     list.querySelector(`[data-task-edit="${id}"]`)?.focus();
   });
+}
+
+/* ---------- Ctrl+Shift drag: make a task a subtask of another ---------- */
+
+// The browser won't start an ordinary drag while Shift is held (Shift+press extends a text selection),
+// so a press with Ctrl+Shift on a task in the Plan list or the Day list starts this drag instead.
+// The calendar's blocks handle Ctrl+Shift in their own drag (day.js).
+function bindNestDrag() {
+  let nd = null;
+  let swallowClickUntil = 0;
+  const SOURCES = '#taskList [data-task-row][draggable="true"], #dayTodo [data-day-task][draggable="true"]';
+  const idOf = (el) => el.dataset.taskRow || el.dataset.dayTask || el.dataset.calTask;
+  const clear = () => document.querySelectorAll('.drop-into').forEach((r) => r.classList.remove('drop-into'));
+  const finish = () => {
+    if (!nd) return;
+    clear();
+    nd.ghost?.remove();
+    nd.row.classList.remove('dragging', 'as-sub');
+    document.body.classList.remove('nest-dragging');
+    nd = null;
+  };
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !keysDown(e) || e.target.closest('input, select, textarea')) return;
+    const row = e.target.closest(SOURCES);
+    if (!row) return;
+    e.preventDefault(); // no text selection
+    nd = { row, id: idOf(row), x: e.clientX, y: e.clientY, moved: false, target: null, pointerId: e.pointerId };
+  }, true);
+
+  document.addEventListener('pointermove', (e) => {
+    if (!nd) return;
+    if (!nd.moved) {
+      if (Math.abs(e.clientX - nd.x) + Math.abs(e.clientY - nd.y) < 5) return;
+      nd.moved = true;
+      try { nd.row.setPointerCapture(nd.pointerId); } catch { /* pointer already gone */ }
+      const t = findTask(nd.id);
+      nd.ghost = document.createElement('div');
+      nd.ghost.className = 'nest-ghost';
+      nd.ghost.textContent = t ? t.text : '';
+      document.body.appendChild(nd.ghost);
+      nd.row.classList.add('dragging');
+      document.body.classList.add('nest-dragging');
+    }
+    nd.ghost.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 10}px)`;
+    clear();
+    const tab = nd.row.closest('.tab');
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-task-row][draggable="true"], [data-day-task], [data-cal-task]');
+    nd.target = over && tab?.contains(over) && idOf(over) !== nd.id ? idOf(over) : null;
+    if (nd.target) over.classList.add('drop-into');
+    nd.row.classList.toggle('as-sub', !!nd.target);
+    nd.ghost.classList.toggle('on-target', !!nd.target);
+  }, true);
+
+  document.addEventListener('pointerup', (e) => {
+    if (!nd) return;
+    const { moved, id, target } = nd;
+    finish();
+    if (!moved) return;
+    swallowClickUntil = Date.now() + 300;
+    if (target) nestTask(id, target);
+  }, true);
+  document.addEventListener('pointercancel', finish, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nd) { e.preventDefault(); finish(); } }, true);
+  // The press was taken over, so the click that follows it isn't a click on the row.
+  document.addEventListener('click', (e) => {
+    if (Date.now() < swallowClickUntil) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
 }
 
 /* ---------- Task editor ---------- */
@@ -1131,6 +1214,7 @@ function bindPlan() {
   });
   bindSubtasks();
   bindTaskDrag();
+  bindNestDrag();
   bindTaskView();
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
