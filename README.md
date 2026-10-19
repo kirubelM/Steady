@@ -16,6 +16,16 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
+## What's new in 1.13.0
+
+- **Color themes.** Settings > Appearance has seven: Steady, Paper (warm cream), Nord (cool blue-grey), Forest, Rosé, Pure (white, or true black in dark mode) and High contrast. Each has a light and a dark version, and they work with any accent color.
+- **High contrast.** Black and white with solid borders, underlined links and a thick keyboard focus outline.
+- **Style options.** Choose rounded or sharp corners, comfortable or compact spacing, and a font: Segoe, Serif, Classic (Verdana) or Monospace.
+- **Timer styles.** The focus timer can be the classic ring, a thin ring, a segmented ring like a clock face, or a big clock with a slim progress bar.
+- **Try before you save.** Appearance changes show as soon as you pick them; press Save to keep them, or leave Settings to go back.
+- **A better Refresh calendar button.** It shows when your calendar last updated, spins while it loads, confirms when it's done and says what went wrong if it can't connect. It's on the Plan page's Schedule card too, and offers to connect a calendar when none is set up. The Day tab now updates as soon as a refresh finishes.
+- **More room on the Day tab.** The "No time yet" list now sits beside the calendar in the Day view, the Week view and with "Show what's done" on, and the Day tab uses more of a wide window. The list only moves above the calendar when the window is too narrow for both.
+
 ## What's new in 1.12.2
 
 - **Week view.** The Day tab has a Day / Week switch. The week view shows Monday to Sunday side by side: drag a task between days as well as hours, drop tasks from the "No time yet" list onto any day, and click a day's heading to open it. With a task selected, Left and Right move it a day.

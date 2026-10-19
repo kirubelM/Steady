@@ -40,6 +40,11 @@ const DEFAULTS = {
     workEnd: '17:00',
     calendars: [], // { id, kind: 'outlook' | 'link', name, url }
     accent: 'pine',
+    palette: 'steady',
+    corners: 'rounded',
+    density: 'comfortable',
+    font: 'segoe',
+    ringStyle: 'classic',
     projectTint: true,
     dayTint: true,
     chimes: false,

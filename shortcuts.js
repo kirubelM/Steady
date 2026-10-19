@@ -139,7 +139,10 @@ function paletteCommands() {
   }));
   [['system', 'Match Windows'], ['light', 'Light'], ['dark', 'Dark']].forEach(([id, name]) =>
     add(`Theme: ${name}`, async () => { settings.theme = id; await persist('settings'); api.setTheme(); fillSettingsForm(); }));
-  if (calendarOn()) add('Refresh calendar', () => loadCalendar(true, planDay));
+  PALETTES.forEach(([id, name]) => add(`Color theme: ${name}`, async () => {
+    settings.palette = id; await persist('settings'); applyAppearance(); fillSettingsForm();
+  }));
+  if (calendarOn()) add('Refresh calendar', refreshCalendar);
   add('Back up my data now', backupNow);
   add('Export work log as CSV', exportCsv);
   add('Show keyboard shortcuts', openShortcuts, '?');

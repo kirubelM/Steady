@@ -23,6 +23,7 @@
           <defs><linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F0CF8A"/><stop offset="1" stop-color="#D29A2E"/></linearGradient></defs>
           <circle class="ring-track" cx="140" cy="140" r="120"></circle>
           <circle id="ringProgress" class="ring-progress" cx="140" cy="140" r="120"></circle>
+          <circle class="ring-ticks" cx="140" cy="140" r="120"></circle>
         </svg>
         <div id="ringBurst" class="ring-burst" aria-hidden="true"></div>
         <div class="ring-text">
@@ -211,7 +212,7 @@
               <button type="button" data-day-mode="week" aria-pressed="false">Week</button>
             </div>
             <label id="dayDoneToggle" class="day-toggle" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
-            <button id="dayRefresh" class="link" type="button" hidden>Refresh calendar</button>
+            <button id="dayRefresh" type="button" data-cal-refresh></button>
           </div>
         </div>
         <p id="daySummary" class="insight-note day-summary"></p>
@@ -353,7 +354,19 @@
 
           <fieldset data-cat="appearance">
             <legend>Look and feel</legend>
-            <label>Theme
+            <div class="field-col"><span>Color theme</span>
+              <div class="palette-pick" role="radiogroup" aria-label="Color theme">
+                <label title="Steady"><input type="radio" name="palette" value="steady" aria-label="Steady"><span class="pv" style="--l:#F6F8F7;--d:#1B2427;--li:#1F2D33"></span>Steady</label>
+                <label title="Paper"><input type="radio" name="palette" value="paper" aria-label="Paper"><span class="pv" style="--l:#F8F3E8;--d:#25211B;--li:#2F2A22"></span>Paper</label>
+                <label title="Nord"><input type="radio" name="palette" value="nord" aria-label="Nord"><span class="pv" style="--l:#ECEFF4;--d:#2E3440;--li:#2E3440"></span>Nord</label>
+                <label title="Forest"><input type="radio" name="palette" value="forest" aria-label="Forest"><span class="pv" style="--l:#F1F6EF;--d:#19231A;--li:#1E2B1F"></span>Forest</label>
+                <label title="Rosé"><input type="radio" name="palette" value="rose" aria-label="Rosé"><span class="pv" style="--l:#FAF2F4;--d:#271C20;--li:#36242A"></span>Rosé</label>
+                <label title="Pure"><input type="radio" name="palette" value="pure" aria-label="Pure"><span class="pv" style="--l:#FFFFFF;--d:#000000;--li:#111111"></span>Pure</label>
+                <label title="High contrast"><input type="radio" name="palette" value="contrast" aria-label="High contrast"><span class="pv" style="--l:#FFFFFF;--d:#000000;--li:#000000"></span>High contrast</label>
+              </div>
+              <p class="field-note">Each theme has a light and a dark version; the setting below picks which one you see. High contrast makes text, borders and the keyboard focus stand out.</p>
+            </div>
+            <label>Light or dark
               <span><select name="theme">
                 <option value="system">Match Windows</option>
                 <option value="light">Light</option>
@@ -380,6 +393,35 @@
                 <label title="Graphite"><input type="radio" name="accent" value="graphite" aria-label="Graphite"><span style="--sw:#4A5560"></span></label>
               </span>
             </div>
+            <label>Corners
+              <span><select name="corners">
+                <option value="rounded">Rounded</option>
+                <option value="sharp">Sharp</option>
+              </select></span>
+            </label>
+            <label>Spacing
+              <span><select name="density">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select></span>
+            </label>
+            <label>Font
+              <span><select name="font">
+                <option value="segoe">Segoe (default)</option>
+                <option value="serif">Serif</option>
+                <option value="classic">Classic (Verdana)</option>
+                <option value="mono">Monospace</option>
+              </select></span>
+            </label>
+            <label>Timer style
+              <span><select name="ringStyle">
+                <option value="classic">Classic ring</option>
+                <option value="thin">Thin ring</option>
+                <option value="segmented">Segmented ring</option>
+                <option value="clock">Big clock</option>
+              </select></span>
+            </label>
+            <p class="field-note">Changes show right away so you can try them; press Save to keep them.</p>
             <label class="check"><input name="projectTint" type="checkbox"> Color the timer with the project during a session</label>
             <label class="check"><input name="dayTint" type="checkbox"> Tint the background gently through the day</label>
             <label class="check"><input name="chimes" type="checkbox"> Play a soft chime when a session or break ends, or a task is done</label>

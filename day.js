@@ -108,8 +108,7 @@ function renderDay() {
     ? `${short(days[0])} – ${short(days[6])}`
     : new Date(day + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   $('dayToday').hidden = week ? days.includes(today) : isToday;
-  $('dayRefresh').hidden = !calendarOn();
-  $('dayRefresh').textContent = Cal.loading ? 'Updating…' : 'Refresh calendar';
+  renderCalButtons();
   const info = week ? weekSummary(days) : scheduleSummary(day);
   $('daySummary').textContent = info.text;
   $('daySummary').classList.toggle('warn-text', !!Cal.error);
@@ -213,7 +212,7 @@ function renderDay() {
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
   $('dayCal').classList.toggle('week', week);
-  $('daySide').parentElement.classList.toggle('stacked', showDone || week); // the columns need the full width
+  $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
       ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
@@ -253,7 +252,6 @@ function bindDay() {
   $('dayPrev').addEventListener('click', () => go(shiftKey(planDay, -step())));
   $('dayNext').addEventListener('click', () => go(shiftKey(planDay, step())));
   $('dayToday').addEventListener('click', () => go(todayKey()));
-  $('dayRefresh').addEventListener('click', () => loadCalendar(true, planDay));
   $('dayShowDone').addEventListener('change', (e) => {
     dayView.showDone = e.target.checked;
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }
