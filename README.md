@@ -16,7 +16,7 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
-## What's new in 1.12.0
+## What's new in 1.12.2
 
 - **Week view.** The Day tab has a Day / Week switch. The week view shows Monday to Sunday side by side: drag a task between days as well as hours, drop tasks from the "No time yet" list onto any day, and click a day's heading to open it. With a task selected, Left and Right move it a day.
 - **Type a time when you add a task.** "Write report 2pm 1h", "Standup 9:15am for 15 min" or "Design review 2-3:30pm" adds the task and schedules it in one go. A line under the box shows what will be scheduled before you press Add.
