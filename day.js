@@ -55,9 +55,10 @@ function dayItems(day) {
   return [...meetings, ...tasks];
 }
 
-const dayView = { range: [0, 0], scrolled: '', showDone: false, mode: 'day' };
+const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, mode: 'day' };
 try {
   dayView.showDone = localStorage.getItem('dayShowDone') === '1';
+  dayView.moveDone = localStorage.getItem('dayMoveDone') === '1';
   dayView.mode = localStorage.getItem('dayMode') === 'week' ? 'week' : 'day';
 } catch { /* storage unavailable */ }
 
@@ -82,6 +83,29 @@ function doneOnDay(day) {
       // A point still needs room on screen, so give it about 20 minutes when laying things out.
       return { kind: 'done', entry: e, point, startMin, endMin: point ? startMin + 20 : Math.max(startMin + 1, toMin(e.end)) };
     });
+}
+
+const DONE_SNAP = 5; // finished things keep closer to their real times than plans do
+
+// Moves something finished to `start` (ms) on the same day, keeping its length. Never into the future.
+async function moveDoneItem(id, start) {
+  const midnight = atDay(dayKey(start), 0);
+  if (id.startsWith('task:') || id.startsWith('subtask:')) {
+    const [, taskId, subId] = id.split(':');
+    const item = subId ? findSub(taskId, subId) : findTask(taskId);
+    if (!item || !item.done) return;
+    item.doneAt = Math.max(midnight, Math.min(start, Date.now()));
+    await persist('tasks');
+  } else {
+    const e = data.entries.find((x) => x.id === id);
+    if (!e) return;
+    const len = e.end - e.start;
+    e.start = Math.max(midnight, Math.min(start, Date.now() - len));
+    e.end = e.start + len;
+    await persist('entries');
+  }
+  renderPlan();
+  renderLog();
 }
 
 function doneTitle(e) {
@@ -141,6 +165,9 @@ function renderDay() {
   const done = showDone ? layoutColumns(doneOnDay(day)) : [];
   $('dayDoneToggle').hidden = week || day > today;
   $('dayShowDone').checked = dayView.showDone;
+  const moveDone = showDone && dayView.moveDone;
+  $('dayMoveDone').hidden = !showDone;
+  $('dayMoveDone').setAttribute('aria-pressed', String(moveDone));
   $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
 
   // The calendar
@@ -192,12 +219,12 @@ function renderDay() {
     const color = projectById(e.projectId)?.color;
     const title = doneTitle(e);
     const when = it.point ? fmtTime(e.start) : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
-    const label = `${entryLabel(e)}: ${title}, ${when}`;
+    const label = `${entryLabel(e)}: ${title}, ${when}.${moveDone ? ' Drag, or use the Up and Down arrow keys, to change its time.' : ''}`;
     const style = it.point
       ? `top:${y(it.startMin)}px;height:20px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`
       : place(it);
-    return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
-        data-done-entry="${esc(e.id)}" aria-label="${esc(label)}. Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
+    return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}${moveDone ? ' movable' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
+        data-done-entry="${esc(e.id)}" data-done-start="${e.start}" data-done-len="${it.point ? 0 : e.end - e.start}" aria-label="${esc(label)} Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
         ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
       </button>`;
   }).join('');
@@ -211,6 +238,7 @@ function renderDay() {
 
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
+  $('dayCal').classList.toggle('moving-done', moveDone);
   $('dayCal').classList.toggle('week', week);
   $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
@@ -257,6 +285,11 @@ function bindDay() {
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }
     renderDay();
   });
+  $('dayMoveDone').addEventListener('click', () => {
+    dayView.moveDone = !dayView.moveDone;
+    try { localStorage.setItem('dayMoveDone', dayView.moveDone ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
   const setMode = (mode) => {
     dayView.mode = mode;
     try { localStorage.setItem('dayMode', mode); } catch { /* storage unavailable */ }
@@ -287,6 +320,9 @@ function bindDay() {
   };
   const clampStart = (start, mins) => Math.max(dayView.range[0], Math.min(Math.max(dayView.range[0], dayView.range[1] - mins), start));
   const refocus = (id) => cal.querySelector(`[data-cal-task="${id}"]`)?.focus();
+  const refocusDone = (id) => cal.querySelector(`[data-done-entry="${CSS.escape(id)}"]`)?.focus();
+  const clearNest = () => document.querySelectorAll('#tab-day .drop-into, #tab-day .as-sub').forEach((r) => r.classList.remove('drop-into', 'as-sub'));
+  let doneDragEnd = 0; // when a finished item was last dropped, so the click that follows doesn't open it
 
   // Clicks: buttons on blocks, day headers and the side list.
   const onClick = (e) => {
@@ -295,7 +331,7 @@ function bindDay() {
     if (b.dataset.blockStart) startTask(b.dataset.blockStart);
     else if (b.dataset.unblock) unblockTask(b.dataset.unblock);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
-    else if (b.dataset.doneEntry) openEntryDialog(b.dataset.doneEntry);
+    else if (b.dataset.doneEntry) { if (Date.now() - doneDragEnd > 300) openEntryDialog(b.dataset.doneEntry); }
     else if (b.dataset.reschedNext) rescheduleBlock(b.dataset.reschedNext, 'next');
     else if (b.dataset.reschedTomorrow) rescheduleBlock(b.dataset.reschedTomorrow, 'tomorrow');
     else if (b.dataset.openDay) { planDay = b.dataset.openDay; setMode('day'); }
@@ -346,7 +382,17 @@ function bindDay() {
         }
       }
     }
-    drag.out = !drag.resize && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#daySide');
+    // Ctrl+Shift: drop onto another task to make this one its subtask.
+    clearNest();
+    drag.nest = null;
+    if (!drag.resize && nestKeys(e)) {
+      const over = document.elementsFromPoint(e.clientX, e.clientY)
+        .map((x) => x.closest('[data-cal-task], [data-day-task]')).find((x) => x && x !== drag.el);
+      const nestId = over && (over.dataset.calTask || over.dataset.dayTask);
+      if (nestId && nestId !== drag.t.id) { drag.nest = nestId; over.classList.add('drop-into'); }
+    }
+    drag.el.classList.toggle('nesting', !!drag.nest);
+    drag.out = !drag.resize && !drag.nest && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#daySide');
     side.classList.toggle('drop-out', drag.out);
     drag.el.classList.toggle('leaving', drag.out);
     drag.el.style.top = `${((drag.start - dayView.range[0]) * DAY_PX_PER_MIN).toFixed(1)}px`;
@@ -360,17 +406,67 @@ function bindDay() {
     const d = drag;
     drag = null;
     side.classList.remove('drop-out');
+    clearNest();
     if (d.click || !d.moved) {
       if (!cancelled && Math.abs(e.clientY - d.y) + Math.abs(e.clientX - d.x) < 5) openTaskDialog(d.t.id);
       return;
     }
     if (cancelled) { renderDay(); return; }
-    if (d.out) await unblockTask(d.t.id);
+    if (d.nest && nestKeys(e)) { if (!(await nestTask(d.t.id, d.nest))) renderDay(); }
+    else if (d.out) await unblockTask(d.t.id);
     else if (d.day !== d.fromDay || d.start !== d.t.block.startMin || d.mins !== d.t.block.mins) await setBlock(d.t.id, d.day, d.start, d.mins);
     else renderDay();
   };
   cal.addEventListener('pointerup', (e) => endDrag(e, false));
   cal.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+  // Moving finished things to the time they really happened, while "Move done items" is on.
+  let doneDrag = null;
+  cal.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.cal-done.movable');
+    if (!el || e.button !== 0) return;
+    const startMin = (Number(el.dataset.doneStart) - atDay(planDay, 0)) / 60000;
+    doneDrag = { el, id: el.dataset.doneEntry, x: e.clientX, y: e.clientY, pointerId: e.pointerId, moved: false,
+      startMin, start: startMin, len: Number(el.dataset.doneLen) / 60000, grab: minuteAtY(e.clientY) - startMin };
+  });
+  cal.addEventListener('pointermove', (e) => {
+    const d = doneDrag;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(e.clientY - d.y) + Math.abs(e.clientX - d.x) < 5) return;
+      d.moved = true;
+      cal.setPointerCapture(d.pointerId);
+      d.el.classList.add('moving');
+    }
+    const [a, b] = dayView.range;
+    const nowMin = (Date.now() - atDay(planDay, 0)) / 60000;
+    const latest = Math.min(b, nowMin) - d.len;
+    d.start = Math.max(a, Math.min(latest, Math.round((minuteAtY(e.clientY) - d.grab) / DONE_SNAP) * DONE_SNAP));
+    d.el.style.top = `${((d.start - a) * DAY_PX_PER_MIN).toFixed(1)}px`;
+    const when = d.el.querySelector('.cal-when');
+    if (when) when.textContent = `${fmtTime(atDay(planDay, d.start))} – ${fmtTime(atDay(planDay, d.start + d.len))}`;
+    else d.el.dataset.time = fmtTime(atDay(planDay, d.start));
+  });
+  const endDoneDrag = async (cancelled) => {
+    const d = doneDrag;
+    doneDrag = null;
+    if (!d || !d.moved) return;
+    doneDragEnd = Date.now();
+    if (cancelled || Math.abs(d.start - d.startMin) < 0.5) { renderDay(); return; }
+    await moveDoneItem(d.id, atDay(planDay, d.start));
+    refocusDone(d.id);
+  };
+  cal.addEventListener('pointerup', () => endDoneDrag(false));
+  cal.addEventListener('pointercancel', () => endDoneDrag(true));
+  cal.addEventListener('keydown', async (e) => {
+    const el = e.target.closest?.('.cal-done.movable');
+    if (!el || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const start = Number(el.dataset.doneStart) + (e.key === 'ArrowUp' ? -DONE_SNAP : DONE_SNAP) * 60000;
+    if (dayKey(start) !== planDay) return;
+    await moveDoneItem(el.dataset.doneEntry, start);
+    refocusDone(el.dataset.doneEntry);
+  });
 
   // Keyboard: arrows move a block by 15 minutes (Left/Right by a day in the week view),
   // Shift+arrows change its length, Delete clears its time.
@@ -399,17 +495,46 @@ function bindDay() {
   });
 
   // Dragging a task from the side list onto the calendar.
+  // Holding Ctrl+Shift while dropping onto another task (in the list or on the calendar) makes it a subtask instead.
   const isTaskDrag = (e) => [...(e.dataTransfer?.types || [])].includes('application/x-steady-task');
+  let sideDragId = null;
   side.addEventListener('dragstart', (e) => {
     const row = e.target.closest?.('[data-day-task][draggable="true"]');
     if (!row) return;
-    e.dataTransfer.effectAllowed = 'move';
+    sideDragId = row.dataset.dayTask;
+    e.dataTransfer.effectAllowed = 'all'; // Ctrl+Shift asks the system for a link drop
     e.dataTransfer.setData('text/plain', row.dataset.dayTask);
     e.dataTransfer.setData('application/x-steady-task', row.dataset.dayTask);
     requestAnimationFrame(() => row.classList.add('dragging'));
   });
+  // The task a Ctrl+Shift drop would nest under, marked; null when there isn't one.
+  const nestTargetAt = (e) => {
+    clearNest();
+    if (!sideDragId || !nestKeys(e)) return null;
+    const el = e.target.closest?.('[data-day-task], [data-cal-task]');
+    const target = el && (el.dataset.dayTask || el.dataset.calTask);
+    if (!target || target === sideDragId) return null;
+    el.classList.add('drop-into');
+    side.querySelector('.day-todo.dragging')?.classList.add('as-sub');
+    return target;
+  };
+  side.addEventListener('dragover', (e) => {
+    if (!isTaskDrag(e) || !nestTargetAt(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'link';
+  });
+  side.addEventListener('drop', (e) => {
+    if (!isTaskDrag(e)) return;
+    const target = nestTargetAt(e);
+    clearNest();
+    if (!target) return;
+    e.preventDefault();
+    nestTask(sideDragId, target);
+  });
   side.addEventListener('dragend', () => {
-    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging'));
+    sideDragId = null;
+    clearNest();
+    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging', 'as-sub'));
     cal.querySelector('.cal-ghost')?.remove();
   });
   // Shows where a drop would land; returns the day and start, or null over a past day.
@@ -427,13 +552,26 @@ function bindDay() {
   };
   cal.addEventListener('dragover', (e) => {
     if (!isTaskDrag(e) || !e.target.closest?.('.cal-grid')) return;
-    if (ghostAt(e)) e.preventDefault();
+    if (nestKeys(e)) {
+      cal.querySelector('.cal-ghost')?.remove();
+      if (nestTargetAt(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'link'; }
+      return;
+    }
+    clearNest();
+    if (ghostAt(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
   });
   cal.addEventListener('dragleave', (e) => {
-    if (!e.relatedTarget || !cal.contains(e.relatedTarget)) cal.querySelector('.cal-ghost')?.remove();
+    if (!e.relatedTarget || !cal.contains(e.relatedTarget)) { cal.querySelector('.cal-ghost')?.remove(); clearNest(); }
   });
   cal.addEventListener('drop', (e) => {
     if (!isTaskDrag(e)) return;
+    if (nestKeys(e)) {
+      const target = nestTargetAt(e);
+      clearNest();
+      cal.querySelector('.cal-ghost')?.remove();
+      if (target) { e.preventDefault(); nestTask(sideDragId, target); }
+      return;
+    }
     const spot = ghostAt(e);
     cal.querySelector('.cal-ghost')?.remove();
     if (!spot) return;

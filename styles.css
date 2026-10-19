@@ -835,8 +835,13 @@ body[data-state="focus"] .focus-pane, body[data-state="paused"] .focus-pane { --
 }
 .task:hover .task-grip, .task:focus-within .task-grip { opacity: 0.85; }
 .task.dragging { opacity: 0.45; }
-.task.drop-before { box-shadow: inset 0 3px 0 var(--pine); }
-.task.drop-after { box-shadow: inset 0 -3px 0 var(--pine); }
+.task.dragging { transition: transform 0.2s ease, opacity 0.2s ease; }
+/* Reordering: a bar slides in where the task will land. */
+.task.drop-before::before, .task.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 3px; pointer-events: none;
+  background: var(--pine); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pine) 18%, transparent); transform-origin: left; animation: drop-line 0.18s ease-out; }
+.task.drop-before::before { top: -2px; }
+.task.drop-after::after { bottom: -2px; }
+@keyframes drop-line { from { transform: scaleX(0); opacity: 0; } }
 
 /* The estimate picker only shows while you're adding a task. */
 #taskForm:not(:focus-within):has(#taskInput:placeholder-shown) #taskEst { display: none; }
@@ -1268,6 +1273,35 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
+.day-move-done[aria-pressed="true"] { background: var(--tint-pine); border-color: var(--pine); color: var(--pine); }
+.cal-done.movable { cursor: grab; touch-action: none; }
+.cal-done.moving { cursor: grabbing; z-index: 4; box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4); }
+.cal-done.moving[data-time]::after { content: attr(data-time); position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 0.72rem; font-weight: 700; background: var(--card); color: var(--ink); padding: 0 4px; border-radius: 4px; }
+/* Ctrl+Shift drag: the task the dragged one would become a subtask of */
+/* Ctrl+Shift drag: the task opens up to take the dragged one inside it, and the dragged one steps in like a subtask. */
+.task.drop-into, .day-todo.drop-into { background: var(--tint-pine); border-radius: 8px; outline: 2px dashed var(--pine); outline-offset: -2px; animation: drop-into 1s ease-in-out infinite; }
+.task.drop-into .task-actions { visibility: hidden; }
+.day-todo { position: relative; }
+.task.drop-into::after, .day-todo.drop-into::after, .cal-task.drop-into::after { content: "↳ Make subtask"; position: absolute; right: 10px; top: 50%; pointer-events: none; z-index: 5;
+  padding: 2px 9px; border-radius: 999px; background: var(--pine); color: var(--on-accent); font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+  transform: translateY(-50%); animation: badge-in 0.22s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.day-todo.drop-into::after { top: auto; bottom: 6px; transform: none; }
+.day-todo.drop-into .link { visibility: hidden; }
+.day-todo.dragging.as-sub { transform: translateX(14px) scale(0.96); }
+.cal-task.drop-into { outline: 2px dashed var(--on-accent); outline-offset: -4px; z-index: 3; animation: drop-into-cal 1s ease-in-out infinite; }
+.cal-task.drop-into::after { top: 3px; right: 6px; transform: none; background: var(--card); color: var(--pine); }
+.task.dragging.as-sub, .day-todo.dragging.as-sub { transform: translateX(28px) scale(0.96); opacity: 0.55; }
+.day-todo.dragging { transition: transform 0.2s ease, opacity 0.2s ease; }
+.cal-task.nesting { transform: scale(0.92); opacity: 0.7; transition: transform 0.15s ease; }
+@keyframes drop-into { 50% { outline-color: color-mix(in srgb, var(--pine) 35%, transparent); background: color-mix(in srgb, var(--pine) 8%, transparent); } }
+@keyframes drop-into-cal { 50% { outline-color: color-mix(in srgb, var(--on-accent) 35%, transparent); } }
+.nest-ghost { position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none; max-width: 260px; padding: 5px 12px 5px 26px; border-radius: 8px;
+  background: var(--card); color: var(--ink); font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 3px solid var(--pine); box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.35); opacity: 0.92; transition: padding 0.15s ease, background 0.15s ease; }
+.nest-ghost::before { content: "↳"; position: absolute; left: 9px; color: var(--pine); font-weight: 700; }
+.nest-ghost.on-target { padding-left: 32px; background: var(--tint-pine); }
+body.nest-dragging, body.nest-dragging * { cursor: grabbing !important; user-select: none; }
+@keyframes badge-in { from { opacity: 0; transform: translateY(-50%) scale(0.7); } }
 @container (max-width: 560px) {
   .day-cal.with-done .cal-plan { right: 50%; }
   .day-cal.with-done .cal-actual { left: 50%; }
