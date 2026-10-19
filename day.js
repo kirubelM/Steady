@@ -55,7 +55,28 @@ function dayItems(day) {
   return [...meetings, ...tasks];
 }
 
-const dayView = { range: [0, 0], scrolled: '' };
+const dayView = { range: [0, 0], scrolled: '', showDone: false };
+try { dayView.showDone = localStorage.getItem('dayShowDone') === '1'; } catch { /* storage unavailable */ }
+
+// What actually happened on `day`: sessions, check-ins and logged work as spans; finished things as points.
+function doneOnDay(day) {
+  const midnight = atDay(day, 0);
+  const toMin = (ms) => Math.max(0, Math.min(24 * 60, (ms - midnight) / 60000));
+  return workEntries()
+    .filter((e) => WORK_TYPES.includes(e.type) && dayKey(e.start) === day)
+    .map((e) => {
+      const startMin = toMin(e.start);
+      const point = !!(e.taskCompletion || e.subtaskCompletion || e.parkingCompletion) || e.end - e.start < 60000;
+      // A point still needs room on screen, so give it about 20 minutes when laying things out.
+      return { kind: 'done', entry: e, point, startMin, endMin: point ? startMin + 20 : Math.max(startMin + 1, toMin(e.end)) };
+    });
+}
+
+function doneTitle(e) {
+  if (e.type === 'session') return e.note || e.task || 'Focus session';
+  if (e.type === 'checkin') return e.note || 'Check-in';
+  return e.note || 'Logged work';
+}
 
 function renderDay() {
   const day = planDay;
@@ -97,7 +118,12 @@ function renderDay() {
 
   // The calendar
   const items = layoutColumns(dayItems(day));
-  const [a, b] = dayRange(items);
+  const showDone = dayView.showDone && day <= today;
+  const done = showDone ? layoutColumns(doneOnDay(day)) : [];
+  $('dayDoneToggle').hidden = day > today;
+  $('dayShowDone').checked = dayView.showDone;
+  $('dayDoneCount').textContent = day <= today ? `(${doneOnDay(day).length})` : '';
+  const [a, b] = dayRange([...items, ...done]);
   dayView.range = [a, b];
   const y = (m) => ((m - a) * DAY_PX_PER_MIN).toFixed(1);
   const place = (it) => `top:${y(it.startMin)}px;height:${Math.max(18, (it.endMin - it.startMin) * DAY_PX_PER_MIN - 2).toFixed(1)}px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`;
@@ -130,13 +156,30 @@ function renderDay() {
         ${canEdit ? '<span class="cal-resize" data-cal-resize aria-hidden="true" title="Drag to change the length"></span>' : ''}
       </div>`;
   }).join('');
+  const doneBlocks = done.map((it) => {
+    const e = it.entry;
+    const color = projectById(e.projectId)?.color;
+    const title = doneTitle(e);
+    const when = it.point ? fmtTime(e.start) : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
+    const label = `${entryLabel(e)}: ${title}, ${when}`;
+    const style = it.point
+      ? `top:${y(it.startMin)}px;height:20px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`
+      : place(it);
+    return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
+        data-done-entry="${esc(e.id)}" aria-label="${esc(label)}. Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
+        ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
+      </button>`;
+  }).join('');
   const nowMin = (Date.now() - atDay(day, 0)) / 60000;
   const now = isToday && nowMin >= a && nowMin <= b ? `<div class="cal-now" style="top:${y(nowMin)}px"></div>` : '';
   $('dayCal').classList.toggle('editable', canEdit);
-  $('dayCal').innerHTML = `<div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
-      ${hours.join('')}<div class="cal-lane">${shade}${blocks}${now}</div>
+  $('dayCal').classList.toggle('with-done', showDone);
+  $('daySide').parentElement.classList.toggle('stacked', showDone); // both columns need the full width
+  $('dayCal').innerHTML = `${showDone ? `<div class="cal-cols" aria-hidden="true"><span>Planned</span><span>Done${done.length ? '' : ' · nothing yet'}</span></div>` : ''}
+    <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
+      ${hours.join('')}<div class="cal-lane">${shade}<div class="cal-col cal-plan">${blocks}</div>${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${now}</div>
     </div>`;
-  $('dayEmpty').hidden = items.length > 0 || !canEdit;
+  $('dayEmpty').hidden = items.length > 0 || !canEdit || showDone;
 }
 
 // Scrolls the calendar to the current time (today) or the first thing on the day, once per day shown.
@@ -160,6 +203,11 @@ function bindDay() {
   $('dayNext').addEventListener('click', () => go(shiftKey(planDay, 1)));
   $('dayToday').addEventListener('click', () => go(todayKey()));
   $('dayRefresh').addEventListener('click', () => loadCalendar(true, planDay));
+  $('dayShowDone').addEventListener('change', (e) => {
+    dayView.showDone = e.target.checked;
+    try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
 
   const cal = $('dayCal');
   const side = $('daySide');
@@ -177,6 +225,7 @@ function bindDay() {
     if (b.dataset.blockStart) startTask(b.dataset.blockStart);
     else if (b.dataset.unblock) unblockTask(b.dataset.unblock);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
+    else if (b.dataset.doneEntry) openEntryDialog(b.dataset.doneEntry);
     else if (b.dataset.dayNext) {
       const t = findTask(b.dataset.dayNext);
       if (t) setBlock(t.id, planDay, suggestStart(planDay, defaultBlockMins(t)), defaultBlockMins(t));
@@ -269,7 +318,7 @@ function bindDay() {
     cal.querySelector('.cal-ghost')?.remove();
   });
   const ghostAt = (e) => {
-    const lane = cal.querySelector('.cal-lane');
+    const lane = cal.querySelector('.cal-plan');
     let ghost = lane.querySelector('.cal-ghost');
     if (!ghost) { ghost = document.createElement('div'); ghost.className = 'cal-ghost'; lane.appendChild(ghost); }
     const start = clampStart(snapMin(minuteAtY(e.clientY)), DAY_SNAP);

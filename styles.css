@@ -1205,8 +1205,36 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-now::before { content: ""; position: absolute; left: -4px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--berry); }
 .cal-ghost { position: absolute; left: 2px; right: 0; border: 2px dashed var(--pine); border-radius: 6px; background: var(--tint-pine); z-index: 3; pointer-events: none; }
 .cal-ghost::after { content: attr(data-time); position: absolute; top: 2px; left: 8px; font-size: 0.75rem; font-weight: 600; color: var(--pine); }
+.day-layout.stacked { grid-template-columns: 1fr; gap: 12px; }
+.day-layout.stacked .day-side { position: static; }
+.day-layout.stacked .day-todo-list { max-height: 30vh; }
+.day-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer; white-space: nowrap; }
+.day-toggle input { accent-color: var(--pine); margin: 0; }
+.day-toggle .muted-note { font-size: 0.8rem; }
+.cal-col { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+.day-cal.with-done .cal-plan { right: 42%; }
+.day-cal.with-done .cal-actual { left: 59%; border-left: 1px dashed var(--line); padding-left: 4px; }
+.cal-cols { display: flex; margin: 0 4px 8px 66px; font-size: 0.75rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.cal-cols span:first-child { flex: 0 0 58%; }
+.cal-cols span:last-child { flex: 1; padding-left: 8px; }
+.cal-done { position: absolute; box-sizing: border-box; margin-left: 2px; padding: 3px 8px; border: 0; border-left: 3px solid var(--bc, var(--pine)); border-radius: 6px; font: inherit; font-size: 0.8rem; line-height: 1.25; text-align: left; color: var(--ink); cursor: pointer; overflow: hidden; display: flex; flex-direction: column; z-index: 2;
+  background: color-mix(in srgb, var(--bc, var(--pine)) 14%, var(--card)); }
+.cal-done:hover { background: color-mix(in srgb, var(--bc, var(--pine)) 24%, var(--card)); }
+.cal-done.kind-checkin { border-left-style: dashed; }
+.cal-done.kind-manual { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--bc, var(--pine)) 14%, var(--card)) 0 6px, color-mix(in srgb, var(--bc, var(--pine)) 8%, var(--card)) 6px 12px); }
+.cal-done strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-done-icon { position: absolute; top: 3px; right: 5px; width: 13px; height: 13px; opacity: 0.55; }
+.cal-done-icon svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.cal-done:not(.point) strong { padding-right: 16px; }
+.cal-done.short .cal-done-icon { display: none; }
+.cal-done.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
+.cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
+.cal-check { font-weight: 700; }
 @media (max-width: 720px) {
   .day-layout { grid-template-columns: 1fr; gap: 12px; }
+  .day-cal.with-done .cal-plan { right: 50%; }
+  .day-cal.with-done .cal-actual { left: 50%; }
+  .cal-cols span:first-child { flex-basis: 50%; }
   .day-side { position: static; }
   .day-todo-list { max-height: 30vh; }
 }

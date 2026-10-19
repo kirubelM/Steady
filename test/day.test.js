@@ -54,3 +54,23 @@ test('the Plan page names what is on now or next today', async () => {
   assert.equal(get(`upNext(todayKey(), atDay(todayKey(), 700)).title`), 'Read');
   assert.equal(get(`upNext(todayKey(), atDay(todayKey(), 800))`), null);
 });
+
+test('"Show what\'s done" lists sessions, check-ins and logged work as spans, and finished things as points', async () => {
+  const { get, call } = setup({});
+  const at = (h, m) => `atDay(todayKey(), ${h * 60 + m})`;
+  await call(`await addTask('Email vendor'); await setTaskDone(${id('Email vendor')}, true);
+    data.tasks[0].doneAt = ${at(11, 5)};
+    data.entries.push(
+      { id: 's1', type: 'session', start: ${at(9, 0)}, end: ${at(9, 30)}, task: 'Report', focusSec: 1800 },
+      { id: 'c1', type: 'checkin', start: ${at(10, 0)}, end: ${at(10, 30)}, note: 'Emails' },
+      { id: 'm0', type: 'manual', start: ${at(12, 0)}, end: ${at(12, 0)}, note: 'Quick fix' },
+      { id: 'b1', type: 'break', start: ${at(9, 30)}, end: ${at(9, 35)} },
+      { id: 'y1', type: 'session', start: atDay(shiftKey(todayKey(), -1), 600), end: atDay(shiftKey(todayKey(), -1), 630) });`);
+  const done = get(`doneOnDay(todayKey()).map((d) => [d.entry.id, d.point, Math.round(d.startMin), Math.round(d.endMin), doneTitle(d.entry)])`);
+  assert.deepEqual(done.sort(), [
+    ['c1', false, 600, 630, 'Emails'],
+    ['m0', true, 720, 740, 'Quick fix'],
+    ['s1', false, 540, 570, 'Report'],
+    [`task:${get(id('Email vendor'))}`, true, 665, 685, 'Email vendor']
+  ].sort());
+});

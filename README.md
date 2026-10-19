@@ -16,6 +16,10 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
+## What's new in 1.11.0
+
+- **See what you actually did on the Day view.** Tick "Show what's done" on the Day tab to split the calendar into Planned and Done. Focus sessions, check-ins and work you logged appear at the times they happened, and finished tasks show as a tick at the time you completed them. Click any of them to edit it. Steady remembers whether the switch is on.
+
 ## What's new in 1.10.0
 
 - **What's new inside Steady.** After an update, a screen opens once with everything new since the version you last used and can be reopened from Settings > Help and about > What's new. It uses the same version notes as the GitHub release.
@@ -197,7 +201,7 @@ The mini timer is a small floating window that stays on top of other apps during
 
 **Parking lot.** Press Ctrl+Shift+Space from anywhere to jot down a stray thought. Later, click "Add to today's plan" to turn it into a task.
 
-**Day view.** The Day tab shows the day as a calendar: your meetings, the tasks you've given a time, and a red line for now. Drag a task from the "No time yet" list onto an hour to schedule it, or click "Next free time". Drag a block to move it, drag its bottom edge to make it longer or shorter, or drag it back to the list to clear its time; everything snaps to 15 minutes. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it. Click a block to edit the task. On the Plan tab, the clock next to a task sets its time too, and the Schedule card sums up your free time and what's next.
+**Day view.** The Day tab shows the day as a calendar: your meetings, the tasks you've given a time, and a red line for now. Drag a task from the "No time yet" list onto an hour to schedule it, or click "Next free time". Drag a block to move it, drag its bottom edge to make it longer or shorter, or drag it back to the list to clear its time; everything snaps to 15 minutes. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it. Click a block to edit the task. Tick "Show what's done" to see your focus sessions, check-ins, logged work and finished tasks in a Done column next to the plan. On the Plan tab, the clock next to a task sets its time too, and the Schedule card sums up your free time and what's next.
 
 **Work log.** Day view shows a timeline for any date. History view lists what you worked on each day and lets you search everything, for example "budget".
 
