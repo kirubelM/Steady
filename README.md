@@ -16,6 +16,14 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
+## What's new in 1.9.0
+
+- **Day view.** A new Day tab shows the day as an hour-by-hour calendar with your meetings, scheduled tasks and a line for now. Drag a task from the "No time yet" list onto an hour, or click "Next free time". Drag a block to move it, drag its bottom edge to change its length, or drag it back to the list to clear its time. Everything snaps to 15 minutes, and things at the same time sit side by side. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it.
+- **Schedule a task from its row.** On the Plan tab, the clock next to a task sets a start time and length, suggesting the first free slot. Once set, the time shows on the task.
+- **A lighter Plan page.** The Schedule card is now a short summary of your free time and what's on now or next, with a link to the Day view.
+- **Reordering tasks lands where you drop.** Dragging a task, or Alt+Up and Alt+Down, now follows the order you see, even with starred or due tasks pinned at the top.
+- **New tab shortcuts.** Ctrl+2 opens the Day view; Work log, Insights, Parking lot and Settings move to Ctrl+3 through Ctrl+6.
+
 ## What's new in 1.8.0
 
 - **Choose your motion.** In Settings > Appearance and startup, choose Follow Windows, Full motion, or Reduced motion. Full motion enables existing animations even when Windows reduces them. Your choice applies to the main window, mini timer and break screens.
