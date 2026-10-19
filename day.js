@@ -213,7 +213,7 @@ function renderDay() {
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
   $('dayCal').classList.toggle('week', week);
-  $('daySide').parentElement.classList.toggle('stacked', showDone || week); // the columns need the full width
+  $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
       ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>

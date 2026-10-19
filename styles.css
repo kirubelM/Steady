@@ -1174,12 +1174,12 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .day-side h3 { margin: 0 0 8px; font-size: 0.95rem; }
 .day-side.drop-out { border: 1px dashed var(--berry); background: var(--tint-berry); }
 .day-todo-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
-.day-todo { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--pc, var(--pine)); background: var(--fog); }
+.day-todo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--pc, var(--pine)); background: var(--fog); }
 .day-todo[draggable="true"] { cursor: grab; }
 .day-todo.dragging { opacity: 0.45; }
-.day-todo-text { font: inherit; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.day-todo-text { flex: 1 0 100%; font: inherit; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
 .day-todo-len { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
-.day-todo .link { grid-column: 1 / -1; justify-self: start; font-size: 0.8rem; color: var(--pine); }
+.day-todo .link { font-size: 0.8rem; color: var(--pine); white-space: nowrap; }
 .day-todo-list .empty { color: var(--muted); font-size: 0.9rem; }
 .day-main { min-width: 0; padding: 14px 14px 4px 10px; }
 .day-empty { margin: 0 0 8px; }
@@ -1215,9 +1215,21 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-now::before { content: ""; position: absolute; left: -4px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--berry); }
 .cal-ghost { position: absolute; left: 2px; right: 0; border: 2px dashed var(--pine); border-radius: 6px; background: var(--tint-pine); z-index: 3; pointer-events: none; }
 .cal-ghost::after { content: attr(data-time); position: absolute; top: 2px; left: 8px; font-size: 0.75rem; font-weight: 600; color: var(--pine); }
-.day-layout.stacked { grid-template-columns: 1fr; gap: 12px; }
-.day-layout.stacked .day-side { position: static; }
-.day-layout.stacked .day-todo-list { max-height: 30vh; }
+/* The Day tab can use more width than the other tabs. The list sits beside the calendar unless the tab is too narrow:
+   the week and "what's done" views need more room for their columns, so they stack sooner. */
+#tab-day { padding-inline: max(32px, calc((100% - 1240px) / 2)); container-type: inline-size; }
+#tab-day > *, #tab-day .plan-head { max-width: 1240px; }
+.day-layout.wide-cal { grid-template-columns: minmax(160px, 200px) 1fr; gap: 16px; }
+@container (max-width: 680px) {
+  .day-layout.wide-cal { grid-template-columns: 1fr; gap: 12px; }
+  .day-layout.wide-cal .day-side { position: static; }
+  .day-layout.wide-cal .day-todo-list { max-height: 30vh; }
+}
+@container (max-width: 560px) {
+  .day-layout { grid-template-columns: 1fr; gap: 12px; }
+  .day-side { position: static; }
+  .day-todo-list { max-height: 30vh; }
+}
 .day-mode { margin-right: 4px; }
 .day-cal.week .cal-col.cal-plan { border-left: 1px solid var(--line); }
 .day-cal.week .cal-col.past-day { background: color-mix(in srgb, var(--fog) 55%, transparent); }
@@ -1255,13 +1267,10 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
-@media (max-width: 720px) {
-  .day-layout { grid-template-columns: 1fr; gap: 12px; }
+@container (max-width: 560px) {
   .day-cal.with-done .cal-plan { right: 50%; }
   .day-cal.with-done .cal-actual { left: 50%; }
   .cal-cols span:first-child { flex-basis: 50%; }
-  .day-side { position: static; }
-  .day-todo-list { max-height: 30vh; }
 }
 
 /* Plan my day */
