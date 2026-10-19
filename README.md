@@ -16,6 +16,7 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
 
+<<<<<<< Updated upstream
 ## What's new in 1.9.0
 
 - **Day view.** A new Day tab shows the day as an hour-by-hour calendar with your meetings, scheduled tasks and a line for now. Drag a task from the "No time yet" list onto an hour, or click "Next free time". Drag a block to move it, drag its bottom edge to change its length, or drag it back to the list to clear its time. Everything snaps to 15 minutes, and things at the same time sit side by side. With a block selected, the arrow keys move it, Shift with the arrows changes its length and Delete clears it.
@@ -23,6 +24,11 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 - **A lighter Plan page.** The Schedule card is now a short summary of your free time and what's on now or next, with a link to the Day view.
 - **Reordering tasks lands where you drop.** Dragging a task, or Alt+Up and Alt+Down, now follows the order you see, even with starred or due tasks pinned at the top.
 - **New tab shortcuts.** Ctrl+2 opens the Day view; Work log, Insights, Parking lot and Settings move to Ctrl+3 through Ctrl+6.
+=======
+## Unreleased
+
+- **What's new inside Steady.** After an update, a feature screen opens once and can be reopened from Settings > Help and about > What's new. It uses the same version notes as the GitHub release.
+>>>>>>> Stashed changes
 
 ## What's new in 1.8.0
 

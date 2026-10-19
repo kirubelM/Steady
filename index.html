@@ -499,6 +499,7 @@
             <legend>About Steady</legend>
             <p class="about-version">Version <strong id="appVersion">…</strong></p>
             <div class="button-row">
+              <button id="whatsNewBtn" class="btn small" type="button">What's new</button>
               <button id="checkUpdatesBtn" class="btn small" type="button">Check for updates</button>
               <button id="installUpdateBtn" class="btn small primary" type="button" hidden>Restart to update</button>
             </div>
@@ -755,6 +756,14 @@
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>
+  <dialog id="whatsNewDialog" class="dialog whats-new-dialog" aria-labelledby="whatsNewTitle">
+    <span class="whats-new-eyebrow">THE LATEST IN STEADY</span>
+    <h2 id="whatsNewTitle">What's new</h2>
+    <p class="summary">A few improvements to make your day easier.</p>
+    <div id="whatsNewFeatures" class="whats-new-features"></div>
+    <div class="dialog-actions"><button id="whatsNewClose" class="btn primary" type="button">Got it</button></div>
+  </dialog>
+  <script src="whatsnew.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

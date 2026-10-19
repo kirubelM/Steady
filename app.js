@@ -234,6 +234,7 @@ function bind() {
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
+  bindWhatsNew();
   bindPlan();
   bindRecurring();
   bindShortcuts();
@@ -268,7 +269,10 @@ async function init() {
   renderPlan();
   showTab('plan');
   if (shouldWelcome()) openWelcome();
-  else maybeNudgePlan();
+  else {
+    await maybeShowWhatsNew();
+    if (!anyDialogOpen()) maybeNudgePlan();
+  }
   renderRecurringSettings();
   loadCalendar();
 

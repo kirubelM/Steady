@@ -8,7 +8,11 @@ const { normalize } = require('../../datamodel');
 const ROOT = path.join(__dirname, '..', '..');
 // Same order as index.html, so later scripts see the earlier ones.
 const SCRIPTS = ['motion.js', 'core.js', 'projects.js', 'sound.js', 'views.js', 'insights.js', 'plan.js', 'review.js',
+<<<<<<< Updated upstream
   'recurring.js', 'schedule.js', 'planning.js', 'day.js', 'goals.js', 'shortcuts.js', 'datacare.js'];
+=======
+  'recurring.js', 'schedule.js', 'planning.js', 'goals.js', 'shortcuts.js', 'datacare.js', 'whatsnew.js'];
+>>>>>>> Stashed changes
 
 // An element that accepts anything: enough for code that touches the page as a side effect.
 function fakeElement() {

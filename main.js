@@ -659,6 +659,11 @@ function snoozeBreak() {
 
 /* ---------- IPC ---------- */
 
+ipcMain.handle('release:notes', () => {
+  const { releaseNotes } = require('./scripts/release-notes');
+  return { version: app.getVersion(), notes: releaseNotes(fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8'), app.getVersion()) };
+});
+
 ipcMain.handle('data:load', () => data);
 
 ipcMain.handle('data:save', (_e, patch) => {
