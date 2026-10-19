@@ -7,7 +7,7 @@ const SHORTCUTS = [
   ['Ctrl+N', 'Add a to-do for the day you\'re viewing'],
   ['Ctrl+D', 'Add something you did'],
   ['Ctrl+J', 'Park a thought'],
-  ['Ctrl+1 to Ctrl+5', 'Plan, Work log, Insights, Parking lot, Settings'],
+  ['Ctrl+1 to Ctrl+6', 'Plan, Day, Work log, Insights, Parking lot, Settings'],
   ['Alt+← / Alt+→', 'Previous or next day (Plan and Work log)'],
   ['Ctrl+M', 'Compact view on or off'],
   ['Ctrl+Shift+R', 'Review my day'],
@@ -64,7 +64,7 @@ function onKeydown(e) {
   if (ctrl && !e.shiftKey && k === 'j') { e.preventDefault(); goPark(); return; }
   if (ctrl && !e.shiftKey && k === 'm') { e.preventDefault(); autoCompacted = false; setCompact(!compact); return; }
   if (ctrl && e.shiftKey && k === 'r') { e.preventDefault(); openReview('day'); return; }
-  if (ctrl && /^[1-5]$/.test(e.key)) {
+  if (ctrl && /^[1-6]$/.test(e.key)) {
     e.preventDefault();
     if (compact) setCompact(false);
     showTab(TABS[Number(e.key) - 1]);
@@ -72,7 +72,7 @@ function onKeydown(e) {
   }
   if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !isTyping(document.activeElement)) {
     const n = e.key === 'ArrowLeft' ? -1 : 1;
-    if (!$('tab-plan').hidden) { e.preventDefault(); planDay = shiftKey(planDay, n); renderPlan(); ensureCalendarFor(planDay); }
+    if (!$('tab-plan').hidden || !$('tab-day').hidden) { e.preventDefault(); planDay = shiftKey(planDay, n); renderPlan(); ensureCalendarFor(planDay); }
     else if (!$('tab-log').hidden) { e.preventDefault(); shiftDay(n); }
     return;
   }
@@ -115,11 +115,12 @@ function paletteCommands() {
   add('Quick capture window', () => api.openCapture(), 'Ctrl+Shift+Space');
   add('Go to Plan', () => showTab('plan'), 'Ctrl+1');
   add('Plan tomorrow', () => { planDay = shiftKey(dayKey(Date.now()), 1); showTab('plan'); ensureCalendarFor(planDay); });
-  add('Go to Work log', () => showTab('log'), 'Ctrl+2');
+  add('Go to Day view', () => showTab('day'), 'Ctrl+2');
+  add('Go to Work log', () => showTab('log'), 'Ctrl+3');
   add('Add an entry to the work log', () => { showTab('log'); openEntryDialog(null, viewDay); });
-  add('Go to Insights', () => showTab('insights'), 'Ctrl+3');
-  add('Go to Parking lot', () => showTab('parking'), 'Ctrl+4');
-  add('Go to Settings', () => showTab('settings'), 'Ctrl+5');
+  add('Go to Insights', () => showTab('insights'), 'Ctrl+4');
+  add('Go to Parking lot', () => showTab('parking'), 'Ctrl+5');
+  add('Go to Settings', () => showTab('settings'), 'Ctrl+6');
   add('Review my day', () => openReview('day'), 'Ctrl+Shift+R');
   add('Review my week', () => openReview('week'));
   add(compact ? 'Turn off compact view' : 'Turn on compact view', () => { autoCompacted = false; setCompact(!compact); }, 'Ctrl+M');

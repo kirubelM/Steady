@@ -46,6 +46,21 @@ test('Alt+Up / Alt+Down move one step and stop at the ends', async () => {
   assert.deepEqual(texts(get), ['A', 'C', 'B']);
 });
 
+test('dragging goes by the order you see, even with starred tasks at the top', async () => {
+  const { get, call, app } = await withTasks(['A', 'B', 'C']);
+  const id = (n) => `data.tasks.find((t) => t.text === '${n}').id`;
+  await call(`await toggleStar(${id('C')})`);
+  assert.deepEqual(texts(get), ['C', 'A', 'B']);
+  await call(`await placeTask(${id('B')}, ${id('C')}, true)`); // just below the starred task
+  assert.deepEqual(texts(get), ['C', 'B', 'A']);
+  await call(`await moveTask(${id('A')}, -1)`);
+  assert.deepEqual(texts(get), ['C', 'A', 'B']);
+  assert.equal(app.nudges().length, 0);
+  await call(`await placeTask(${id('B')}, ${id('C')}, false)`); // above it: the starred task keeps the top
+  assert.deepEqual(texts(get), ['C', 'B', 'A']);
+  assert.match(app.nudges().at(-1).text, /stay at the top/);
+});
+
 test('finished tasks always come after open ones', async () => {
   const { get, call } = await withTasks(['A', 'B', 'C']);
   await call(`await setTaskDone(data.tasks.find((t) => t.text === 'A').id, true)`);

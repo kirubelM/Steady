@@ -58,6 +58,18 @@ test('blocking time snaps to 15 minutes, moves the task to that day and sizes it
   assert.equal(get('data.tasks[0].day'), day);
 });
 
+test('scheduling from the task row suggests the first free quarter hour and saves the time', async () => {
+  const { get, call } = setup({});
+  await call(`settings.workStart = '09:00'; settings.workEnd = '17:00'; await addTask('Write'); await addTask('Read')`);
+  const day = get('shiftKey(todayKey(), 1)');
+  await call(`planDay = '${day}'; await setBlock(${id('Write')}, '${day}', 540, 70)`);
+  assert.equal(get(`suggestStart('${day}')`), 615); // 9:00 + 70 min, rounded up to 10:15
+  assert.equal(get('hhmm(615)'), '10:15');
+  const form = `{ dataset: { timeForm: ${id('Read')} }, querySelector: (s) => ({ value: s === '[data-time-start]' ? '13:30' : '45' }) }`;
+  await call(`await saveTimeForm(${form})`);
+  assert.deepEqual(get(`data.tasks.find((t) => t.text === 'Read').block`), { day, startMin: 810, mins: 45 });
+});
+
 test('blocks stay inside the day and within sensible lengths', async () => {
   const { get, call } = setup({});
   await call(`await addTask('Late')`);

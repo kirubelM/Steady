@@ -91,6 +91,7 @@
     <section class="panel">
       <nav class="tabs" role="tablist" aria-label="Sections">
         <button class="tab-btn" role="tab" data-tab="plan" aria-selected="true" type="button">Plan</button>
+        <button class="tab-btn" role="tab" data-tab="day" aria-selected="false" type="button">Day</button>
         <button class="tab-btn" role="tab" data-tab="log" aria-selected="false" type="button">Work log</button>
         <button class="tab-btn" role="tab" data-tab="insights" aria-selected="false" type="button">Insights</button>
         <button class="tab-btn" role="tab" data-tab="parking" aria-selected="false" type="button">Parking lot</button>
@@ -189,6 +190,38 @@
           </div>
           <textarea id="dayNotes" class="day-notes" rows="5" placeholder="Anything worth remembering about this day: ideas, decisions, who said what."></textarea>
         </section>
+      </div>
+
+      <!-- Day: the day as a calendar -->
+      <div id="tab-day" class="tab" role="tabpanel" hidden>
+        <div class="plan-head">
+          <div class="plan-nav">
+            <button id="dayPrev" class="icon-btn" type="button" aria-label="Previous day">‹</button>
+            <div>
+              <h2 id="dayTitle">Today</h2>
+              <p id="dayDate" class="plan-date"></p>
+            </div>
+            <button id="dayNext" class="icon-btn" type="button" aria-label="Next day">›</button>
+            <button id="dayToday" class="link" type="button" hidden>Back to today</button>
+          </div>
+          <div class="plan-head-actions">
+            <button id="dayRefresh" class="link" type="button" hidden>Refresh calendar</button>
+          </div>
+        </div>
+        <p id="daySummary" class="insight-note day-summary"></p>
+        <p id="dayWarning" class="insight-note warn-text" hidden></p>
+        <div class="day-layout">
+          <aside id="daySide" class="day-side" aria-label="Tasks without a time">
+            <h3>No time yet</h3>
+            <ul id="dayTodo" class="day-todo-list"></ul>
+            <p id="dayTodoHint" class="field-note">Drag a task onto the calendar to schedule it. Drag a scheduled task back here to clear its time.</p>
+          </aside>
+          <div class="day-main">
+            <p id="dayAllDay" class="allday" hidden></p>
+            <p id="dayEmpty" class="field-note day-empty" hidden>Nothing scheduled yet. Drag a task from the list onto an hour.</p>
+            <div id="dayCal" class="day-cal" aria-label="Calendar for the day"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Work log -->
@@ -718,6 +751,7 @@
   <script src="recurring.js"></script>
   <script src="schedule.js"></script>
   <script src="planning.js"></script>
+  <script src="day.js"></script>
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>

@@ -72,6 +72,65 @@ async function unblockTask(id) {
   renderPlan();
 }
 
+/* ---------- Scheduling a task at a time, from its row in the list ---------- */
+
+let timeFor = null; // task whose "Schedule a time" form is open
+
+const hhmm = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+const BLOCK_LENGTHS = [15, 30, 45, 60, 90, 120, 180, 240];
+
+// Where a new block should start: the first free stretch of the day long enough for it, on a quarter hour.
+function suggestStart(day, mins = 0) {
+  const free = freeBlocks(day).map(([a, b]) => [Math.ceil((a - atDay(day, 0)) / 60000 / 15) * 15, (b - atDay(day, 0)) / 60000]);
+  const first = free.find(([a, b]) => b - a >= mins) || free[0];
+  let min = first ? first[0] : minutesOf(settings.workStart);
+  if (!first && day === todayKey()) min = Math.max(min, Math.ceil((Date.now() - atDay(day, 0)) / 60000 / 15) * 15);
+  return Math.min(min, 24 * 60 - 15);
+}
+
+function timeButton(t) {
+  const label = t.block ? fmtTime(atDay(t.block.day, t.block.startMin)) : '';
+  return `<button class="time-btn${t.block ? ' on' : ''}" type="button" data-task-time="${t.id}" aria-expanded="${timeFor === t.id}"
+    aria-label="${t.block ? `Scheduled at ${esc(label)}. Change the time for` : 'Schedule a time for'} ${esc(t.text)}" title="${t.block ? 'Change the time' : 'Schedule a time'}">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.6V8l2.4 1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>${t.block ? `<span>${esc(label)}</span>` : ''}</button>`;
+}
+
+function timeFormHtml(t, day) {
+  const start = t.block ? t.block.startMin : suggestStart(day, defaultBlockMins(t));
+  const mins = t.block ? t.block.mins : defaultBlockMins(t);
+  const lengths = BLOCK_LENGTHS.includes(mins) ? BLOCK_LENGTHS : [...BLOCK_LENGTHS, mins].sort((a, b) => a - b);
+  return `<form class="time-form" data-time-form="${t.id}">
+      <label>Start <input type="time" step="900" value="${hhmm(start)}" data-time-start required></label>
+      <label>for <select data-time-mins>${lengths.map((m) => `<option value="${m}"${m === mins ? ' selected' : ''}>${fmtMins(m * 60)}</option>`).join('')}</select></label>
+      <button class="btn small primary" type="submit">${t.block ? 'Update' : 'Schedule'}</button>
+      ${t.block ? `<button class="link" type="button" data-time-clear="${t.id}">Remove time</button>` : ''}
+      <button class="link" type="button" data-time-cancel>Cancel</button>
+    </form>`;
+}
+
+function toggleTimeForm(id) {
+  timeFor = timeFor === id ? null : id;
+  renderPlan();
+  if (timeFor) document.querySelector(`[data-time-form="${id}"] [data-time-start]`)?.focus();
+}
+
+function closeTimeForm() {
+  const id = timeFor;
+  timeFor = null;
+  renderPlan();
+  document.querySelector(`[data-task-time="${id}"]`)?.focus();
+}
+
+async function saveTimeForm(form) {
+  const id = form.dataset.timeForm;
+  const value = form.querySelector('[data-time-start]').value;
+  if (!value) return;
+  const [h, m] = value.split(':').map(Number);
+  timeFor = null;
+  const block = await setBlock(id, planDay, h * 60 + m, Number(form.querySelector('[data-time-mins]').value));
+  if (block) showNudge(`Scheduled for ${fmtTime(atDay(block.day, block.startMin))}. Steady will remind you when it's time.`, 'info', true);
+}
+
 // Reminds you when a block starts. Runs from the timer tick.
 const blockNotified = new Set();
 function blockTick(now) {
@@ -265,49 +324,10 @@ function bindPlanning() {
   $('planApply').addEventListener('click', applyPlan);
   $('planCancel').addEventListener('click', () => $('planDialog').close());
 
-  // Dropping a task (or an existing block) onto the timeline blocks time for it.
-  const box = $('scheduleSection');
-  const minuteAt = (e) => {
-    const tl = box.querySelector('.timeline');
-    const r = tl.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-    const a = minutesOf(settings.workStart);
-    const b = minutesOf(settings.workEnd);
-    return Math.round((a + frac * (b - a)) / 15) * 15;
-  };
-  const isTaskDrag = (e) => [...(e.dataTransfer?.types || [])].includes('application/x-steady-task');
-  box.addEventListener('dragstart', (e) => {
-    const seg = e.target.closest?.('[data-block-task]');
-    if (!seg) return;
-    e.dataTransfer.setData('application/x-steady-task', seg.dataset.blockTask);
-    e.dataTransfer.effectAllowed = 'move';
-  });
-  box.addEventListener('dragover', (e) => {
-    if (!isTaskDrag(e) || !e.target.closest?.('.timeline')) return;
-    e.preventDefault();
-    const tl = box.querySelector('.timeline');
-    const m = minuteAt(e);
-    const a = minutesOf(settings.workStart);
-    const b = minutesOf(settings.workEnd);
-    let ghost = tl.querySelector('.tl-ghost');
-    if (!ghost) { ghost = document.createElement('span'); ghost.className = 'tl-ghost'; tl.appendChild(ghost); }
-    ghost.style.left = `${((m - a) / (b - a)) * 100}%`;
-    ghost.dataset.time = fmtTime(atDay(planDay, m));
-  });
-  box.addEventListener('dragleave', (e) => {
-    if (e.target.closest?.('.timeline') && !e.relatedTarget?.closest?.('.timeline')) box.querySelector('.tl-ghost')?.remove();
-  });
-  box.addEventListener('drop', (e) => {
-    if (!isTaskDrag(e) || !e.target.closest?.('.timeline')) return;
-    e.preventDefault();
-    const id = e.dataTransfer.getData('application/x-steady-task');
-    const t = findTask(id);
-    if (t) setBlock(id, planDay, minuteAt(e), t.block ? t.block.mins : defaultBlockMins(t));
-  });
-  box.addEventListener('click', (e) => {
+  $('scheduleSection').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.unblock) unblockTask(b.dataset.unblock);
+    if (b.dataset.openDay !== undefined) showTab('day');
     else if (b.dataset.blockStart) startTask(b.dataset.blockStart);
   });
 

@@ -613,20 +613,7 @@ button.task-main:hover { background: var(--tint-pine); }
 .sched-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .sched-head .link { margin-left: auto; font-size: 0.85rem; color: var(--pine); }
 .warn-text { color: var(--berry); }
-.timeline { position: relative; height: 22px; margin: 6px 0 24px; border-radius: 6px; background: var(--tint-pine); }
-.tl-free { position: absolute; top: 0; bottom: 0; background: var(--pine-soft); border-radius: 6px; }
-.tl-meet { position: absolute; top: 0; bottom: 0; background: var(--amber); border-radius: 4px; z-index: 1; box-shadow: 0 0 0 1px var(--paper); }
-.tl-meet.free { background: repeating-linear-gradient(45deg, var(--tint-amber), var(--tint-amber) 4px, transparent 4px, transparent 8px); box-shadow: none; }
-.tl-now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--berry); z-index: 2; }
-.tl-hours { position: absolute; left: 0; right: 0; top: 26px; height: 14px; }
-.tl-hour { position: absolute; transform: translateX(-50%); font-size: 0.72rem; color: var(--muted); }
-.tl-hour:first-child { transform: none; }
-.tl-hour:last-child { transform: translateX(-100%); }
 .allday { margin: 0 0 6px; }
-.meet-list { list-style: none; padding: 0; margin: 0; }
-.meet-list li { display: grid; grid-template-columns: 11.5rem 1fr; gap: 12px; padding: 4px 0; font-size: 0.92rem; }
-.meet-list .when { white-space: nowrap; }
-.meet-list li.past { color: var(--muted); }
 
 /* ---------- Project goals and estimates ---------- */
 
@@ -692,7 +679,6 @@ button.task-main:hover { background: var(--tint-pine); }
 }
 .calendar-list .cal-kind { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 .cal-add-row { align-items: center; }
-.meet-list .cal-name { margin-left: 8px; color: var(--muted); font-size: 0.85rem; }
 
 /* ---------- Subtasks ---------- */
 
@@ -761,7 +747,6 @@ button.task-main:hover { background: var(--tint-pine); }
 .insight { margin-top: 16px; border-top: 1px solid var(--card-line); }
 .insight + .insight { margin-top: 16px; }
 .park-list:not(:empty) { padding: 6px 16px; margin-top: 16px; max-width: 800px; }
-.sched .timeline { background: var(--fog); }
 .task-list .task:last-child, .done-list li:last-child { border-bottom: 0; }
 
 /* At a glance */
@@ -1155,24 +1140,76 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .due-chip.due-today { background: var(--tint-amber); color: var(--amber-ink); }
 .due-chip.due-soon, .due-chip.due-later { background: var(--tint-pine); color: var(--muted); }
 .block-chip { background: var(--tint-pine); color: var(--pine); }
+/* Scheduling a task at a time, from its row */
+.time-btn { font: inherit; display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 4px; cursor: pointer; color: var(--muted); opacity: 0.55; transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease; }
+.time-btn svg { width: 16px; height: 16px; }
+.task:hover .time-btn, .task:focus-within .time-btn, .time-btn[aria-expanded="true"] { opacity: 1; }
+.time-btn:hover { color: var(--pine); }
+.time-btn.on { opacity: 1; padding: 2px 9px 2px 7px; background: var(--tint-pine); color: var(--pine); font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.time-form { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -2px 0 2px; font-size: 0.88rem; }
+.time-form label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.time-form input, .time-form select { padding: 4px 6px; font-size: 0.88rem; }
 .block-chip::before { content: "◷"; margin-right: 4px; font-weight: 400; }
 .task-star-field { align-self: end; margin: 0 0 8px; }
 
-/* Time blocks on the timeline */
-.timeline.droppable { margin-bottom: 30px; }
-.tl-task {
-  position: absolute; top: 0; bottom: 0; z-index: 1; border-radius: 4px; cursor: grab; overflow: hidden;
-  background: color-mix(in srgb, var(--bc, var(--pine)) 85%, transparent);
-  box-shadow: 0 0 0 1px var(--card, var(--paper)); display: flex; align-items: center;
+/* Plan page: what's on now or next */
+.sched-next { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 6px 0 0; font-size: 0.92rem; }
+.sched-next > span:first-child { color: var(--muted); }
+
+/* Day view: the day as a calendar */
+.day-summary { margin: 10px 0 4px; }
+.day-layout { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 24px; align-items: start; margin-top: 14px; }
+.day-side, .day-main { border-radius: 14px; background: var(--card); border: 1px solid var(--card-line); box-shadow: var(--card-shadow); }
+.day-side { position: sticky; top: 0; z-index: 5; padding: 14px; transition: border-color 120ms ease, background-color 120ms ease; }
+.day-side h3 { margin: 0 0 8px; font-size: 0.95rem; }
+.day-side.drop-out { border: 1px dashed var(--berry); background: var(--tint-berry); }
+.day-todo-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.day-todo { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--pc, var(--pine)); background: var(--fog); }
+.day-todo[draggable="true"] { cursor: grab; }
+.day-todo.dragging { opacity: 0.45; }
+.day-todo-text { font: inherit; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; overflow-wrap: anywhere; }
+.day-todo-len { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.day-todo .link { grid-column: 1 / -1; justify-self: start; font-size: 0.8rem; color: var(--pine); }
+.day-todo-list .empty { color: var(--muted); font-size: 0.9rem; }
+.day-main { min-width: 0; padding: 14px 14px 4px 10px; }
+.day-empty { margin: 0 0 8px; }
+.day-cal { padding: 8px 0 12px; user-select: none; }
+.cal-grid { position: relative; margin-left: 66px; }
+.cal-hour { position: absolute; left: -66px; right: 0; border-top: 1px solid var(--line); }
+.cal-hour span { position: absolute; left: 0; top: -0.6em; width: 58px; white-space: nowrap; font-size: 0.7rem; color: var(--muted); text-align: right; padding-right: 8px; background: var(--card); }
+.cal-lane { position: absolute; inset: 0 4px 0 0; }
+.cal-off { position: absolute; left: -4px; right: -4px; background: repeating-linear-gradient(135deg, transparent, transparent 6px, var(--tint-pine) 6px, var(--tint-pine) 7px); pointer-events: none; }
+.cal-meet, .cal-task { position: absolute; box-sizing: border-box; margin-left: 2px; padding: 3px 8px; border-radius: 6px; overflow: hidden; font-size: 0.8rem; line-height: 1.25; display: flex; flex-direction: column; }
+.cal-meet { background: var(--tint-amber); border-left: 3px solid var(--amber); color: var(--ink); z-index: 1; }
+.cal-meet.free { background: repeating-linear-gradient(45deg, var(--tint-amber), var(--tint-amber) 4px, transparent 4px, transparent 8px); }
+.cal-task { background: color-mix(in srgb, var(--bc, var(--pine)) 88%, transparent); color: var(--on-accent); z-index: 2; box-shadow: 0 0 0 1px var(--card, var(--paper)); outline-offset: 2px; }
+.cal-task.movable { cursor: grab; touch-action: none; }
+.cal-task.past { opacity: 0.6; }
+.cal-task.moving { cursor: grabbing; z-index: 4; box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4); opacity: 0.95; }
+.cal-task.leaving { opacity: 0.5; }
+.cal-meet strong, .cal-task strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 36px; }
+.cal-when { font-size: 0.72rem; opacity: 0.85; white-space: nowrap; }
+.cal-meet.short, .cal-task.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
+.short strong { flex: 0 1 auto; min-width: 3em; padding-right: 0; }
+.short .cal-when { flex: 0 10 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cal-task.short strong { padding-right: 0; }
+.cal-task.short:hover .cal-when, .cal-task.short:focus-within .cal-when { visibility: hidden; }
+.cal-task-actions { position: absolute; top: 2px; right: 4px; display: flex; gap: 2px; opacity: 0; transition: opacity 120ms ease; }
+.cal-task:hover .cal-task-actions, .cal-task:focus-within .cal-task-actions { opacity: 1; }
+.cal-task-actions button { font: inherit; font-size: 0.8rem; line-height: 1; width: 20px; height: 20px; border: 0; border-radius: 4px; background: rgba(0, 0, 0, 0.18); color: inherit; cursor: pointer; }
+.cal-task-actions button:hover { background: rgba(0, 0, 0, 0.32); }
+.cal-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
+.cal-resize::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 22px; height: 2px; margin-left: -11px; border-radius: 2px; background: currentColor; opacity: 0; transition: opacity 120ms ease; }
+.cal-task:hover .cal-resize::after { opacity: 0.6; }
+.cal-now { position: absolute; left: -8px; right: -4px; height: 2px; background: var(--berry); z-index: 3; pointer-events: none; }
+.cal-now::before { content: ""; position: absolute; left: -4px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--berry); }
+.cal-ghost { position: absolute; left: 2px; right: 0; border: 2px dashed var(--pine); border-radius: 6px; background: var(--tint-pine); z-index: 3; pointer-events: none; }
+.cal-ghost::after { content: attr(data-time); position: absolute; top: 2px; left: 8px; font-size: 0.75rem; font-weight: 600; color: var(--pine); }
+@media (max-width: 720px) {
+  .day-layout { grid-template-columns: 1fr; gap: 12px; }
+  .day-side { position: static; }
+  .day-todo-list { max-height: 30vh; }
 }
-.tl-task em { font-style: normal; font-size: 0.7rem; font-weight: 600; color: #fff; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tl-ghost { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--pine); z-index: 3; pointer-events: none; }
-.tl-ghost::after { content: attr(data-time); position: absolute; top: -20px; left: 4px; font-size: 0.72rem; font-weight: 600; color: var(--pine); white-space: nowrap; }
-.timeline.droppable:has(.tl-ghost) { outline: 2px dashed color-mix(in srgb, var(--pine) 45%, transparent); outline-offset: 3px; }
-.tl-hint { margin: -12px 0 4px; }
-.block-list li { grid-template-columns: 11.5rem 1fr auto; align-items: center; }
-.block-name { font-weight: 500; }
-.block-actions { display: flex; gap: 8px; align-items: center; }
 
 /* Plan my day */
 .plan-head-actions { display: flex; gap: 8px; }

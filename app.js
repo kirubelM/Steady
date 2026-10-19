@@ -1,6 +1,6 @@
 /* ---------- Tabs ---------- */
 
-const TABS = ['plan', 'log', 'insights', 'parking', 'settings'];
+const TABS = ['plan', 'day', 'log', 'insights', 'parking', 'settings'];
 
 function showTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b) => {
@@ -11,6 +11,7 @@ function showTab(name) {
   $('tip').hidden = true;
   if (name === 'insights') renderInsights();
   if (name === 'plan') { glanceCountUp = true; renderPlan(); }
+  if (name === 'day') { dayView.scrolled = ''; renderDay(); scrollDayIntoView(); ensureCalendarFor(planDay); }
   if (name === 'log') renderLog();
   if (name === 'settings') { renderBackups(); renderRecurringSettings(); }
   document.querySelector('.panel').classList.toggle('scrolled', $(`tab-${name}`).scrollTop > 4);
@@ -229,6 +230,7 @@ function bind() {
 
   bindScrollPolish();
   bindPlanning();
+  bindDay();
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();

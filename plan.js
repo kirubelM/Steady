@@ -64,30 +64,42 @@ async function setTaskDone(id, done) {
   renderPlan();
 }
 
-async function moveTask(id, dir) {
-  const t = findTask(id);
-  if (!t) return;
-  const list = tasksFor(t.day).filter((x) => !x.done);
-  const i = list.findIndex((x) => x.id === id);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= list.length) return;
-  [list[i].order, list[j].order] = [list[j].order, list[i].order];
-  if (list[i].order === list[j].order) list[j].order += dir; // repair ties from older data
-  await persist('tasks');
-  renderPlan();
+// The day's open tasks as "My order" shows them: starred and urgent ones first, then your order.
+function openInOrder(day) {
+  return tasksFor(day).filter((x) => !x.done).sort((a, b) => floatsUp(b) - floatsUp(a));
 }
 
-// Drag and drop: put task `id` just before or after `targetId` among the day's open tasks.
-async function placeTask(id, targetId, after) {
-  const t = findTask(id);
-  if (!t || id === targetId) return;
-  const list = tasksFor(t.day).filter((x) => !x.done && x.id !== id);
-  const i = list.findIndex((x) => x.id === targetId);
-  if (i < 0) return;
-  list.splice(after ? i + 1 : i, 0, t);
+// Saves `list` as the day's order. Says so when a starred or urgent task keeps its place at the top.
+async function saveOrder(list, t, want) {
   list.forEach((x, n) => { x.order = n; });
   await persist('tasks');
   renderPlan();
+  if (openInOrder(t.day).indexOf(t) !== want) {
+    showNudge('Starred and due tasks stay at the top of the list. Unstar a task to move it below the others.', 'info', true);
+  }
+}
+
+async function moveTask(id, dir) {
+  const t = findTask(id);
+  if (!t) return;
+  const list = openInOrder(t.day);
+  const i = list.indexOf(t);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  await saveOrder(list, t, j);
+}
+
+// Drag and drop: put task `id` just before or after `targetId`, going by the order the list shows.
+async function placeTask(id, targetId, after) {
+  const t = findTask(id);
+  if (!t || id === targetId) return;
+  const list = openInOrder(t.day).filter((x) => x.id !== id);
+  const i = list.findIndex((x) => x.id === targetId);
+  if (i < 0) return;
+  const want = after ? i + 1 : i;
+  list.splice(want, 0, t);
+  await saveOrder(list, t, want);
 }
 
 async function moveToDay(ids, day) {
@@ -604,6 +616,9 @@ function renderPlan() {
   if (typeof renderProjectGoals === 'function') renderProjectGoals();
 
   const typedSub = subAddFor ? document.querySelector(`[data-sub-add="${subAddFor}"] input`)?.value || '' : '';
+  const timeForm = timeFor ? document.querySelector(`[data-time-form="${timeFor}"]`) : null;
+  const typedTime = timeForm ? { start: timeForm.querySelector('[data-time-start]').value, mins: timeForm.querySelector('[data-time-mins]').value } : null;
+  if (timeFor && (!(isToday || isFuture) || !open.some((t) => t.id === timeFor))) timeFor = null;
   const shown = viewTasks(tasks);
   const dragOk = taskView.sort === 'manual' && taskView.project === 'all';
   taskReorderOk = dragOk;
@@ -613,21 +628,24 @@ function renderPlan() {
       const meta = taskMeta(t);
       const color = projectById(t.projectId)?.color;
       const progress = taskProgress(t);
-      const movable = !t.done; // reorder in the list, or drop onto the schedule to block time
+      const movable = !t.done;
       const due = dueStatus(t);
-      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable ? ' draggable="true"' : ''}>
-        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder, or onto the schedule to block time"></span>' : ''}
+      const timed = !t.done && (isToday || isFuture);
+      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && timeFor !== t.id ? ' draggable="true"' : ''}>
+        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder"></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
-          <span class="task-meta">${projectChip(t.projectId)}${due ? `<span class="due-chip due-${due.kind}">${esc(due.label)}</span>` : ''}${t.block && !t.done ? `<span class="block-chip">${fmtTime(atDay(t.block.day, t.block.startMin))}</span>` : ''}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
+          <span class="task-meta">${projectChip(t.projectId)}${due ? `<span class="due-chip due-${due.kind}">${esc(due.label)}</span>` : ''}${t.block && !t.done && !timed ? `<span class="block-chip">${fmtTime(atDay(t.block.day, t.block.startMin))}</span>` : ''}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
           ${progress !== null && !t.done ? `<span class="task-progress" aria-hidden="true"><span style="width:${(progress * 100).toFixed(0)}%"></span></span>` : ''}
         </button>
         <div class="task-actions">
+          ${timed ? timeButton(t) : ''}
           ${t.done ? '' : `<button class="star-btn${t.starred ? ' on' : ''}" type="button" data-task-star="${t.id}" aria-pressed="${!!t.starred}" aria-label="${t.starred ? 'Unstar' : 'Star'} ${esc(t.text)}" title="${t.starred ? 'Starred' : 'Star this task'}">${t.starred ? '★' : '☆'}</button>
           ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
           ${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}`}
         </div>
+        ${timed && timeFor === t.id ? timeFormHtml(t, planDay) : ''}
         ${subtaskBlock(t, canFocus)}
       </li>`;
     }).join('')
@@ -695,11 +713,19 @@ function renderPlan() {
     const input = document.querySelector(`[data-sub-add="${subAddFor}"] input`);
     if (input) { input.value = typedSub; input.focus(); }
   }
+  if (timeFor && typedTime) {
+    const form = document.querySelector(`[data-time-form="${timeFor}"]`);
+    if (form) {
+      form.querySelector('[data-time-start]').value = typedTime.start;
+      form.querySelector('[data-time-mins]').value = typedTime.mins;
+    }
+  }
 
   $('taskOptions').innerHTML = [...openTodayTasks(), ...leftoverTasks()].map((t) => `<option value="${esc(t.text)}"></option>`).join('');
   if (tasks.length && isToday && $('nudge').dataset.kind === 'plan') hideNudge();
   lastNextUp = null;
   renderNextUp();
+  if (!$('tab-day').hidden) renderDay();
 }
 
 let doneFormOpen = false;
@@ -906,7 +932,7 @@ function openTaskDialog(id) {
   editingSubs = (t.subtasks || []).map((x) => ({ ...x }));
   $('taskEditDue').value = t.due || '';
   $('taskEditStar').checked = !!t.starred;
-  $('taskEditBlockStart').value = t.block ? `${String(Math.floor(t.block.startMin / 60)).padStart(2, '0')}:${String(t.block.startMin % 60).padStart(2, '0')}` : '';
+  $('taskEditBlockStart').value = t.block ? hhmm(t.block.startMin) : '';
   $('taskEditBlockMins').value = t.block ? String(t.block.mins) : '';
   $('taskEditSubInput').value = '';
   renderSubEditor();
@@ -996,6 +1022,9 @@ function bindPlan() {
     if (b.dataset.doneEdit !== undefined) openDoneEditor(Number(b.dataset.doneEdit));
     else if (b.dataset.taskStart) startTask(b.dataset.taskStart);
     else if (b.dataset.taskStar) toggleStar(b.dataset.taskStar);
+    else if (b.dataset.taskTime) toggleTimeForm(b.dataset.taskTime);
+    else if (b.dataset.timeClear) { timeFor = null; unblockTask(b.dataset.timeClear); }
+    else if (b.dataset.timeCancel !== undefined) closeTimeForm();
     else if (b.dataset.taskToday) moveToToday([b.dataset.taskToday]);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
@@ -1022,6 +1051,15 @@ function bindPlan() {
     } else {
       setTaskDone(id, e.target.checked);
     }
+  });
+  $('taskList').addEventListener('submit', (e) => {
+    const form = e.target.closest('[data-time-form]');
+    if (!form) return;
+    e.preventDefault();
+    saveTimeForm(form);
+  });
+  $('taskList').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && e.target.closest('[data-time-form]')) { e.stopPropagation(); closeTimeForm(); }
   });
   bindSubtasks();
   bindTaskDrag();
