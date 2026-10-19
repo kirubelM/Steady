@@ -212,6 +212,7 @@
               <button type="button" data-day-mode="week" aria-pressed="false">Week</button>
             </div>
             <label id="dayDoneToggle" class="day-toggle" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
+            <button id="dayMoveDone" class="btn small day-move-done" type="button" aria-pressed="false" hidden title="Drag finished items in the Done column to the time they really happened">Move done items</button>
             <button id="dayRefresh" type="button" data-cal-refresh></button>
           </div>
         </div>
@@ -221,7 +222,7 @@
           <aside id="daySide" class="day-side" aria-label="Tasks without a time">
             <h3>No time yet</h3>
             <ul id="dayTodo" class="day-todo-list"></ul>
-            <p id="dayTodoHint" class="field-note">Drag a task onto the calendar to schedule it. Drag a scheduled task back here to clear its time.</p>
+            <p id="dayTodoHint" class="field-note">Drag a task onto the calendar to schedule it. Drag a scheduled task back here to clear its time. Hold Ctrl+Shift and drop a task on another one to make it a subtask.</p>
           </aside>
           <div class="day-main">
             <p id="dayAllDay" class="allday" hidden></p>

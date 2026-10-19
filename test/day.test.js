@@ -74,3 +74,42 @@ test('"Show what\'s done" lists sessions, check-ins and logged work as spans, an
     [`task:${get(id('Email vendor'))}`, true, 665, 685, 'Email vendor']
   ].sort());
 });
+
+test('"Move done items" moves a session, a finished task and a finished subtask, keeping lengths and never past now', async () => {
+  const { get, call } = setup({});
+  const day = get('shiftKey(todayKey(), -1)');
+  const at = (m) => `atDay('${day}', ${m})`;
+  await call(`await addTask('Report'); const t = data.tasks[0];
+    t.subtasks = [{ id: 'x', text: 'Outline', done: true, doneAt: ${at(600)} }];
+    await setTaskDone(t.id, true); t.doneAt = ${at(660)};
+    data.entries.push({ id: 's1', type: 'session', start: ${at(540)}, end: ${at(570)}, focusSec: 1800 });`);
+  await call(`await moveDoneItem('s1', ${at(615)})`);
+  assert.deepEqual(get(`[data.entries[0].start - ${at(0)}, data.entries[0].end - ${at(0)}].map((ms) => ms / 60000)`), [615, 645]);
+  await call(`await moveDoneItem('task:' + data.tasks[0].id, ${at(700)}); await moveDoneItem('subtask:' + data.tasks[0].id + ':x', ${at(500)})`);
+  assert.equal(get(`(data.tasks[0].doneAt - ${at(0)}) / 60000`), 700);
+  assert.equal(get(`(data.tasks[0].subtasks[0].doneAt - ${at(0)}) / 60000`), 500);
+  await call(`data.entries.push({ id: 's2', type: 'session', start: Date.now() - 3600000, end: Date.now() - 1800000 });
+    await moveDoneItem('s2', Date.now())`);
+  assert.ok(get(`data.entries[1].end <= Date.now()`));
+});
+
+test('Ctrl+Shift dropping a task on another makes it a subtask, moving its sessions and subtasks along; Undo restores it', async () => {
+  const { app, get, call } = setup({});
+  await call(`await addTask('Launch'); await addTask('Write post');
+    const child = ${id('Write post')};
+    data.tasks.find((t) => t.id === child).subtasks = [{ id: 'd', text: 'Draft', done: false }];
+    data.entries.push({ id: 's1', type: 'session', taskId: child, start: 1, end: 2, focusSec: 1 });
+    await nestTask(child, ${id('Launch')});`);
+  assert.deepEqual(get('data.tasks.map((t) => t.text)'), ['Launch']);
+  assert.deepEqual(get('data.tasks[0].subtasks.map((s) => s.text)'), ['Write post', 'Draft']);
+  assert.equal(get('data.entries[0].taskId'), get('data.tasks[0].id'));
+  assert.equal(get('data.entries[0].subId'), get('data.tasks[0].subtasks[0].id'));
+  assert.equal(get('nestKeys({ ctrlKey: true, shiftKey: true })'), true);
+  assert.equal(get('nestKeys({ ctrlKey: true, shiftKey: false })'), false);
+  const undo = app.nudges().at(-1);
+  assert.equal(undo.action, 'Undo');
+  await undo.fn();
+  assert.deepEqual(get('data.tasks.map((t) => t.text).sort()'), ['Launch', 'Write post']);
+  assert.equal(get(`data.tasks.find((t) => t.text === 'Launch').subtasks.length`), 0);
+  assert.equal(get('data.entries[0].taskId'), get(id('Write post')));
+});

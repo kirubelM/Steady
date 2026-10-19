@@ -1268,6 +1268,14 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
+.day-move-done[aria-pressed="true"] { background: var(--tint-pine); border-color: var(--pine); color: var(--pine); }
+.cal-done.movable { cursor: grab; touch-action: none; }
+.cal-done.moving { cursor: grabbing; z-index: 4; box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4); }
+.cal-done.moving[data-time]::after { content: attr(data-time); position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 0.72rem; font-weight: 700; background: var(--card); color: var(--ink); padding: 0 4px; border-radius: 4px; }
+/* Ctrl+Shift drag: the task the dragged one would become a subtask of */
+.task.drop-into, .day-todo.drop-into { box-shadow: inset 0 0 0 2px var(--pine); background: var(--tint-pine); }
+.cal-task.drop-into { outline: 2px dashed var(--on-accent); outline-offset: -4px; z-index: 3; }
+.cal-task.nesting { opacity: 0.6; }
 @container (max-width: 560px) {
   .day-cal.with-done .cal-plan { right: 50%; }
   .day-cal.with-done .cal-actual { left: 50%; }
