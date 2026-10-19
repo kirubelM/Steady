@@ -18,6 +18,12 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.14.0
+
+- **Make a task a subtask by dragging.** Hold Ctrl+Shift, then drag a task onto another one to make it a subtask. It works in the Plan list, the Day tab's "No time yet" list and on the Day calendar. Its own subtasks and logged focus sessions move with it, and Undo puts everything back.
+- **See which drag you're doing.** A plain drag reorders the list, and a bar slides in where the task will land. A Ctrl+Shift drag shows the task under your cursor with a "Make subtask" badge on the task it will go into.
+- **Move done items on the Day tab.** With "Show what's done" on, turn on "Move done items" to drag sessions, check-ins, logged work and finished tasks to the time they really happened, or nudge one with the Up and Down arrow keys. They keep their length and can't move into the future.
+
 ## What's new in 1.13.0
 
 - **Color themes.** Settings > Appearance has seven: Steady, Paper (warm cream), Nord (cool blue-grey), Forest, Rosé, Pure (white, or true black in dark mode) and High contrast. Each has a light and a dark version, and they work with any accent color.
