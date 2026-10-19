@@ -58,7 +58,8 @@ async function loadCalendar(force = false, aroundDay = dayKey(Date.now())) {
   }
   Cal.loading = false;
   Cal.loadedAt = Date.now();
-  if (!$('tab-plan').hidden) renderPlan();
+  if (!$('tab-plan').hidden || !$('tab-day').hidden) renderPlan();
+  renderCalButtons();
 }
 
 function ensureCalendarFor(day) {
@@ -99,6 +100,57 @@ function sessionsThatFit(blocks) {
   const p = currentPreset();
   const cycle = (p.focusMin + p.breakMin) * 60000;
   return blocks.reduce((n, [a, b]) => n + Math.floor((b - a + p.breakMin * 60000) / cycle), 0);
+}
+
+/* ---------- The Refresh calendar button (on the Day tab and the Plan page's Schedule card) ---------- */
+
+const ago = (t) => {
+  const min = Math.floor((Date.now() - t) / 60000);
+  return min < 1 ? 'just now' : min < 60 ? `${min} min ago` : `at ${fmtTime(t)}`;
+};
+
+// What the button says: when it last updated, a spinner while loading, a tick just after, or the problem.
+function calRefreshState() {
+  if (!calendarOn()) return { cls: 'connect', label: 'Connect a calendar', tip: 'Show your meetings next to your plan' };
+  if (Cal.loading) return { cls: 'loading', label: 'Updating…', tip: 'Getting your latest meetings' };
+  if (Cal.error) return { cls: 'error', label: 'Try again', tip: Cal.error };
+  if (Cal.flashAt && Date.now() - Cal.flashAt < 2500) return { cls: 'ok', label: 'Up to date', tip: `Updated ${ago(Cal.loadedAt)}` };
+  return { cls: '', label: 'Refresh', sub: Cal.loadedAt ? `Updated ${ago(Cal.loadedAt)}` : '', tip: 'Get the latest meetings from your calendar' };
+}
+
+const CAL_ICONS = {
+  refresh: '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 2.5v3h-3"/>',
+  ok: '<path d="M3.5 8.5l3 3 6-6.5"/>',
+  error: '<path d="M8 4.5v4.5"/><path d="M8 11.5v.01"/><circle cx="8" cy="8" r="6"/>',
+  connect: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>'
+};
+
+function renderCalButtons() {
+  const st = calRefreshState();
+  const icon = CAL_ICONS[st.cls === 'ok' ? 'ok' : st.cls === 'error' ? 'error' : st.cls === 'connect' ? 'connect' : 'refresh'];
+  document.querySelectorAll('[data-cal-refresh]').forEach((b) => {
+    b.className = `cal-refresh${st.cls ? ` ${st.cls}` : ''}`;
+    b.disabled = st.cls === 'loading';
+    b.title = st.tip;
+    b.setAttribute('aria-label', `${st.label}${st.sub ? `. ${st.sub}` : ''}`);
+    b.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${icon}</svg><span>${esc(st.label)}</span>${st.sub ? `<small>${esc(st.sub)}</small>` : ''}`;
+  });
+}
+
+async function refreshCalendar() {
+  if (!calendarOn()) {
+    showTab('settings');
+    if (typeof showSettingsCat === 'function') showSettingsCat('calendar');
+    return;
+  }
+  if (Cal.loading) return;
+  const loading = loadCalendar(true, planDay);
+  renderCalButtons();
+  await loading;
+  if (Cal.error) return;
+  Cal.flashAt = Date.now();
+  renderCalButtons();
+  setTimeout(renderCalButtons, 2600);
 }
 
 let lastSessionsNeeded = 0; // from the Plan page, so the Day view can say whether the plan fits
@@ -158,6 +210,7 @@ function renderSchedule(day, sessionsNeeded) {
       <h3>Schedule</h3>
       <span class="muted-note">${esc(settings.workStart)} to ${esc(settings.workEnd)}</span>
       <button class="link" type="button" data-open-day>Open Day view</button>
+      ${calendarOn() ? '<button type="button" data-cal-refresh></button>' : ''}
     </div>
     <p class="insight-note${Cal.error ? ' warn-text' : ''}">${esc(info.text)}</p>
     ${info.warning ? `<p class="insight-note warn-text">${esc(info.warning)}</p>` : ''}
@@ -169,6 +222,7 @@ function renderSchedule(day, sessionsNeeded) {
       <span><button class="link" type="button" data-resched-next="${b.task.id}">Next free time</button>
       <button class="link" type="button" data-resched-tomorrow="${b.task.id}">Tomorrow</button></span></li>`).join('')}</ul>` : ''}
   `;
+  renderCalButtons();
 }
 
 function shortHourLabel(h) {

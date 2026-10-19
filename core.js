@@ -207,6 +207,7 @@ function renderTimer() {
   }[S.state];
   $('ringProgress').style.strokeDashoffset = String(RING_C * (1 - Math.min(1, Math.max(0, frac))));
   $('ringProgress').style.opacity = frac > 0.001 ? '1' : '0';
+  $('ringProgress').parentElement.parentElement.style.setProperty('--ring-pct', `${(Math.min(1, Math.max(0, frac)) * 100).toFixed(1)}%`); // the clock style's bar
   document.body.dataset.state = S.state;
   const inFocus = S.state === 'focus' || S.state === 'paused';
   const sessionProject = inFocus && settings.projectTint !== false && S.projectId ? projectById(S.projectId) : null;

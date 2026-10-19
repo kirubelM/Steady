@@ -413,6 +413,11 @@ const TEXT_FIELDS = {
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
   accent: (v) => (['pine', 'ocean', 'plum', 'terracotta', 'graphite', 'rose', 'indigo', 'sunflower'].includes(v) ? v : null),
+  palette: (v) => (PALETTES.some(([id]) => id === v) ? v : null),
+  corners: (v) => (['rounded', 'sharp'].includes(v) ? v : null),
+  density: (v) => (['comfortable', 'compact'].includes(v) ? v : null),
+  font: (v) => (['segoe', 'serif', 'mono', 'classic'].includes(v) ? v : null),
+  ringStyle: (v) => (['classic', 'thin', 'segmented', 'clock'].includes(v) ? v : null),
   workStart: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null)
 };
@@ -537,11 +542,39 @@ function bindBlockPermission() {
     'Permission removed. Blocking will need it again before it can work.'));
 }
 
-// Accent color and the time-of-day tint.
-function applyAppearance() {
-  applyMotion(settings.motion);
-  document.documentElement.dataset.accent = settings.accent || 'pine';
+// Whole-app color themes: [id, name, light background, dark background, text color for the preview].
+const PALETTES = [
+  ['steady', 'Steady', '#F6F8F7', '#1B2427', '#1F2D33'],
+  ['paper', 'Paper', '#F8F3E8', '#25211B', '#2F2A22'],
+  ['nord', 'Nord', '#ECEFF4', '#2E3440', '#2E3440'],
+  ['forest', 'Forest', '#F1F6EF', '#19231A', '#1E2B1F'],
+  ['rose', 'Rosé', '#FAF2F4', '#271C20', '#36242A'],
+  ['pure', 'Pure', '#FFFFFF', '#000000', '#111111'],
+  ['contrast', 'High contrast', '#FFFFFF', '#000000', '#000000']
+];
+
+// Theme, accent, style options and the time-of-day tint. `s` lets the settings form preview unsaved choices.
+function applyAppearance(s = settings) {
+  applyMotion(s.motion);
+  const root = document.documentElement.dataset;
+  root.accent = s.accent || 'pine';
+  root.palette = s.palette || 'steady';
+  root.corners = s.corners || 'rounded';
+  root.density = s.density || 'comfortable';
+  root.font = s.font || 'segoe';
+  root.ring = s.ringStyle || 'classic';
   applyDayTint();
+}
+
+// Shows appearance choices as soon as they're picked; Save keeps them, leaving Settings without saving puts them back.
+function previewAppearance() {
+  const f = $('settingsForm');
+  const pick = {};
+  ['accent', 'palette', 'corners', 'density', 'font', 'ringStyle'].forEach((k) => {
+    const v = TEXT_FIELDS[k](String(f.elements[k].value));
+    pick[k] = v === null ? settings[k] : v;
+  });
+  applyAppearance({ ...settings, ...pick });
 }
 
 // A faint wash over the page that shifts from cool morning light to warm evening light.

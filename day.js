@@ -108,8 +108,7 @@ function renderDay() {
     ? `${short(days[0])} – ${short(days[6])}`
     : new Date(day + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   $('dayToday').hidden = week ? days.includes(today) : isToday;
-  $('dayRefresh').hidden = !calendarOn();
-  $('dayRefresh').textContent = Cal.loading ? 'Updating…' : 'Refresh calendar';
+  renderCalButtons();
   const info = week ? weekSummary(days) : scheduleSummary(day);
   $('daySummary').textContent = info.text;
   $('daySummary').classList.toggle('warn-text', !!Cal.error);
@@ -253,7 +252,6 @@ function bindDay() {
   $('dayPrev').addEventListener('click', () => go(shiftKey(planDay, -step())));
   $('dayNext').addEventListener('click', () => go(shiftKey(planDay, step())));
   $('dayToday').addEventListener('click', () => go(todayKey()));
-  $('dayRefresh').addEventListener('click', () => loadCalendar(true, planDay));
   $('dayShowDone').addEventListener('change', (e) => {
     dayView.showDone = e.target.checked;
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }

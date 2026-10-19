@@ -14,6 +14,7 @@ function showTab(name) {
   if (name === 'day') { dayView.scrolled = ''; renderDay(); scrollDayIntoView(); ensureCalendarFor(planDay); }
   if (name === 'log') renderLog();
   if (name === 'settings') { renderBackups(); renderRecurringSettings(); }
+  else applyAppearance(); // drop any look that was previewed but not saved
   document.querySelector('.panel').classList.toggle('scrolled', $(`tab-${name}`).scrollTop > 4);
 }
 
@@ -225,7 +226,11 @@ function bind() {
     else if (button?.dataset.parkLog) openEntryDialog(button.dataset.parkLog);
   });
 
+  document.addEventListener('click', (e) => { if (e.target.closest?.('[data-cal-refresh]')) refreshCalendar(); });
   $('settingsForm').addEventListener('submit', saveSettings);
+  $('settingsForm').addEventListener('change', (e) => {
+    if (['accent', 'palette', 'corners', 'density', 'font', 'ringStyle'].includes(e.target.name)) previewAppearance();
+  });
   bindCalendars();
 
   bindScrollPolish();
