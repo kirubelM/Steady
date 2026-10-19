@@ -14,7 +14,9 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 ## Release notes
 
-Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
+Each GitHub release includes the matching **What's new in VERSION** section below.
+
+**Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
 ## What's new in 1.13.0
 
