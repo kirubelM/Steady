@@ -25,7 +25,7 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 - **A tidier Day tab.** Show what's done, Move done items and Show apps are in a View menu, and Schedule my day is the main button at the top.
 - **A menu on every task.** Click ⋯ on a task or subtask, or right-click it, to focus, schedule, star, add a note or subtask, move it to today, tomorrow or next week, make it a subtask of another task, duplicate it or delete it (with Undo).
 - **Notes right in the list.** Use the note button on a task to write a note under it without opening the editor.
-- **Fold away the timer.** The button at the top of the timer panel (or Ctrl+\\) folds it to a slim bar while you're not focusing, with a start button and today's focus time. It opens again when a session starts.
+- **Fold away the timer.** The button at the top of the timer panel (or Ctrl+Backslash) folds it to a slim bar while you're not focusing, with a start button and today's focus time. It opens again when a session starts.
 - **Easier settings.** Distractions is split into Sites and apps, Focus protection and App timeline, and a search box finds any setting.
 - **Fix.** Pressing Ctrl+Enter in a note box no longer starts a focus session.
 
