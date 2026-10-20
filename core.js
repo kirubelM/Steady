@@ -319,6 +319,10 @@ async function startFocus(opts = {}) {
   if (typeof renderPlan === 'function') renderPlan();
   if (typeof afterSessionStart === 'function') afterSessionStart();
 
+  if (settings.focusDnd) {
+    const r = await api.setDnd(true);
+    if (r && !r.ok) showNudge(r.error, 'warn', true);
+  }
   if (settings.blockSites && settings.blockedSites.length) {
     const r = await api.applyBlock(settings.blockedSites);
     if (!r.ok) {
@@ -338,8 +342,14 @@ function pauseFocus() {
   renderTimer();
 }
 
-function finishFocus(early) {
+function finishFocus(early, { force = false } = {}) {
   if (S.state !== 'focus' && S.state !== 'paused') return;
+  // Strict mode: no ending early, except in the first minute (a session started by mistake) or when coming back from away.
+  if (early && settings.strictFocus && !force && Date.now() - S.start > 60000) {
+    showNudge('Strict mode is on, so this session runs to the end. You can pause it, or turn strict mode off in Settings > Distractions.', 'info', true,
+      { label: 'Pause', fn: pauseFocus });
+    return;
+  }
   const end = Date.now();
   const remaining = S.state === 'paused' ? S.remaining : Math.max(0, S.endsAt - end);
   const focusSec = Math.round((S.total - (early ? remaining : 0)) / 1000);
@@ -369,6 +379,7 @@ function finishFocus(early) {
   if (typeof afterSessionEnd === 'function') afterSessionEnd();
   renderTimer();
   if (settings.blockSites) api.clearBlock();
+  api.setDnd(false); // even if the setting was turned off mid-session
 
   if (!early) {
     if (meetingHold()) {
@@ -425,7 +436,7 @@ function handleAway(choice) {
   } else if (choice === 'resume') {
     resumeFocus();
   } else if (choice === 'end') {
-    finishFocus(true);
+    finishFocus(true, { force: true });
   }
 }
 
@@ -641,8 +652,15 @@ function onActivity(info) {
 
   const name = friendlyApp(info.app);
   if (name) tally[name] = (tally[name] || 0) + 2;
+  if (name && settings.appTimeline !== false) recordApp(now, name, isDistracting(info.app, title));
 
   if (S.state !== 'focus') return;
+  if (settings.focusBlockApps && blockedAppHit(info.app) && now - (S.lastAppBlockAt || 0) > 3000) {
+    S.lastAppBlockAt = now;
+    api.minimizeApp(info.app);
+    showNudge(`${friendlyApp(info.app) || info.app} is minimized while you focus on "${S.task}".`, 'warn', true);
+    return;
+  }
   const lower = title.toLowerCase();
   const hit = settings.distractionKeywords.find((k) => k.trim() && lower.includes(k.trim().toLowerCase()));
   if (!hit) return;
@@ -655,6 +673,64 @@ function onActivity(info) {
     api.notify(`Drifting to ${label}?`, `You're focusing on: ${S.task}`);
     showNudge(`${label} is open. You're focusing on "${S.task}".`, 'warn', true);
   }
+}
+
+/* ---------- The all-day app timeline ---------- */
+
+const APP_LOG_DAYS = 30;
+const APP_SAMPLE_MS = 2000; // the watcher reports every 2 seconds
+let appLogSavedAt = 0;
+
+// A window counts as distracting when its title has a distraction word, or its app is on the minimize list.
+function isDistracting(raw, title) {
+  const lower = String(title || '').toLowerCase();
+  return settings.distractionKeywords.some((k) => k.trim() && lower.includes(k.trim().toLowerCase())) || blockedAppHit(raw);
+}
+
+// Adds one sample to today's timeline, stretching the last stretch when it's the same app.
+// Saves at most once a minute; only app names are kept, never window titles.
+function recordApp(now, name, distracting) {
+  const day = dayKey(now);
+  const log = data.appLog[day] || (data.appLog[day] = []);
+  const flag = distracting ? 1 : 0;
+  const last = log[log.length - 1];
+  if (last && last[2] === name && last[3] === flag && now - last[1] <= APP_SAMPLE_MS * 3) last[1] = now;
+  else log.push([now - APP_SAMPLE_MS, now, name, flag]);
+  if (now - appLogSavedAt < 60000) return;
+  appLogSavedAt = now;
+  const cutoff = shiftKey(day, -APP_LOG_DAYS);
+  Object.keys(data.appLog).forEach((k) => { if (k < cutoff) delete data.appLog[k]; });
+  persist('appLog');
+}
+
+// A day of app use: the stretches, time per app, time on distractions and how often you switched apps.
+function appDay(day) {
+  const log = (data.appLog && data.appLog[day]) || [];
+  const byApp = new Map();
+  let switches = 0;
+  let distractSec = 0;
+  log.forEach(([a, b, name, flag], i) => {
+    const sec = (b - a) / 1000;
+    const row = byApp.get(name) || { name, sec: 0, distractSec: 0 };
+    row.sec += sec;
+    if (flag) { row.distractSec += sec; distractSec += sec; }
+    byApp.set(name, row);
+    const prev = log[i - 1];
+    if (prev && prev[2] !== name && a - prev[1] < 60000) switches++; // a gap of a minute or more is a pause, not a switch
+  });
+  const apps = [...byApp.values()].sort((x, y) => y.sec - x.sec);
+  return { log, apps, switches, distractSec, totalSec: apps.reduce((t, x) => t + x.sec, 0) };
+}
+
+// Whether a process name (like "Discord" or "discord.exe" in the list) is one to minimize during focus.
+function blockedAppHit(raw) {
+  const app = String(raw || '').toLowerCase();
+  if (!app || IGNORED_APPS.has(app)) return false;
+  const friendly = friendlyApp(raw).toLowerCase();
+  return (settings.blockedApps || []).some((x) => {
+    const want = String(x).trim().toLowerCase().replace(/\.exe$/, '');
+    return want && (want === app || want === friendly);
+  });
 }
 
 /* ---------- Tick ---------- */

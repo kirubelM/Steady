@@ -18,6 +18,13 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.15.0
+
+- **Smarter quick add.** Type a day, a repeat, a project and a star along with a task, in the Plan box or quick capture (Ctrl+Shift+Space): "Send invoice fri 2pm 1h #client ! every week". Steady understands days like tomorrow, fri, next week, oct 31 or in 3 days, and repeats like every weekday, every friday or monthly. A line under the box shows what it will do before you press Enter, and repeating tasks keep their time on later days.
+- **Schedule my day.** One click on the Day tab gives every task without a time the next free time in your working hours, around your meetings, starred and due tasks first. Blocks you missed earlier move forward, and Steady tells you if anything didn't fit. Undo puts it all back. In the Week view it schedules each day from today on.
+- **An all-day app timeline.** Turn on "Show apps" on the Day tab to see which apps you used through the day beside your plan, with time per app, time on distractions and how often you switched apps. Steady keeps only app names and times, never window titles, on this computer for 30 days. You can turn it off in Settings > Distractions.
+- **Do not disturb.** New options in Settings > Distractions, all off until you turn them on: silence Windows notifications during focus sessions, minimize apps you list (like Discord) if you open them while focusing, and a strict mode that won't let a session end early after its first minute.
+
 ## What's new in 1.14.0
 
 - **Make a task a subtask by dragging.** Hold Ctrl+Shift, then drag a task onto another one to make it a subtask. It works in the Plan list, the Day tab's "No time yet" list and on the Day calendar. Its own subtasks and logged focus sessions move with it, and Undo puts everything back.

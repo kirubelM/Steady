@@ -141,7 +141,7 @@
           </div>
           <form id="taskForm" class="task-form">
             <label for="taskInput" class="sr-only">New task</label>
-            <input id="taskInput" type="text" maxlength="140" placeholder="Add a task for today, e.g. Write report 2pm 1h" autocomplete="off">
+            <input id="taskInput" type="text" maxlength="140" placeholder="Add a task, e.g. Write report fri 2pm 1h #project !" autocomplete="off">
             <label for="taskProject" class="sr-only">Project</label>
             <select id="taskProject" class="project-select" data-none="No project"></select>
             <label for="taskEst" class="sr-only">Estimated sessions</label>
@@ -212,6 +212,7 @@
               <button type="button" data-day-mode="week" aria-pressed="false">Week</button>
             </div>
             <label id="dayDoneToggle" class="day-toggle" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
+            <label id="dayAppsToggle" class="day-toggle" title="Show which apps you used, through the day, next to your plan"><input id="dayShowApps" type="checkbox"> Show apps</label>
             <button id="dayMoveDone" class="btn small day-move-done" type="button" aria-pressed="false" hidden title="Drag finished items in the Done column to the time they really happened">Move done items</button>
             <button id="dayRefresh" type="button" data-cal-refresh></button>
           </div>
@@ -220,8 +221,9 @@
         <p id="dayWarning" class="insight-note warn-text" hidden></p>
         <div class="day-layout">
           <aside id="daySide" class="day-side" aria-label="Tasks without a time">
-            <h3>No time yet</h3>
+            <div class="day-side-head"><h3>No time yet</h3><button id="dayScheduleAll" class="btn small" type="button" hidden title="Give every task here the next free time in your working hours, starred and due tasks first. Missed blocks move forward too.">Schedule all</button></div>
             <ul id="dayTodo" class="day-todo-list"></ul>
+            <div id="dayApps" class="day-apps" hidden></div>
             <p id="dayTodoHint" class="field-note">Drag a task onto the calendar to schedule it. Drag a scheduled task back here to clear its time. Hold Ctrl+Shift and drop a task on another one to make it a subtask.</p>
           </aside>
           <div class="day-main">
@@ -519,6 +521,25 @@
             <label class="stack">Sites to block (one per line)
               <textarea name="blockedSites" rows="5"></textarea>
             </label>
+          </fieldset>
+
+          <fieldset data-cat="distractions">
+            <legend>App timeline</legend>
+            <label class="check"><input name="appTimeline" type="checkbox"> Keep a timeline of the apps I use all day</label>
+            <p class="field-note">Shown with "Show apps" on the Day tab. Steady keeps only app names and times, never window titles, on this computer, for 30 days.</p>
+          </fieldset>
+
+          <fieldset data-cat="distractions">
+            <legend>Do not disturb</legend>
+            <p class="field-note">All of these are off until you turn them on, and only apply during focus sessions.</p>
+            <label class="check"><input name="focusDnd" type="checkbox"> Silence Windows notifications during focus sessions</label>
+            <p class="field-note">Turns off notifications in Windows (Settings &gt; System &gt; Notifications) while you focus, and back on when the session ends. Steady's own reminders are silenced too; its messages inside the app still show.</p>
+            <label class="check"><input name="focusBlockApps" type="checkbox"> Minimize these apps if I open them during a focus session</label>
+            <label class="stack">Apps to minimize (one per line, the name you see in Task Manager)
+              <textarea name="blockedApps" rows="4"></textarea>
+            </label>
+            <label class="check"><input name="strictFocus" type="checkbox"> Strict mode: don't let me end a session early</label>
+            <p class="field-note">You can still pause, and end a session in its first minute in case you started it by mistake.</p>
           </fieldset>
 
           <div class="settings-actions">

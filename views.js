@@ -406,7 +406,8 @@ const NUM_FIELDS = {
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
-  'projectTint', 'dayTint', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart'];
+  'projectTint', 'dayTint', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart',
+  'focusDnd', 'focusBlockApps', 'strictFocus', 'appTimeline'];
 const TEXT_FIELDS = {
   motion: (v) => (['system', 'full', 'reduced'].includes(v) ? v : null),
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
@@ -421,7 +422,7 @@ const TEXT_FIELDS = {
   workStart: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   workEnd: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null)
 };
-const LIST_FIELDS = ['distractionKeywords', 'blockedSites'];
+const LIST_FIELDS = ['distractionKeywords', 'blockedSites', 'blockedApps'];
 
 function renderPresetSettings() {
   $('presetSettings').innerHTML = settings.presets.map((p) => `<li>

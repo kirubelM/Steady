@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('steady', {
   allowBlocking: () => ipcRenderer.invoke('block:grant'),
   removeBlockingPermission: () => ipcRenderer.invoke('block:revoke'),
   clearBlock: () => ipcRenderer.invoke('block:clear'),
+  setDnd: (on) => ipcRenderer.invoke('dnd:set', on),
+  minimizeApp: (name) => ipcRenderer.send('app:minimize', name),
   exportCsv: (csv) => ipcRenderer.invoke('export:csv', csv),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   zoom: (direction) => ipcRenderer.send('window:zoom', direction),

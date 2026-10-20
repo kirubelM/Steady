@@ -187,13 +187,130 @@ function parseTaskTime(input) {
   return { text: rest, startMin, mins: mins ? Math.max(15, Math.min(480, mins)) : 0 };
 }
 
-// Shows what a typed time will do before the task is added.
+/* ---------- Quick add: "Send invoice fri 2pm #Client ! every week" ---------- */
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const WEEKDAY_RE = '(sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+const MONTH_RE = '(jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)\\.?';
+const WORD_END = '(?=[\\s,.]|$)';
+
+// "mon", "tues", "thurs" and the full names; returns 0-6, or -1.
+const weekdayIndex = (word) => WEEKDAYS.findIndex((d) => d.startsWith(String(word).toLowerCase()));
+// The next `wd` on or after `from` (today counts).
+const nextWeekday = (from, wd) => shiftKey(from, (wd - new Date(from + 'T12:00').getDay() + 7) % 7);
+
+// Reads the extras out of a new task's text: a day, a time and length, a repeat, a #project and ! for a star.
+// Anything it doesn't recognise stays in the text. `baseDay` is where the task goes when no day is typed.
+function parseQuickAdd(input, baseDay = todayKey(), today = todayKey()) {
+  const typed = String(input || '').trim();
+  let text = ` ${typed} `;
+  const out = { text: '', day: baseDay, dayTyped: false, startMin: null, mins: 0, freq: null, projectId: null, starred: false };
+  // Removes the first match of `re` when `fn` accepts it (anything but false).
+  const take = (re, fn) => {
+    const m = text.match(re);
+    if (!m || fn(m) === false) return false;
+    text = text.replace(m[0], ' ');
+    return true;
+  };
+  const rx = (src) => new RegExp(src, 'i');
+  const setDay = (day) => { out.day = day; out.dayTyped = true; };
+  const dateOf = (mon, date) => {
+    const mi = MONTHS.findIndex((x) => x.startsWith(mon.replace('.', '').toLowerCase().slice(0, 3)));
+    const d = Number(date);
+    if (mi < 0 || d < 1 || d > 31) return false;
+    const key = (y) => `${y}-${String(mi + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const y = Number(today.slice(0, 4));
+    setDay(key(y) < today ? key(y + 1) : key(y)); // a date already past this year means next year
+  };
+
+  // Repeats ("every Friday" also sets the first day)
+  take(rx(`\\s(?:every\\s+day|daily)${WORD_END}`), () => { out.freq = 'daily'; })
+    || take(rx(`\\s(?:every\\s+weekday|weekdays)${WORD_END}`), () => { out.freq = 'weekdays'; })
+    || take(rx(`\\severy\\s+${WEEKDAY_RE}${WORD_END}`), (m) => { out.freq = 'weekly'; setDay(nextWeekday(today, weekdayIndex(m[1]))); })
+    || take(rx(`\\s(?:every\\s+week|weekly)${WORD_END}`), () => { out.freq = 'weekly'; })
+    || take(rx(`\\s(?:every\\s+month|monthly)${WORD_END}`), () => { out.freq = 'monthly'; });
+
+  // A star and a project
+  take(rx(`\\s!${WORD_END}`), () => { out.starred = true; });
+  take(rx(`\\s#([^\\s#,]+)${WORD_END}`), (m) => {
+    const flat = (n) => n.toLowerCase().replace(/\s+/g, '');
+    const want = m[1].toLowerCase();
+    const p = activeProjects().find((x) => flat(x.name) === want) || activeProjects().find((x) => flat(x.name).startsWith(want));
+    if (!p) return false; // not a project, so "#3" stays in the text
+    out.projectId = p.id;
+  });
+
+  // A day written out
+  if (!out.dayTyped) {
+    take(rx(`\\s(?:today|tonight)${WORD_END}`), () => setDay(today))
+      || take(rx(`\\s(?:tomorrow|tmrw|tmr)${WORD_END}`), () => setDay(shiftKey(today, 1)))
+      || take(rx(`\\snext\\s+week${WORD_END}`), () => setDay(nextWeekday(shiftKey(today, 1), 1)))
+      || take(rx(`\\sin\\s+(\\d{1,2})\\s+(days?|weeks?)${WORD_END}`), (m) => setDay(shiftKey(today, Number(m[1]) * (/^w/i.test(m[2]) ? 7 : 1))))
+      || take(rx(`\\s(?:on\\s+)?${MONTH_RE}\\s+(\\d{1,2})(?:st|nd|rd|th)?${WORD_END}`), (m) => dateOf(m[1], m[2]))
+      || take(rx(`\\s(?:on\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH_RE}${WORD_END}`), (m) => dateOf(m[2], m[1]))
+      || take(rx(`\\s(on|next|this|by)\\s+${WEEKDAY_RE}${WORD_END}`), (m) => setDay(nextWeekday(m[1].toLowerCase() === 'next' ? shiftKey(today, 1) : today, weekdayIndex(m[2]))));
+  }
+
+  // A time and length
+  let rest = text.replace(/\s+/g, ' ').trim();
+  const when = parseTaskTime(rest);
+  if (when) rest = when.text;
+
+  // A bare weekday counts only as the last word, and not "sun", "sat" or "wed",
+  // so "Prep Monday standup notes" and "Fix the sun shade" stay as they are.
+  if (!out.dayTyped) {
+    const last = rest.match(/\s(mon|tue|tues|thu|thur|thurs|fri|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/i);
+    if (last) { setDay(nextWeekday(today, weekdayIndex(last[1]))); rest = rest.slice(0, last.index); }
+  }
+  // A time only applies today or later; on a past day it stays part of the text.
+  if (when && out.day >= today) { out.startMin = when.startMin; out.mins = when.mins; }
+  else if (when) rest = text.replace(/\s+/g, ' ').trim();
+  out.text = rest.replace(/[\s,]+(on|at|for|from|by)?[\s,]*$/i, '').trim() || typed; // only extras typed: keep the words
+  return out;
+}
+
+// True when the quick add found anything beyond plain text.
+const quickAddFound = (q) => !!(q.dayTyped || q.startMin !== null || q.freq || q.projectId || q.starred);
+
+// What a quick add will do, in words: "Friday, Oct 24 · 2:00 PM – 3:00 PM · Client · Starred · Repeats every Friday".
+function quickAddSummary(q, baseDay = planDay) {
+  const bits = [];
+  if (q.dayTyped && q.day !== baseDay) bits.push(dayTitle(q.day) === 'Today' || dayTitle(q.day) === 'Tomorrow'
+    ? dayTitle(q.day) : new Date(q.day + 'T12:00').toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' }));
+  if (q.startMin !== null) bits.push(`${fmtTime(atDay(q.day, q.startMin))}${q.mins ? ` – ${fmtTime(atDay(q.day, q.startMin + q.mins))}` : ''}`);
+  if (q.projectId) bits.push(projectName(q.projectId));
+  if (q.starred) bits.push('Starred');
+  if (q.freq) bits.push(repeatLabel({ freq: q.freq, weekday: weekdayOf(q.day), monthday: monthdayOf(q.day) }));
+  return bits.join(' · ') || dayTitle(q.day);
+}
+
+// Adds a task from quick-add text, with its day, time, project, star and repeat. Returns the task (or null).
+async function addQuickTask(input, { baseDay = todayKey(), est = 0, projectId = null } = {}) {
+  const today = todayKey();
+  const q = parseQuickAdd(input, baseDay, today);
+  if (!q.text) return null;
+  const id = await addTask(q.text, est, q.day, q.projectId || projectId);
+  const t = findTask(id);
+  if (q.starred) t.starred = true;
+  if (q.freq) {
+    await setRepeat(t, q.freq);
+    const r = recurById(t.recurId);
+    if (r && q.startMin !== null) r.block = { startMin: q.startMin, mins: q.mins || defaultBlockMins(t) }; // later copies get the same time
+  }
+  if (q.starred || q.freq) await persist('tasks', 'recurring');
+  if (q.startMin !== null) await setBlock(id, q.day, q.startMin, q.mins || defaultBlockMins(t));
+  else renderPlan();
+  return { task: t, parsed: q };
+}
+
+// Shows what quick add will do before the task is added.
 function showTimeHint() {
-  const when = planDay >= todayKey() ? parseTaskTime($('taskInput').value) : null;
-  $('timeHint').hidden = !when;
-  if (!when) return;
-  const end = when.mins ? ` – ${fmtTime(atDay(planDay, when.startMin + when.mins))}` : '';
-  $('timeHint').textContent = `"${when.text}" will be scheduled at ${fmtTime(atDay(planDay, when.startMin))}${end}.`;
+  const q = parseQuickAdd($('taskInput').value, planDay);
+  const found = $('taskInput').value.trim() && quickAddFound(q);
+  $('timeHint').hidden = !found;
+  if (!found) return;
+  $('timeHint').textContent = `"${q.text}": ${quickAddSummary(q)}.`;
 }
 
 /* ---------- Plan vs. done ---------- */
@@ -246,6 +363,64 @@ async function rescheduleBlock(id, where = 'next') {
   if (start === null) start = suggestStart(day, mins);
   const block = await setBlock(id, day, start, mins);
   if (block) showNudge(`Moved "${t.text}" to ${day === today ? '' : 'tomorrow at '}${fmtTime(atDay(block.day, block.startMin))}.`, 'info', true);
+}
+
+/* ---------- Schedule my day: every task without a time, into the day's free time ---------- */
+
+// Gives each open task on `day` without a time (and, today, each block you missed) the first free stretch
+// of working time that fits it, around meetings and other blocks: starred first, then by due date, then your order.
+// Returns what was placed and what didn't fit, and saves once.
+async function scheduleDay(day = planDay) {
+  const today = todayKey();
+  if (day < today) return { placed: [], unfit: [], undo: null };
+  const missed = day === today ? missedBlocks().map((b) => b.task) : [];
+  const loose = openInOrder(day).filter((t) => !(t.block && t.block.day === day));
+  const queue = [...loose, ...missed.filter((t) => !loose.includes(t))]
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => priorityCompare(a.t, b.t) || a.i - b.i) // keeps your order among equals
+    .map((x) => x.t);
+  const before = new Map(queue.map((t) => [t, t.block ? { ...t.block } : null]));
+  queue.forEach((t) => { if (missed.includes(t)) t.block = null; }); // their old time is past
+  const midnight = atDay(day, 0);
+  const placed = [];
+  const unfit = [];
+  for (const t of queue) {
+    const mins = (missed.includes(t) && before.get(t)?.mins) || defaultBlockMins(t); // a missed block keeps its length
+    // freeBlocks counts the blocks placed so far, so each task gets the next stretch.
+    const fit = freeBlocks(day)
+      .map(([a, b]) => [Math.ceil((a - midnight) / 60000 / 15) * 15, (b - midnight) / 60000])
+      .find(([a, b]) => b - a >= mins);
+    if (!fit) { unfit.push(t); continue; }
+    t.block = { day, startMin: fit[0], mins };
+    placed.push(t);
+  }
+  // A missed block that found no new time keeps its old one, so "Move to tomorrow" is still offered.
+  before.forEach((b, t) => { if (!t.block && b && unfit.includes(t)) t.block = b; });
+  await persist('tasks');
+  renderPlan();
+  const undo = async () => {
+    before.forEach((b, t) => { if (findTask(t.id)) t.block = b; });
+    await persist('tasks');
+    renderPlan();
+  };
+  return { placed, unfit, undo };
+}
+
+// The button: schedules each day (today on, in the week view) and says what happened, with one Undo for all of it.
+async function scheduleDayAndTell(days = [planDay]) {
+  const runs = [];
+  for (const d of days.filter((x) => x >= todayKey())) runs.push(await scheduleDay(d));
+  const placed = runs.flatMap((r) => r.placed);
+  const unfit = runs.flatMap((r) => r.unfit);
+  const undo = async () => { for (const r of runs.reverse()) await r.undo?.(); };
+  if (!placed.length && !unfit.length) { showNudge('Every task already has a time.', 'info', true); return; }
+  if (!placed.length) { showNudge(`There's no free time left in your working hours for ${plural(unfit.length, 'task')}.`, 'warn', true); return; }
+  const lastDay = placed.reduce((a, t) => (t.block.day > a ? t.block.day : a), '');
+  const last = placed.filter((t) => t.block.day === lastDay).reduce((a, t) => Math.max(a, t.block.startMin + t.block.mins), 0);
+  const by = days.length > 1 ? `${new Date(lastDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ${fmtTime(atDay(lastDay, last))}` : fmtTime(atDay(lastDay, last));
+  showNudge(`Scheduled ${plural(placed.length, 'task')}, done by ${by}.${unfit.length
+    ? ` ${plural(unfit.length, 'task')} didn't fit in your working hours: ${unfit.map((t) => `"${t.text}"`).join(', ')}.` : ''}`,
+  unfit.length ? 'warn' : 'info', true, { label: 'Undo', fn: undo });
 }
 
 // Runs from the timer tick: a heads-up 5 minutes before a block, a reminder (or an automatic start) when it begins,

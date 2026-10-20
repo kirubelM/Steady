@@ -106,3 +106,38 @@ test('the week runs Monday to Sunday around any day', () => {
   assert.equal(get(`weekOf('2026-10-25')[0]`), '2026-10-19');
   assert.equal(get(`weekOf('2026-10-26')[0]`), '2026-10-26');
 });
+
+/* ---------- Schedule my day ---------- */
+
+test('"Schedule my day" fills free time in priority order around meetings, and Undo clears it', async () => {
+  const { get, call, app } = setup({});
+  const day = get('shiftKey(todayKey(), 1)');
+  await call(`settings.workStart = '09:00'; settings.workEnd = '12:00';
+    settings.presets = [{ id: 'p', name: 'P', focusMin: 30, breakMin: 5 }]; settings.presetId = 'p';
+    await addTask('A', 0, '${day}'); await addTask('B', 0, '${day}'); await addTask('C', 0, '${day}'); await addTask('D', 0, '${day}');
+    await addTask('E', 0, '${day}'); await addTask('F', 0, '${day}'); await addTask('G', 0, '${day}');
+    await toggleStar(${id('C')});
+    Cal.events = [{ start: atDay('${day}', 600), end: atDay('${day}', 660), busy: true, allDay: false, title: 'Meeting' }];
+    eventsOn = (d) => d === '${day}' ? Cal.events : [];`);
+  await call(`globalThis.__r = await scheduleDay('${day}')`);
+  const blocks = get(`data.tasks.filter((t) => t.block).sort((a, b) => a.block.startMin - b.block.startMin).map((t) => [t.text, t.block.startMin])`);
+  // Starred C first; 9:00-10:00, then the meeting, then 11:00-12:00: four 30-minute slots.
+  assert.deepEqual(blocks, [['C', 540], ['A', 570], ['B', 660], ['D', 690]]);
+  assert.deepEqual(get(`__r.unfit.map((t) => t.text)`), ['E', 'F', 'G']);
+  await app.run('__r.undo()');
+  assert.equal(get('data.tasks.filter((t) => t.block).length'), 0);
+});
+
+test('"Schedule my day" moves missed blocks forward and leaves future blocks alone', async () => {
+  const { get, call } = setup({});
+  await call(`settings.workStart = '00:00'; settings.workEnd = '23:59'; eventsOn = () => [];
+    await addTask('Missed'); await addTask('Later');
+    data.tasks[0].block = { day: todayKey(), startMin: 0, mins: 15 };
+    data.tasks[1].block = { day: todayKey(), startMin: 1425, mins: 15 };`);
+  const now = get('(Date.now() - atDay(todayKey(), 0)) / 60000');
+  if (now < 30 || now > 1400) return; // needs a moment of today both behind and ahead
+  await call(`await scheduleDay(todayKey())`);
+  assert.ok(get(`data.tasks[0].block.startMin`) >= now - 15);
+  assert.equal(get(`data.tasks[0].block.mins`), 15);
+  assert.equal(get(`data.tasks[1].block.startMin`), 1425);
+});
