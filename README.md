@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.16.1
+
+- **Your app history is kept forever.** The app timeline now keeps every day unless you choose otherwise in Settings > App timeline. If you were on the old 30-day default, Steady switches you to forever; a period you pick yourself stays as you set it.
+
 ## What's new in 1.16.0
 
 - **Looks.** Pick a whole style in Settings > Appearance: Classic, Notion-style, Linear-style or Things-style, each with a light and a dark version. A look changes colors, surfaces, corners and titles together. With the Pine accent each look uses its own accent; pick another accent to use yours.

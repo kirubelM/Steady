@@ -115,8 +115,16 @@ test('the Day summary shows time per app with its main windows, marks distractio
   assert.equal(d.switches, 2); // Slack came after a long gap: a pause, not a switch
 });
 
-test('keeping the timeline defaults to 30 days, and can be set to forever', () => {
-  const { get } = setup({});
-  assert.equal(get('settings.appLogKeepDays'), 30);
-  assert.equal(get('NUM_FIELDS.appLogKeepDays[0]'), 0);
+test('the timeline is kept forever by default, and the 30 days earlier versions saved becomes forever once', () => {
+  const { normalize } = require('../datamodel');
+  assert.equal(setup({}).get('settings.appLogKeepDays'), 0);
+  assert.equal(setup({}).get('NUM_FIELDS.appLogKeepDays[0]'), 0);
+  // Saved by 1.15.1 to 1.16.0 (the old default): moves to forever.
+  assert.equal(normalize({ settings: { appLogKeepDays: 30 } }).settings.appLogKeepDays, 0);
+  // Another period someone picked stays.
+  assert.equal(normalize({ settings: { appLogKeepDays: 90 } }).settings.appLogKeepDays, 90);
+  // After the move, choosing 30 again is respected.
+  const moved = normalize({ settings: { appLogKeepDays: 30 } });
+  moved.settings.appLogKeepDays = 30;
+  assert.equal(normalize(moved).settings.appLogKeepDays, 30);
 });
