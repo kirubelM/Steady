@@ -80,6 +80,42 @@ function fmtMins(sec) {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// One outline icon set for the whole app (16px grid, drawn with the text color).
+const ICONS = {
+  play: '<path d="M5 3.5v9l7.5-4.5z" fill="currentColor" stroke="none"/>',
+  note: '<path d="M10.5 2.5l3 3-7.5 7.5H3v-3z"/><path d="M9 4l3 3"/>',
+  promote: '<path d="M5.5 10.5L11 5"/><path d="M6 4.5h5.5V10"/><path d="M3 13h10"/>',
+  close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  star: '<path d="M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.4l-3.6 1.9.7-4L2.2 6.5l4-.6z"/>',
+  starOn: '<path d="M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.4l-3.6 1.9.7-4L2.2 6.5l4-.6z" fill="currentColor"/>',
+  plus: '<path d="M8 3.5v9M3.5 8h9"/>',
+  more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
+  retry: '<path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2"/><path d="M12 2.5v2.8H9.2"/>',
+  next: '<path d="M3 8h9.5"/><path d="M9 4.5L12.5 8 9 11.5"/>',
+  clock: '<circle cx="8" cy="8" r="5.8"/><path d="M8 4.8V8l2.2 1.5"/>',
+  calendar: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>',
+  copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/>',
+  trash: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>',
+  subtask: '<path d="M4 3v5.5a1.5 1.5 0 0 0 1.5 1.5H12"/><path d="M9.5 7.5L12 10l-2.5 2.5"/>',
+  view: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"/>',
+  chevron: '<path d="M4.5 6.5L8 10l3.5-3.5"/>',
+  panel: '<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>'
+};
+const icon = (name, label) => `<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${ICONS[name] || ''}</svg>`;
+
+// A button that opens a small dropdown menu; it closes on Esc, on a click outside and when the window loses focus.
+function bindMenu(btn, menu) {
+  const set = (open) => {
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+  };
+  btn.addEventListener('click', (e) => { e.stopPropagation(); set(menu.hidden); });
+  document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) set(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { set(false); btn.focus(); } });
+  window.addEventListener('blur', () => set(false));
+  return set;
+}
+
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -209,6 +245,7 @@ function renderTimer() {
   $('ringProgress').style.opacity = frac > 0.001 ? '1' : '0';
   $('ringProgress').parentElement.parentElement.style.setProperty('--ring-pct', `${(Math.min(1, Math.max(0, frac)) * 100).toFixed(1)}%`); // the clock style's bar
   document.body.dataset.state = S.state;
+  if (typeof applyPaneCollapse === 'function') applyPaneCollapse();
   const inFocus = S.state === 'focus' || S.state === 'paused';
   const sessionProject = inFocus && settings.projectTint !== false && S.projectId ? projectById(S.projectId) : null;
   document.body.classList.toggle('has-proj', !!sessionProject);
@@ -346,7 +383,7 @@ function finishFocus(early, { force = false } = {}) {
   if (S.state !== 'focus' && S.state !== 'paused') return;
   // Strict mode: no ending early, except in the first minute (a session started by mistake) or when coming back from away.
   if (early && settings.strictFocus && !force && Date.now() - S.start > 60000) {
-    showNudge('Strict mode is on, so this session runs to the end. You can pause it, or turn strict mode off in Settings > Distractions.', 'info', true,
+    showNudge('Strict mode is on, so this session runs to the end. You can pause it, or turn strict mode off in Settings > Focus protection.', 'info', true,
       { label: 'Pause', fn: pauseFocus });
     return;
   }

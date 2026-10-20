@@ -51,6 +51,26 @@ function setCompact(on) {
   api.setCompact(compact);
 }
 
+/* ---------- Hiding the timer panel while you're not in a session ---------- */
+
+let paneCollapsed = false;
+try { paneCollapsed = localStorage.getItem('paneCollapsed') === '1'; } catch { /* storage unavailable */ }
+
+// The panel folds to a slim bar only while nothing is running; a session (or a break) always brings it back.
+function applyPaneCollapse() {
+  const folded = paneCollapsed && S.state === 'idle' && !compact;
+  document.body.classList.toggle('pane-collapsed', folded);
+  $('paneRail').hidden = !folded;
+  if (folded) $('railToday').textContent = fmtMins(todayFocusSec());
+}
+function setPaneCollapsed(on) {
+  paneCollapsed = !!on;
+  try { localStorage.setItem('paneCollapsed', paneCollapsed ? '1' : '0'); } catch { /* storage unavailable */ }
+  applyPaneCollapse();
+  (paneCollapsed ? $('paneExpandBtn') : $('paneCollapseBtn')).focus();
+  if (paneCollapsed && S.state !== 'idle') showNudge('The timer panel will fold away once this session is over.', 'info', true);
+}
+
 function afterSessionStart() {
   if (settings.compactAuto && !compact) {
     autoCompacted = true;
@@ -97,6 +117,12 @@ function onCommand(cmd) {
 function bind() {
   // Focus pane
   $('startBtn').addEventListener('click', () => startFocus());
+  $('paneCollapseBtn').innerHTML = icon('panel');
+  $('paneExpandBtn').innerHTML = icon('panel');
+  $('railStart').innerHTML = icon('play');
+  $('paneCollapseBtn').addEventListener('click', () => setPaneCollapsed(true));
+  $('paneExpandBtn').addEventListener('click', () => setPaneCollapsed(false));
+  $('railStart').addEventListener('click', () => startFocus());
   $('pauseBtn').addEventListener('click', pauseFocus);
   $('stopBtn').addEventListener('click', () => finishFocus(true));
   $('breakNowBtn').addEventListener('click', launchBreak);
@@ -229,13 +255,14 @@ function bind() {
   document.addEventListener('click', (e) => { if (e.target.closest?.('[data-cal-refresh]')) refreshCalendar(); });
   $('settingsForm').addEventListener('submit', saveSettings);
   $('settingsForm').addEventListener('change', (e) => {
-    if (['accent', 'palette', 'corners', 'density', 'font', 'ringStyle'].includes(e.target.name)) previewAppearance();
+    if (['accent', 'palette', 'look', 'corners', 'density', 'font', 'ringStyle'].includes(e.target.name)) previewAppearance();
   });
   bindCalendars();
 
   bindScrollPolish();
   bindPlanning();
   bindDay();
+  bindRowMenus();
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();

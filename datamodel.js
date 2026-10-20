@@ -41,6 +41,7 @@ const DEFAULTS = {
     calendars: [], // { id, kind: 'outlook' | 'link', name, url }
     accent: 'pine',
     palette: 'steady',
+    look: 'classic',
     corners: 'rounded',
     density: 'comfortable',
     font: 'segoe',

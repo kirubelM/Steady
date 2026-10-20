@@ -151,6 +151,7 @@ function renderDay() {
         <button class="day-todo-text" type="button" data-task-edit="${t.id}" title="Edit task">${esc(t.text)}</button>
         <span class="day-todo-len">${week ? `${esc(new Date(t.day + 'T12:00').toLocaleDateString([], { weekday: 'short' }))} · ` : ''}${fmtMins(defaultBlockMins(t) * 60)}</span>
         ${movable ? `<button class="link" type="button" data-day-next="${t.id}" title="Schedule at the next free time">Next free time</button>` : ''}
+        <button class="row-more" type="button" data-row-menu aria-label="More for ${esc(t.text)}" title="More (or right-click)">${icon('more')}</button>
       </li>`;
     }).join('')
     : `<li class="empty">${days.some((d) => tasksFor(d).some((t) => !t.done)) ? 'Everything has a time.' : `No tasks for this ${week ? 'week' : 'day'}. Add some on the Plan tab.`}</li>`;
@@ -170,8 +171,8 @@ function renderDay() {
   $('dayDoneToggle').hidden = week || day > today;
   $('dayShowDone').checked = dayView.showDone;
   const moveDone = showDone && dayView.moveDone;
-  $('dayMoveDone').hidden = !showDone;
-  $('dayMoveDone').setAttribute('aria-pressed', String(moveDone));
+  $('dayMoveDoneRow').hidden = !showDone;
+  $('dayMoveDoneCheck').checked = moveDone;
   $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
 
   // Apps used: day view only
@@ -182,6 +183,14 @@ function renderDay() {
   const apps = showApps ? appDay(day) : null;
   const appSpans = apps ? appStretches(apps.log, day) : [];
   renderAppSummary(apps);
+
+  // The View menu: only what applies to the day shown, and a count of what's on.
+  const viewItems = [!$('dayDoneToggle').hidden, !$('dayAppsToggle').hidden];
+  $('dayView').hidden = week || day > today;
+  const on = (showDone ? 1 : 0) + (showApps ? 1 : 0);
+  $('dayViewCount').hidden = !on;
+  $('dayViewCount').textContent = on;
+  $('dayViewEmpty').hidden = viewItems.some(Boolean);
 
   // The calendar
   const cols = days.map((d) => ({ day: d, items: layoutColumns(dayItems(d)) }));
@@ -219,9 +228,10 @@ function renderDay() {
         aria-label="${esc(`${t.text}, ${week ? `${new Date(colDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ` : ''}${fmtTime(start)} to ${fmtTime(end)}.${keys}`)}">
         <strong>${esc(t.text)}</strong><span class="cal-when">${fmtTime(start)} – ${fmtTime(end)}</span>
         <span class="cal-task-actions">
-          ${canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">▶</button>` : ''}
-          ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">↻</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">→</button>` : ''}
-          ${canEdit ? `<button type="button" data-unblock="${t.id}" title="Clear the time" aria-label="Clear the time for ${esc(t.text)}">×</button>` : ''}
+          ${canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">${icon('play')}</button>` : ''}
+          ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">${icon('retry')}</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">${icon('next')}</button>` : ''}
+          ${canEdit ? `<button type="button" data-unblock="${t.id}" title="Clear the time" aria-label="Clear the time for ${esc(t.text)}">${icon('close')}</button>` : ''}
+          <button type="button" data-row-menu title="More (or right-click)" aria-label="More for ${esc(t.text)}">${icon('more')}</button>
         </span>
         ${canEdit ? '<span class="cal-resize" data-cal-resize aria-hidden="true" title="Drag to change the length"></span>' : ''}
       </div>`;
@@ -308,7 +318,7 @@ function renderAppSummary(apps) {
   if (!apps) return;
   if (!apps.apps.length) {
     box.innerHTML = `<h3>Apps</h3><p class="field-note">${settings.appTimeline === false
-      ? 'The app timeline is off. Turn it on in Settings > Distractions.'
+      ? 'The app timeline is off. Turn it on in Settings > App timeline.'
       : 'Nothing recorded for this day yet. Steady notes the app in front every few seconds while you\'re at the computer.'}</p>`;
     return;
   }
@@ -353,8 +363,9 @@ function bindDay() {
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }
     renderDay();
   });
-  $('dayMoveDone').addEventListener('click', () => {
-    dayView.moveDone = !dayView.moveDone;
+  bindMenu($('dayViewBtn'), $('dayViewMenu'));
+  $('dayMoveDoneCheck').addEventListener('change', (e) => {
+    dayView.moveDone = e.target.checked;
     try { localStorage.setItem('dayMoveDone', dayView.moveDone ? '1' : '0'); } catch { /* storage unavailable */ }
     renderDay();
   });

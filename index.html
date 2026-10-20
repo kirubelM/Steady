@@ -10,9 +10,15 @@
 <body data-state="idle">
   <main class="layout">
     <section class="focus-pane" aria-label="Focus timer">
+      <div id="paneRail" class="pane-rail" hidden>
+        <button id="paneExpandBtn" class="icon-btn ghost" type="button" aria-label="Show the timer panel" title="Show the timer panel (Ctrl+\)"></button>
+        <button id="railStart" class="rail-start" type="button" aria-label="Start focus" title="Start focus"></button>
+        <span id="railToday" class="rail-today" title="Focus time today"></span>
+      </div>
       <header class="brand">
         <h1>Steady</h1>
         <p id="status" class="status" aria-live="polite">Ready when you are</p>
+        <button id="paneCollapseBtn" class="icon-btn ghost" type="button" aria-label="Hide the timer panel" title="Hide the timer panel while you're not focusing (Ctrl+\)"></button>
         <button id="compactBtn" class="icon-btn ghost" type="button" aria-label="Compact view" title="Compact view">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.5v3.5H2.5M10 2.5v3.5h3.5M6 13.5V10H2.5M10 13.5V10h3.5"/></svg>
         </button>
@@ -211,9 +217,16 @@
               <button type="button" data-day-mode="day" aria-pressed="true">Day</button>
               <button type="button" data-day-mode="week" aria-pressed="false">Week</button>
             </div>
-            <label id="dayDoneToggle" class="day-toggle" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
-            <label id="dayAppsToggle" class="day-toggle" title="Show which apps you used, through the day, next to your plan"><input id="dayShowApps" type="checkbox"> Show apps</label>
-            <button id="dayMoveDone" class="btn small day-move-done" type="button" aria-pressed="false" hidden title="Drag finished items in the Done column to the time they really happened">Move done items</button>
+            <div id="dayView" class="menu-wrap">
+              <button id="dayViewBtn" class="btn small menu-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="dayViewMenu">View <span id="dayViewCount" class="menu-count" hidden></span><span class="menu-caret" aria-hidden="true"></span></button>
+              <div id="dayViewMenu" class="menu" role="menu" hidden>
+                <label id="dayDoneToggle" class="menu-item" role="menuitemcheckbox" title="Show focus sessions, check-ins and finished tasks next to your plan"><input id="dayShowDone" type="checkbox"> Show what's done <span id="dayDoneCount" class="muted-note"></span></label>
+                <label id="dayMoveDoneRow" class="menu-item sub" role="menuitemcheckbox" title="Drag finished items in the Done column to the time they really happened"><input id="dayMoveDoneCheck" type="checkbox"> Move done items</label>
+                <label id="dayAppsToggle" class="menu-item" role="menuitemcheckbox" title="Show which apps you used, through the day, next to your plan"><input id="dayShowApps" type="checkbox"> Show apps</label>
+                <p id="dayViewEmpty" class="menu-note" hidden>Nothing to show yet for a day ahead.</p>
+              </div>
+            </div>
+            <button id="dayScheduleAll" class="btn small primary" type="button" hidden title="Give every task without a time the next free time in your working hours, starred and due tasks first. Missed blocks move forward too.">Schedule my day</button>
             <button id="dayRefresh" type="button" data-cal-refresh></button>
           </div>
         </div>
@@ -221,7 +234,7 @@
         <p id="dayWarning" class="insight-note warn-text" hidden></p>
         <div class="day-layout">
           <aside id="daySide" class="day-side" aria-label="Tasks without a time">
-            <div class="day-side-head"><h3>No time yet</h3><button id="dayScheduleAll" class="btn small" type="button" hidden title="Give every task here the next free time in your working hours, starred and due tasks first. Missed blocks move forward too.">Schedule all</button></div>
+            <div class="day-side-head"><h3>No time yet</h3></div>
             <ul id="dayTodo" class="day-todo-list"></ul>
             <div id="dayApps" class="day-apps" hidden></div>
             <p id="dayTodoHint" class="field-note">Drag a task onto the calendar to schedule it. Drag a scheduled task back here to clear its time. Hold Ctrl+Shift and drop a task on another one to make it a subtask.</p>
@@ -314,8 +327,13 @@
       <div id="tab-settings" class="tab" role="tabpanel" hidden>
         <h2>Settings</h2>
         <div class="settings-layout">
-        <nav id="settingsNav" class="settings-nav" aria-label="Settings sections"></nav>
+        <div class="settings-side">
+          <label for="settingsSearch" class="sr-only">Search settings</label>
+          <input id="settingsSearch" class="settings-search" type="search" placeholder="Search settings" autocomplete="off">
+          <nav id="settingsNav" class="settings-nav" aria-label="Settings sections"></nav>
+        </div>
         <div class="settings-body">
+        <p id="settingsNoMatch" class="field-note settings-nomatch" hidden></p>
 
         <section class="settings">
           <fieldset data-cat="plan">
@@ -357,7 +375,16 @@
 
           <fieldset data-cat="appearance">
             <legend>Look and feel</legend>
-            <div class="field-col"><span>Color theme</span>
+            <div class="field-col"><span>Look</span>
+              <div class="look-pick" role="radiogroup" aria-label="Look">
+                <label title="Classic Steady"><input type="radio" name="look" value="classic" aria-label="Classic"><span class="lv" style="--l:#F6F8F7;--d:#1B2427;--li:#1F2D33;--la:#2E6B62;--lr:10px"></span>Classic</label>
+                <label title="Notion-style: flat, warm white, bold titles"><input type="radio" name="look" value="notion" aria-label="Notion-style"><span class="lv" style="--l:#FFFFFF;--d:#191919;--li:#37352F;--la:#2383E2;--lr:5px"></span>Notion-style</label>
+                <label title="Linear-style: crisp, dense, violet"><input type="radio" name="look" value="linear" aria-label="Linear-style"><span class="lv" style="--l:#FBFBFB;--d:#0F1011;--li:#1B1C1F;--la:#5E6AD2;--lr:5px"></span>Linear-style</label>
+                <label title="Things-style: airy, soft blue, rounder"><input type="radio" name="look" value="things" aria-label="Things-style"><span class="lv" style="--l:#F5F6F8;--d:#1C1C1E;--li:#1C1C1E;--la:#2F7CF6;--lr:14px"></span>Things-style</label>
+              </div>
+              <p class="field-note">A look changes the whole style: colors, surfaces, corners and titles, in light and dark. With the Pine accent each look uses its own accent; pick another accent to use yours.</p>
+            </div>
+            <div class="field-col"><span>Color theme <span id="paletteOffNote" class="muted-note" hidden>(for the Classic look)</span></span>
               <div class="palette-pick" role="radiogroup" aria-label="Color theme">
                 <label title="Steady"><input type="radio" name="palette" value="steady" aria-label="Steady"><span class="pv" style="--l:#F6F8F7;--d:#1B2427;--li:#1F2D33"></span>Steady</label>
                 <label title="Paper"><input type="radio" name="palette" value="paper" aria-label="Paper"><span class="pv" style="--l:#F8F3E8;--d:#25211B;--li:#2F2A22"></span>Paper</label>
@@ -523,7 +550,7 @@
             </label>
           </fieldset>
 
-          <fieldset data-cat="distractions">
+          <fieldset data-cat="timeline">
             <legend>App timeline</legend>
             <label class="check"><input name="appTimeline" type="checkbox"> Keep a timeline of the apps and windows I use all day</label>
             <p class="field-note">Shown with "Show apps" on the Day tab. It records the app and window title in front every few seconds while you're at the computer, and stays on this computer.</p>
@@ -539,7 +566,7 @@
             <div class="button-row"><button id="appTimelineClear" class="btn small" type="button">Delete app history</button></div>
           </fieldset>
 
-          <fieldset data-cat="distractions">
+          <fieldset data-cat="protection">
             <legend>Do not disturb</legend>
             <p class="field-note">All of these are off until you turn them on, and only apply during focus sessions.</p>
             <label class="check"><input name="focusDnd" type="checkbox"> Silence Windows notifications during focus sessions</label>
@@ -838,6 +865,7 @@
   <script src="schedule.js"></script>
   <script src="planning.js"></script>
   <script src="day.js"></script>
+  <script src="rowmenu.js"></script>
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>
