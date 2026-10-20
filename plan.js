@@ -115,7 +115,7 @@ async function nestTask(id, parentId) {
     return false;
   }
   const before = { task: JSON.parse(JSON.stringify(t)), subs: (parent.subtasks || []).map((s) => ({ ...s })) };
-  const sub = { id: uid(), text: t.text, done: !!t.done, doneAt: t.done ? t.doneAt || Date.now() : null };
+  const sub = { id: uid(), text: t.text, done: !!t.done, doneAt: t.done ? t.doneAt || Date.now() : null, ...(t.note ? { note: t.note } : {}) };
   const carried = (t.subtasks || []).map((s) => ({ ...s }));
   parent.subtasks = [...(parent.subtasks || []), sub, ...carried];
   parent.subsHidden = false;
@@ -352,6 +352,8 @@ function renderGlance(force = false) {
 let subAddFor = null; // task whose "Add a subtask" box is open
 let subEditing = null; // { taskId, subId } while a subtask is being renamed
 let subDrag = null; // { taskId, subId } while a subtask is being dragged
+let subNoteFor = null; // { taskId, subId } while a subtask's note is open
+let subPromote = null; // { taskId, subId } while asking whether a new task keeps the project
 let subOpening = null; // task whose subtask list was just opened, so it can slide in
 
 function findSub(taskId, subId) {
@@ -370,8 +372,82 @@ function subtaskRow(t, s, canFocus) {
       : `<button class="sub-text" type="button" data-sub-rename="${t.id}" data-sub-id="${s.id}" title="Click to rename">${esc(s.text)}</button>`}
     ${focused ? '<span class="sub-now">In focus</span>' : ''}
     ${!s.done && canFocus ? `<button class="sub-act" type="button" data-sub-focus="${t.id}" data-sub-id="${s.id}" aria-label="Focus on ${esc(s.text)}" title="Focus on just this">▶</button>` : ''}
+    <button class="sub-act${s.note ? ' has-note' : ''}" type="button" data-sub-note="${t.id}" data-sub-id="${s.id}" aria-label="${s.note ? 'Edit the note on' : 'Add a note to'} ${esc(s.text)}" title="${s.note ? 'Edit note' : 'Add a note'}">✎</button>
+    <button class="sub-act" type="button" data-sub-promote="${t.id}" data-sub-id="${s.id}" aria-label="Make ${esc(s.text)} a task of its own" title="Make it a task of its own">↗</button>
     <button class="sub-act del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}" title="Remove">×</button>
-  </li>`;
+  </li>${subExtras(t, s)}`;
+}
+
+// Under a subtask: its note (or the box to write one), and the "keep the project?" question when it becomes a task.
+function subExtras(t, s) {
+  const here = (x) => x && x.taskId === t.id && x.subId === s.id;
+  let out = '';
+  if (here(subNoteFor)) {
+    out += `<li class="sub-note-edit"><textarea data-sub-note-text="${t.id}" data-sub-id="${s.id}" rows="2" maxlength="2000" placeholder="A note for later, like who to follow up with" aria-label="Note on ${esc(s.text)}">${esc(s.note || '')}</textarea>
+      <span class="field-note">Ctrl+Enter saves, Esc cancels</span></li>`;
+  } else if (s.note) {
+    out += `<li class="sub-note"><button type="button" data-sub-note="${t.id}" data-sub-id="${s.id}" title="Edit note">${esc(s.note)}</button></li>`;
+  }
+  if (here(subPromote)) {
+    const p = projectById(t.projectId);
+    out += `<li class="sub-promote" role="group" aria-label="Make it a task">Make "${esc(s.text)}" a task:
+      <button class="btn small" type="button" data-promote-keep="${t.id}" data-sub-id="${s.id}">Keep ${p ? esc(p.name) : 'the project'}</button>
+      <button class="btn small quiet" type="button" data-promote-none="${t.id}" data-sub-id="${s.id}">No project</button>
+      <button class="link" type="button" data-promote-cancel>Cancel</button></li>`;
+  }
+  return out;
+}
+
+// Turns a subtask into a task of its own on the parent's day, right after the parent. It keeps its note and
+// whether it's done, and sessions spent on it move with it. Undo puts it back.
+async function promoteSubtask(taskId, subId, keepProject) {
+  const t = findTask(taskId);
+  const s = findSub(taskId, subId);
+  subPromote = null;
+  if (!t || !s) return null;
+  if ((S.state === 'focus' || S.state === 'paused') && S.taskId === t.id && S.subId === s.id) {
+    showNudge(`"${s.text}" is in focus right now. End the session before making it a task.`, 'info', true);
+    renderPlan();
+    return null;
+  }
+  const before = { subs: t.subtasks.map((x) => ({ ...x })), order: tasksFor(t.day).map((x) => [x, x.order]) };
+  const task = {
+    id: uid(), text: s.text, day: t.day, est: 0, projectId: keepProject ? t.projectId || null : null,
+    done: !!s.done, doneAt: s.done ? s.doneAt || Date.now() : null, createdAt: Date.now(), order: 0,
+    ...(s.note ? { note: s.note } : {})
+  };
+  t.subtasks = t.subtasks.filter((x) => x.id !== s.id);
+  const list = tasksFor(t.day);
+  list.splice(list.indexOf(t) + 1, 0, task);
+  data.tasks.push(task);
+  list.forEach((x, n) => { x.order = n; });
+  const moved = data.entries.filter((e) => e.taskId === t.id && e.subId === s.id);
+  moved.forEach((e) => { e.taskId = task.id; e.subId = null; });
+  await persist('tasks', 'entries');
+  renderPlan();
+  showNudge(`"${task.text}" is now a task of its own${task.projectId ? ` in ${projectName(task.projectId)}` : ''}.`, 'info', true, {
+    label: 'Undo',
+    fn: async () => {
+      if (!findTask(task.id)) return;
+      data.tasks = data.tasks.filter((x) => x.id !== task.id);
+      const p = findTask(t.id);
+      if (p) p.subtasks = before.subs;
+      before.order.forEach(([x, o]) => { x.order = o; });
+      moved.forEach((e) => { e.taskId = t.id; e.subId = s.id; });
+      await persist('tasks', 'entries');
+      renderPlan();
+    }
+  });
+  return task;
+}
+
+async function saveSubNote(taskId, subId, text) {
+  subNoteFor = null;
+  const s = findSub(taskId, subId);
+  if (!s) { renderPlan(); return; }
+  const clean = String(text || '').trim();
+  if (clean) s.note = clean; else delete s.note;
+  await updateSubtasks(taskId, () => {});
 }
 
 function subtaskBlock(t, canFocus) {
@@ -485,6 +561,22 @@ function bindSubtasks() {
       updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== subId); });
     } else if (b.dataset.subFocus) {
       startSubtask(b.dataset.subFocus, subId);
+    } else if (b.dataset.subNote) {
+      subNoteFor = { taskId: b.dataset.subNote, subId };
+      renderPlan();
+      const box = list.querySelector('[data-sub-note-text]');
+      if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+    } else if (b.dataset.subPromote) {
+      const t = findTask(b.dataset.subPromote);
+      if (t && t.projectId) { subPromote = { taskId: t.id, subId }; renderPlan(); list.querySelector('[data-promote-keep]')?.focus(); }
+      else promoteSubtask(b.dataset.subPromote, subId, false);
+    } else if (b.dataset.promoteKeep) {
+      promoteSubtask(b.dataset.promoteKeep, subId, true);
+    } else if (b.dataset.promoteNone) {
+      promoteSubtask(b.dataset.promoteNone, subId, false);
+    } else if (b.dataset.promoteCancel !== undefined) {
+      subPromote = null;
+      renderPlan();
     } else if (b.dataset.subRename) {
       subEditing = { taskId: b.dataset.subRename, subId };
       renderPlan();
@@ -507,6 +599,13 @@ function bindSubtasks() {
     addSubtask(id, text);
   });
   list.addEventListener('keydown', (e) => {
+    const note = e.target.dataset?.subNoteText;
+    if (note) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveSubNote(note, e.target.dataset.subId, e.target.value); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); subNoteFor = null; renderPlan(); }
+      return;
+    }
+    if (e.key === 'Escape' && subPromote) { e.preventDefault(); subPromote = null; renderPlan(); return; }
     if (e.target.classList.contains('sub-edit')) {
       if (e.key === 'Enter') { e.preventDefault(); finishRename(e.target, true); }
       if (e.key === 'Escape') { e.preventDefault(); finishRename(e.target, false); }
@@ -516,6 +615,8 @@ function bindSubtasks() {
   });
   list.addEventListener('focusout', (e) => {
     if (e.target.classList.contains('sub-edit') && subEditing) { finishRename(e.target, true); return; }
+    const note = e.target.dataset?.subNoteText;
+    if (note && subNoteFor) { saveSubNote(note, e.target.dataset.subId, e.target.value); return; } // clicking away keeps what you wrote
     const form = e.target.closest('[data-sub-add]');
     // Close an empty add box once you click elsewhere.
     if (form && !e.target.value.trim() && subAddFor === form.dataset.subAdd) {
@@ -700,6 +801,7 @@ function renderPlan() {
           ${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}`}
         </div>
         ${timed && timeFor === t.id ? timeFormHtml(t, planDay) : ''}
+        ${t.note ? `<button class="task-note" type="button" data-task-edit="${t.id}" title="Edit task and note">${esc(t.note)}</button>` : ''}
         ${subtaskBlock(t, canFocus)}
       </li>`;
     }).join('')
@@ -1071,6 +1173,7 @@ function openTaskDialog(id) {
   $('taskEditDay').value = t.day;
   $('taskEditPreset').innerHTML = '<option value="">Whatever is selected</option>' + settings.presets
     .map((p) => `<option value="${p.id}" ${p.id === t.presetId ? 'selected' : ''}>${esc(p.name)} (${p.focusMin} min)</option>`).join('');
+  $('taskEditNote').value = t.note || '';
   $('taskEditDone').checked = !!t.done;
   const r = recurById(t.recurId);
   $('taskEditRepeat').innerHTML = REPEAT_OPTIONS.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('');
@@ -1105,6 +1208,8 @@ async function saveTaskDialog() {
     return { ...s, doneAt: s.done ? (old?.done && old.doneAt ? old.doneAt : Date.now()) : null };
   });
   t.due = $('taskEditDue').value || null;
+  const note = $('taskEditNote').value.trim();
+  if (note) t.note = note; else delete t.note;
   t.starred = $('taskEditStar').checked;
   const blockStart = $('taskEditBlockStart').value;
   if (blockStart) {

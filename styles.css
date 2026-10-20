@@ -710,6 +710,17 @@ button.task-main:hover { background: var(--tint-pine); }
 .sub-act:not(.del) { font-size: 0.7rem; }
 .sub-act:hover { color: var(--pine); }
 .sub-act.del:hover { color: var(--berry); }
+.sub-act.has-note { opacity: 0.8; color: var(--pine); }
+/* Notes for later, under a task or a subtask */
+.task-note, .sub-note button { grid-column: 2 / -1; justify-self: start; max-width: 100%; text-align: left; font: inherit; font-size: 0.82rem; color: var(--muted);
+  background: color-mix(in srgb, var(--amber) 9%, transparent); border: 0; border-left: 2px solid color-mix(in srgb, var(--amber) 60%, transparent);
+  border-radius: 0 6px 6px 0; padding: 3px 8px; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: -2px; }
+.task-note:hover, .sub-note button:hover { color: var(--ink); }
+.sub-note, .sub-note-edit, .sub-promote { list-style: none; margin: 0 0 4px 46px; }
+.sub-note-edit textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.85rem; padding: 6px 8px; border-radius: 8px; resize: vertical; }
+.sub-note-edit .field-note { font-size: 0.75rem; }
+.sub-promote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); padding: 4px 0; }
 .sub-row:hover .sub-act, .sub-act:focus-visible { opacity: 1; }
 .sub-row.focused { background: var(--tint-amber); }
 .sub-now { font-size: 0.72rem; font-weight: 600; color: var(--amber-ink); white-space: nowrap; }
