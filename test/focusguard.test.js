@@ -58,30 +58,65 @@ test('strict mode keeps a session from ending early after its first minute', asy
 
 /* ---------- The all-day app timeline ---------- */
 
-test('the app timeline joins samples of the same app, marks distractions and counts switches', async () => {
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { createTimeline } = require('../apptimeline');
+
+test('the timeline joins samples of the same app and window, keeps titles once, and survives a restart', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steady-tl-'));
+  const tl = createTimeline(dir);
+  const t0 = new Date('2026-10-20T10:00:00').getTime();
+  for (let s = 0; s <= 10; s += 2) tl.add(t0 + s * 1000, 'code', 'main.js - Steady');
+  for (let s = 12; s <= 20; s += 2) tl.add(t0 + s * 1000, 'chrome', 'Cats - YouTube');
+  tl.add(t0 + 22000, 'code', 'main.js - Steady');
+  tl.add(t0 + 24000, 'idle', ''); // never recorded
+  assert.deepEqual(tl.getDay('2026-10-20').map((x) => [x[2], x[3], (x[1] - x[0]) / 1000]),
+    [['code', 'main.js - Steady', 12], ['chrome', 'Cats - YouTube', 10], ['code', 'main.js - Steady', 2]]);
+  tl.flush();
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dir, '2026-10-20.json'), 'utf8'));
+  assert.deepEqual(onDisk.titles, ['main.js - Steady', 'Cats - YouTube']);
+  assert.equal(createTimeline(dir).getDay('2026-10-20').length, 3);
+});
+
+test('old days are deleted after the chosen number of days, and never when it is set to keep forever', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steady-tl-'));
+  for (const k of ['2025-01-01', '2026-10-01', '2026-10-19']) fs.writeFileSync(path.join(dir, `${k}.json`), '{"titles":[],"log":[]}');
+  const tl = createTimeline(dir);
+  const now = new Date('2026-10-20T12:00:00').getTime();
+  assert.equal(tl.prune(0, now), 0);
+  assert.equal(fs.readdirSync(dir).length, 3);
+  assert.equal(tl.prune(30, now), 1);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['2026-10-01.json', '2026-10-19.json']);
+});
+
+test("1.15's timeline in the data file moves into day files", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'steady-tl-'));
+  const tl = createTimeline(dir);
+  tl.importOld({ '2026-10-19': [[1, 5, 'VS Code', 0], [6, 9, 'Chrome', 1]] });
+  assert.deepEqual(tl.getDay('2026-10-19'), [[1, 5, 'VS Code', ''], [6, 9, 'Chrome', '']]);
+});
+
+test('the Day summary shows time per app with its main windows, marks distractions, and counts switches', () => {
   const { get, call } = setup({});
   const t0 = new Date('2026-10-20T10:00:00').getTime();
-  // drive recordApp directly with fixed times
-  await call(`data.appLog = {};
-    const t0 = ${t0};
-    for (let s = 0; s <= 60; s += 2) recordApp(t0 + s * 1000, 'VS Code', false);
-    for (let s = 62; s <= 90; s += 2) recordApp(t0 + s * 1000, 'Chrome', true);
-    for (let s = 92; s <= 100; s += 2) recordApp(t0 + s * 1000, 'VS Code', false);
-    recordApp(t0 + 400000, 'Slack', false);`);
+  call(`settings.distractionKeywords = ['YouTube'];
+    appDays.set('2026-10-20', { at: Date.now(), log: [
+      [${t0}, ${t0 + 60000}, 'code', 'main.js'],
+      [${t0 + 60000}, ${t0 + 90000}, 'chrome', 'Cats - YouTube'],
+      [${t0 + 90000}, ${t0 + 100000}, 'code', 'day.js'],
+      [${t0 + 400000}, ${t0 + 402000}, 'slack', 'general'],
+      [${t0 + 402000}, ${t0 + 404000}, 'lockapp', '']
+    ] })`);
   const d = get(`appDay('2026-10-20')`);
-  assert.deepEqual(d.log.map((x) => x[2]), ['VS Code', 'Chrome', 'VS Code', 'Slack']);
-  assert.deepEqual(d.apps.map((x) => [x.name, Math.round(x.sec)]), [['VS Code', 72], ['Chrome', 30], ['Slack', 2]]);
-  assert.equal(Math.round(d.distractSec), 30);
+  assert.deepEqual(d.apps.map((x) => [x.name, x.sec, x.titles.map((t) => t.title)]),
+    [['VS Code', 70, ['main.js', 'day.js']], ['Chrome', 30, ['Cats - YouTube']], ['Slack', 2, ['general']]]);
+  assert.equal(d.distractSec, 30);
   assert.equal(d.switches, 2); // Slack came after a long gap: a pause, not a switch
 });
 
-test('the timeline keeps only app names, respects the setting, and drops days older than 30', async () => {
-  const { get, call } = setup({ appLog: { '2020-01-01': [[1, 2, 'Old', 0]] } });
-  await call(`settings.distractionKeywords = ['YouTube']; onActivity({ app: 'chrome', title: 'Cats - YouTube', idle: 0 })`);
-  const day = get('todayKey()');
-  assert.deepEqual(get(`data.appLog['${day}'].map((x) => [x[2], x[3]])`), [['Chrome', 1]]);
-  assert.equal(JSON.stringify(get('data.appLog')).includes('Cats'), false);
-  assert.equal(get(`data.appLog['2020-01-01']`), null); // trimmed on save
-  await call(`settings.appTimeline = false; data.appLog = {}; onActivity({ app: 'chrome', title: 'x', idle: 0 })`);
-  assert.deepEqual(get('data.appLog'), {});
+test('keeping the timeline defaults to 30 days, and can be set to forever', () => {
+  const { get } = setup({});
+  assert.equal(get('settings.appLogKeepDays'), 30);
+  assert.equal(get('NUM_FIELDS.appLogKeepDays[0]'), 0);
 });

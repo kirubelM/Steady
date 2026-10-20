@@ -18,6 +18,12 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.15.1
+
+- **Project suggestions in quick capture.** Type # in the To do box of quick capture (Ctrl+Shift+Space) and your projects show up under it. Use the Up and Down arrows to choose and Tab or Enter to pick.
+- **Window titles on the app timeline.** The timeline now notes the window you were in, not just the app. Hover a stretch in the apps lane on the Day tab to see its main windows; the summary beside it shows each app's most-used window.
+- **Keep your app history as long as you like.** In Settings > Distractions, keep the timeline for a week, 30 days, 90 days, a year or forever, or delete it. It's now stored in its own files, so a long history doesn't slow Steady down.
+
 ## What's new in 1.15.0
 
 - **Smarter quick add.** Type a day, a repeat, a project and a star along with a task, in the Plan box or quick capture (Ctrl+Shift+Space): "Send invoice fri 2pm 1h #client ! every week". Steady understands days like tomorrow, fri, next week, oct 31 or in 3 days, and repeats like every weekday, every friday or monthly. A line under the box shows what it will do before you press Enter, and repeating tasks keep their time on later days.
