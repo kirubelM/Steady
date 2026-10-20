@@ -60,7 +60,8 @@ function materializeDay(day) {
     data.tasks.push({
       id: uid(), text: r.text, day, est: r.est || 0, projectId: r.projectId || null, presetId: r.presetId || null,
       recurId: r.id, done: false, doneAt: null, createdAt: Date.now(), order: nextOrder(day),
-      subtasks: (r.subtasks || []).map((text) => ({ id: uid(), text, done: false }))
+      subtasks: (r.subtasks || []).map((text) => ({ id: uid(), text, done: false })),
+      ...(r.block ? { block: { day, startMin: r.block.startMin, mins: r.block.mins } } : {})
     });
     changed = true;
   }

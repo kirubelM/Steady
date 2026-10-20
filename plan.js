@@ -1129,10 +1129,9 @@ function bindPlan() {
     e.preventDefault();
     const text = $('taskInput').value.trim();
     if (!text) return;
-    const when = planDay >= todayKey() ? parseTaskTime(text) : null;
-    const day = planDay;
-    addTask(when ? when.text : text, $('taskEst').value, day, $('taskProject').value || null).then((id) => {
-      if (when) setBlock(id, day, when.startMin, when.mins || defaultBlockMins(findTask(id)));
+    addQuickTask(text, { baseDay: planDay, est: $('taskEst').value, projectId: $('taskProject').value || null }).then((added) => {
+      const q = added && added.parsed;
+      if (q && q.day !== planDay) showNudge(`Added "${q.text}" for ${quickAddSummary(q)}.`, 'info', true, { label: 'Show', fn: () => { planDay = q.day; renderPlan(); } });
     });
     $('taskInput').value = '';
     showTimeHint();

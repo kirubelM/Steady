@@ -5,7 +5,7 @@ const {
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execFileSync } = require('child_process');
 const log = require('./logger');
 const backup = require('./backup');
 const calendar = require('./calendar');
@@ -379,6 +379,64 @@ function toggleMini() {
   updateMini();
 }
 
+/* ---------- Do not disturb during focus (Windows) ---------- */
+
+// Turns Windows notifications (Settings > System > Notifications) off for a focus session and back on after.
+// What it found is saved to a file first, so a crash mid-session still gets it put back at the next start.
+const TOAST_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications';
+const dndFile = () => path.join(app.getPath('userData'), 'dnd-restore.json');
+
+function readToastEnabled() {
+  try {
+    const out = execFileSync('reg.exe', ['query', TOAST_KEY, '/v', 'ToastEnabled'], { windowsHide: true, encoding: 'utf8' });
+    const m = out.match(/ToastEnabled\s+REG_DWORD\s+0x([0-9a-f]+)/i);
+    return m ? parseInt(m[1], 16) : 1;
+  } catch { return 1; } // not set means on
+}
+function writeToastEnabled(value) {
+  execFileSync('reg.exe', ['add', TOAST_KEY, '/v', 'ToastEnabled', '/t', 'REG_DWORD', '/d', String(value), '/f'], { windowsHide: true });
+}
+
+function setDnd(on) {
+  if (process.platform !== 'win32') return { ok: false, error: 'Do not disturb only works on Windows.' };
+  try {
+    if (on) {
+      if (fs.existsSync(dndFile())) return { ok: true }; // already on for this session
+      const was = readToastEnabled();
+      fs.writeFileSync(dndFile(), JSON.stringify({ toastEnabled: was }));
+      if (was !== 0) writeToastEnabled(0);
+      log.info('Do not disturb on');
+    } else {
+      restoreDnd();
+    }
+    return { ok: true };
+  } catch (e) {
+    log.warn('Do not disturb failed', e.message);
+    return { ok: false, error: "Steady couldn't change Windows notifications." };
+  }
+}
+function restoreDnd() {
+  if (process.platform !== 'win32' || !fs.existsSync(dndFile())) return;
+  try {
+    const { toastEnabled } = JSON.parse(fs.readFileSync(dndFile(), 'utf8'));
+    writeToastEnabled(toastEnabled === 0 ? 0 : 1);
+    fs.unlinkSync(dndFile());
+    log.info('Do not disturb off');
+  } catch (e) { log.warn('Could not turn do not disturb off', e.message); }
+}
+
+// Minimizes every window of an app (by its process name, like "discord").
+function minimizeApp(name) {
+  if (process.platform !== 'win32' || !/^[\w .-]{1,64}$/.test(String(name || ''))) return;
+  const ps = `Add-Type @"
+using System; using System.Runtime.InteropServices;
+public static class SteadyMin { [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd); }
+"@
+Get-Process -Name '${name.replace(/'/g, "''")}' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [void][SteadyMin]::ShowWindow($_.MainWindowHandle, 6) }`;
+  const encoded = Buffer.from(ps, 'utf16le').toString('base64');
+  spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], { windowsHide: true });
+}
+
 /* ---------- Active window, call and presentation watcher (Windows) ---------- */
 
 // Reports the foreground app and window title every 2 seconds. Every 10 seconds it also
@@ -690,6 +748,8 @@ ipcMain.handle('block:status', () => ({ supported: process.platform === 'win32',
 ipcMain.handle('block:grant', () => changeHostsAccess(true));
 ipcMain.handle('block:revoke', () => { clearBlock(); return changeHostsAccess(false); });
 ipcMain.handle('block:clear', () => clearBlock());
+ipcMain.handle('dnd:set', (_e, on) => setDnd(!!on));
+ipcMain.on('app:minimize', (_e, name) => minimizeApp(name));
 ipcMain.handle('startup:supported', () => startupSupported());
 ipcMain.handle('startup:apply', () => { applyStartup(); return startupSupported(); });
 ipcMain.on('theme:set', () => applyTheme());
@@ -901,6 +961,7 @@ if (!app.requestSingleInstanceLock()) {
     else saveData();
     setInterval(runDailyBackup, 6 * 3600000);
     clearBlock(); // in case a previous run crashed mid-session
+    restoreDnd();
     applyStartup(); // keeps the sign-in entry pointing at the current install
     applyTheme();
     createMainWindow();
@@ -932,6 +993,7 @@ if (!app.requestSingleInstanceLock()) {
     app.isQuitting = true;
     log.info('Quitting');
     clearBlock();
+    restoreDnd();
     if (watcher) watcher.kill();
     if (idlePoller) clearInterval(idlePoller);
   });

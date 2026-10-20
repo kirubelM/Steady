@@ -55,8 +55,9 @@ function dayItems(day) {
   return [...meetings, ...tasks];
 }
 
-const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, mode: 'day' };
+const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, showApps: false, mode: 'day' };
 try {
+  dayView.showApps = localStorage.getItem('dayShowApps') === '1';
   dayView.showDone = localStorage.getItem('dayShowDone') === '1';
   dayView.moveDone = localStorage.getItem('dayMoveDone') === '1';
   dayView.mode = localStorage.getItem('dayMode') === 'week' ? 'week' : 'day';
@@ -154,6 +155,9 @@ function renderDay() {
     }).join('')
     : `<li class="empty">${days.some((d) => tasksFor(d).some((t) => !t.done)) ? 'Everything has a time.' : `No tasks for this ${week ? 'week' : 'day'}. Add some on the Plan tab.`}</li>`;
   $('dayTodoHint').hidden = !anyEditable;
+  const missedToday = days.includes(today) ? missedBlocks().length : 0;
+  $('dayScheduleAll').hidden = !anyEditable || !(days.filter((d) => d >= today).some((d) => unscheduledTasks(d).length) || missedToday);
+  $('dayScheduleAll').textContent = week ? 'Schedule the week' : 'Schedule my day';
 
   // All-day events (day view only; the week view keeps its columns uncluttered)
   const allDay = !week && calendarOn() ? eventsOn(day).filter((ev) => ev.allDay) : [];
@@ -170,9 +174,17 @@ function renderDay() {
   $('dayMoveDone').setAttribute('aria-pressed', String(moveDone));
   $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
 
+  // Apps used: day view only
+  const showApps = !week && dayView.showApps && day <= today;
+  $('dayAppsToggle').hidden = week || day > today;
+  $('dayShowApps').checked = dayView.showApps;
+  const apps = showApps ? appDay(day) : null;
+  const appSpans = apps ? appStretches(apps.log, day) : [];
+  renderAppSummary(apps);
+
   // The calendar
   const cols = days.map((d) => ({ day: d, items: layoutColumns(dayItems(d)) }));
-  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done]);
+  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done, ...appSpans]);
   dayView.range = [a, b];
   const y = (m) => ((m - a) * DAY_PX_PER_MIN).toFixed(1);
   const place = (it) => `top:${y(it.startMin)}px;height:${Math.max(18, (it.endMin - it.startMin) * DAY_PX_PER_MIN - 2).toFixed(1)}px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`;
@@ -234,18 +246,21 @@ function renderDay() {
   const head = week
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
-    : showDone ? `<div class="cal-cols" aria-hidden="true"><span>Planned</span><span>Done${done.length ? '' : ' · nothing yet'}</span></div>` : '';
+    : showDone || showApps ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span>${showDone ? `<span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span>` : ''}${showApps ? `<span class="cc-apps">Apps${appSpans.length ? '' : ' · none yet'}</span>` : ''}</div>` : '';
+  const appBlocks = appSpans.map((s) => `<div class="cal-app${s.distract ? ' distract' : ''}" style="top:${y(s.startMin)}px;height:${Math.max(2, (s.endMin - s.startMin) * DAY_PX_PER_MIN - 1).toFixed(1)}px;--ac:${appColor(s.name)}"
+      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}\n${s.name}${s.distract ? '\nDistracting' : ''}`)}">${s.endMin - s.startMin >= 20 ? `<span>${esc(s.name)}</span>` : ''}</div>`).join('');
 
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
+  $('dayCal').classList.toggle('with-apps', showApps);
   $('dayCal').classList.toggle('moving-done', moveDone);
   $('dayCal').classList.toggle('week', week);
-  $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
+  $('daySide').parentElement.classList.toggle('wide-cal', showDone || showApps || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
-      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
+      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${showApps ? `<div class="cal-col cal-apps" aria-label="Apps you used">${appBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
     </div>`;
-  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone;
+  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone || showApps;
 }
 
 // The week's scheduled and free time, from today on.
@@ -256,6 +271,49 @@ function weekSummary(days) {
   const free = ahead.reduce((a, d) => a + freeBlocks(d).reduce((s, [x, y]) => s + (y - x), 0), 0);
   const text = `${blocked ? `${fmtMins(blocked / 1000)} scheduled for tasks this week. ` : 'Nothing scheduled this week yet. '}${ahead.length ? `${fmtMins(free / 1000)} free in your working hours${ahead.length < 7 ? ' from today on' : ''}.` : ''}`;
   return { text, warning: calendarOn() && !Cal.error ? Cal.warning : null };
+}
+
+/* ---------- Day view: the apps you used ---------- */
+
+// The timeline as stretches in minutes after midnight, joining samples of the same app less than a minute apart
+// so the column reads as blocks rather than slivers.
+function appStretches(log, day) {
+  const midnight = atDay(day, 0);
+  const out = [];
+  for (const [a, b, name, flag] of log) {
+    const last = out[out.length - 1];
+    const startMin = (a - midnight) / 60000;
+    const endMin = (b - midnight) / 60000;
+    if (last && last.name === name && last.distract === !!flag && startMin - last.endMin < 1) last.endMin = endMin;
+    else out.push({ name, distract: !!flag, startMin, endMin });
+  }
+  return out.filter((s) => s.endMin > s.startMin);
+}
+
+// A steady color for each app, from its name.
+function appColor(name) {
+  let h = 0;
+  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 42% 52%)`;
+}
+
+// The side panel's summary: top apps, time on distractions and how often you switched.
+function renderAppSummary(apps) {
+  const box = $('dayApps');
+  box.hidden = !apps;
+  if (!apps) return;
+  if (!apps.apps.length) {
+    box.innerHTML = `<h3>Apps</h3><p class="field-note">${settings.appTimeline === false
+      ? 'The app timeline is off. Turn it on in Settings > Distractions.'
+      : 'Nothing recorded for this day yet. Steady notes the app in front every few seconds while you\'re at the computer.'}</p>`;
+    return;
+  }
+  const top = apps.apps.slice(0, 6);
+  const max = top[0].sec || 1;
+  box.innerHTML = `<h3>Apps <span class="muted-note">${fmtMins(apps.totalSec)}</span></h3>
+    <ul class="app-list">${top.map((x) => `<li><span class="app-dot" style="--ac:${appColor(x.name)}"></span><span class="app-name">${esc(x.name)}</span>
+      <span class="app-time">${fmtMins(Math.max(60, x.sec))}</span><span class="app-bar" aria-hidden="true"><span style="width:${(x.sec / max * 100).toFixed(0)}%;--ac:${appColor(x.name)}"></span></span></li>`).join('')}</ul>
+    <p class="field-note">${apps.distractSec >= 60 ? `<strong>${fmtMins(apps.distractSec)}</strong> on distractions. ` : ''}Switched apps ${plural(apps.switches, 'time')}.</p>`;
 }
 
 // Scrolls the calendar to the current time (today) or the first thing on the day, once per day shown.
@@ -280,6 +338,12 @@ function bindDay() {
   $('dayPrev').addEventListener('click', () => go(shiftKey(planDay, -step())));
   $('dayNext').addEventListener('click', () => go(shiftKey(planDay, step())));
   $('dayToday').addEventListener('click', () => go(todayKey()));
+  $('dayScheduleAll').addEventListener('click', () => scheduleDayAndTell(shownDays()));
+  $('dayShowApps').addEventListener('change', (e) => {
+    dayView.showApps = e.target.checked;
+    try { localStorage.setItem('dayShowApps', dayView.showApps ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
   $('dayShowDone').addEventListener('change', (e) => {
     dayView.showDone = e.target.checked;
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }

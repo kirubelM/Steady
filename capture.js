@@ -1,7 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const KINDS = ['todo', 'done', 'park'];
 const PLACEHOLDERS = {
-  todo: 'Something to do today',
+  todo: 'Something to do, e.g. Call Sam fri 2pm #project !',
   done: 'Something you just finished',
   park: 'A stray thought to deal with later'
 };
@@ -17,7 +17,9 @@ function setKind(k) {
   $('minutes').hidden = k !== 'done';
   $('hint').innerHTML = k === 'done'
     ? '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type. Add time by ending with a number, like "20m".'
-    : '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type, <kbd>Esc</kbd> closes';
+    : k === 'todo'
+      ? '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type. Type a day, a time, "every week", a #project or ! to star.'
+      : '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type, <kbd>Esc</kbd> closes';
   $('text').focus();
 }
 

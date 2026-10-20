@@ -121,6 +121,7 @@ function paletteCommands() {
   add('Go to Plan', () => showTab('plan'), 'Ctrl+1');
   add('Plan tomorrow', () => { planDay = shiftKey(dayKey(Date.now()), 1); showTab('plan'); ensureCalendarFor(planDay); });
   add('Go to Day view', () => showTab('day'), 'Ctrl+2');
+  add('Schedule my day: give every task the next free time', () => { planDay = todayKey(); scheduleDayAndTell([todayKey()]); });
   add('Go to Work log', () => showTab('log'), 'Ctrl+3');
   add('Add an entry to the work log', () => { showTab('log'); openEntryDialog(null, viewDay); });
   add('Go to Insights', () => showTab('insights'), 'Ctrl+4');

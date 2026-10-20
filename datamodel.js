@@ -55,6 +55,11 @@ const DEFAULTS = {
     startAtLogin: false,
     startMinimized: true,
     blockSites: false,
+    focusDnd: false,
+    focusBlockApps: false,
+    blockedApps: ['Discord', 'Steam', 'Spotify'],
+    strictFocus: false,
+    appTimeline: true,
     blockedSites: ['youtube.com', 'reddit.com', 'x.com', 'twitter.com', 'facebook.com', 'instagram.com', 'tiktok.com'],
     distractionKeywords: ['YouTube', 'Reddit', 'Twitter', ' / X', 'Facebook', 'Instagram', 'TikTok', 'Netflix']
   },
@@ -64,6 +69,7 @@ const DEFAULTS = {
   recurring: [],
   projects: [],
   notes: {},
+  appLog: {}, // day -> [[start ms, end ms, app, 1 if distracting]], the all-day app timeline
   meta: {}
 };
 
@@ -102,6 +108,7 @@ function normalize(input) {
     recurring: Array.isArray(raw.recurring) ? raw.recurring : [],
     projects: Array.isArray(raw.projects) ? raw.projects : [],
     notes: raw.notes && typeof raw.notes === 'object' ? raw.notes : {},
+    appLog: raw.appLog && typeof raw.appLog === 'object' && !Array.isArray(raw.appLog) ? raw.appLog : {},
     meta: raw.meta && typeof raw.meta === 'object' ? raw.meta : {}
   };
 }

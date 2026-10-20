@@ -1179,6 +1179,8 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .day-side { position: sticky; top: 0; z-index: 5; padding: 14px; transition: border-color 120ms ease, background-color 120ms ease; }
 .day-side h3 { margin: 0 0 8px; font-size: 0.95rem; }
 .day-side.drop-out { border: 1px dashed var(--berry); background: var(--tint-berry); }
+.day-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.day-side .day-side-head h3 { margin: 0; }
 .day-todo-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
 .day-todo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--pc, var(--pine)); background: var(--fog); }
 .day-todo[draggable="true"] { cursor: grab; }
@@ -1273,6 +1275,29 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.short { flex-direction: row; align-items: center; gap: 8px; padding-top: 0; padding-bottom: 0; }
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
+/* "Show apps": a narrow lane of the apps you used, beside the plan (and the done column) */
+.day-cal.with-apps .cal-plan { right: 24%; }
+.day-cal.with-apps .cal-apps { left: 78%; border-left: 1px dashed var(--line); padding-left: 4px; }
+.day-cal.with-done.with-apps .cal-plan { right: 56%; }
+.day-cal.with-done.with-apps .cal-actual { left: 45%; right: 24%; }
+.cal-cols .cc-plan { flex: 0 0 58%; }
+.day-cal.with-apps .cal-cols .cc-plan { flex-basis: 76%; }
+.day-cal.with-done.with-apps .cal-cols .cc-plan { flex-basis: 44%; }
+.day-cal.with-done.with-apps .cal-cols .cc-done { flex: 0 0 32%; padding-left: 8px; }
+.cal-cols .cc-apps { flex: 1; padding-left: 8px; }
+.cal-app { position: absolute; left: 4px; right: 2px; box-sizing: border-box; border-radius: 3px; background: color-mix(in srgb, var(--ac) 70%, var(--card)); overflow: hidden; z-index: 2; }
+.cal-app span { display: block; padding: 2px 5px; font-size: 0.7rem; font-weight: 600; color: var(--on-accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-app.distract { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--berry) 75%, var(--card)) 0 5px, color-mix(in srgb, var(--berry) 55%, var(--card)) 5px 10px); }
+.day-apps { margin: 4px 0 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.day-apps h3 { display: flex; align-items: baseline; justify-content: space-between; }
+.app-list { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 0.82rem; }
+.app-list li { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 2px 8px; }
+.app-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--ac); }
+.app-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-time { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.app-bar { grid-column: 2 / -1; height: 3px; border-radius: 2px; background: var(--tint-pine); overflow: hidden; }
+.app-bar span { display: block; height: 100%; background: var(--ac); }
+.day-move-done { white-space: nowrap; }
 .day-move-done[aria-pressed="true"] { background: var(--tint-pine); border-color: var(--pine); color: var(--pine); }
 .cal-done.movable { cursor: grab; touch-action: none; }
 .cal-done.moving { cursor: grabbing; z-index: 4; box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4); }

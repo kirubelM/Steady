@@ -288,10 +288,16 @@ async function init() {
   api.onCapture(async (item) => {
     const text = String(item.text || '').trim();
     if (!text) return;
-    if (item.kind === 'todo') await addTask(text, 0, dayKey(Date.now()));
-    else if (item.kind === 'done') await addDoneItem(text, item.minutes, null, dayKey(Date.now()));
+    if (item.kind === 'todo') {
+      const added = await addQuickTask(text);
+      const q = added && added.parsed;
+      const extra = q && quickAddSummary(q, todayKey());
+      showNudge(`Added "${q ? q.text : text}" to ${q && q.day !== todayKey() ? 'your plan' : 'today\'s plan'}${extra ? `: ${extra}` : ''}.`, 'info', true);
+      return;
+    }
+    if (item.kind === 'done') await addDoneItem(text, item.minutes, null, dayKey(Date.now()));
     else await addParking(text);
-    const where = { todo: 'today\'s plan', done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
+    const where = { done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
     showNudge(`Added "${text}" to ${where}.`, 'info', true);
   });
   api.onRecovered((name) => {
