@@ -42,6 +42,7 @@
       "schedule.js",
       "planning.js",
       "day.js",
+      "rowmenu.js",
       "goals.js",
       "shortcuts.js",
       "datacare.js",

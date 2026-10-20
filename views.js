@@ -92,7 +92,7 @@ function entryHtml(e) {
       ${node}
       <div class="when">${fmtTime(e.start)}</div>
       <div class="entry-body"><p class="meta"><span class="type-badge">${e.skipped ? 'Skipped break' : label}</span>${fmtMins(Math.max(60, (e.end - e.start) / 1000))}${e.snoozes ? `, snoozed ${plural(e.snoozes, 'time')}` : ''}</p></div>
-      <div class="entry-actions"><button class="del" data-del="${e.id}" type="button" aria-label="Delete this break">×</button></div>
+      <div class="entry-actions"><button class="del" data-del="${e.id}" type="button" aria-label="Delete this break">${icon('close')}</button></div>
     </li>`;
   }
   const apps = (e.apps || []).slice(0, 3).map((a) => esc(a.name)).join(', ');
@@ -415,6 +415,7 @@ const TEXT_FIELDS = {
   theme: (v) => (['system', 'light', 'dark'].includes(v) ? v : null),
   accent: (v) => (['pine', 'ocean', 'plum', 'terracotta', 'graphite', 'rose', 'indigo', 'sunflower'].includes(v) ? v : null),
   palette: (v) => (PALETTES.some(([id]) => id === v) ? v : null),
+  look: (v) => (['classic', 'notion', 'linear', 'things'].includes(v) ? v : null),
   corners: (v) => (['rounded', 'sharp'].includes(v) ? v : null),
   density: (v) => (['comfortable', 'compact'].includes(v) ? v : null),
   font: (v) => (['segoe', 'serif', 'mono', 'classic'].includes(v) ? v : null),
@@ -496,13 +497,35 @@ async function saveSettings(ev) {
 
 const SETTINGS_CATS = [
   ['focus', 'Focus'], ['breaks', 'Breaks'], ['plan', 'Projects and tasks'], ['calendar', 'Calendar'],
-  ['distractions', 'Distractions'], ['appearance', 'Appearance and startup'], ['data', 'Data and backups'], ['help', 'Help and about']
+  ['distractions', 'Sites and apps'], ['protection', 'Focus protection'], ['timeline', 'App timeline'],
+  ['appearance', 'Appearance and startup'], ['data', 'Data and backups'], ['help', 'Help and about']
 ];
 let settingsCat = 'focus';
 try { settingsCat = localStorage.getItem('settingsCat') || 'focus'; } catch { /* storage unavailable */ }
 
+// Search: every section whose words match, from all categories at once. Clearing it goes back to the category.
+function searchSettings(query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) { $('settingsNoMatch').hidden = true; showSettingsCat(settingsCat); return; }
+  const words = q.split(/\s+/);
+  let found = 0;
+  document.querySelectorAll('#tab-settings [data-cat]').forEach((el) => {
+    const text = el.textContent.toLowerCase() + ' ' + [...el.querySelectorAll('option')].map((o) => o.textContent.toLowerCase()).join(' ');
+    el.hidden = !words.every((w) => text.includes(w));
+    if (!el.hidden) found++;
+  });
+  document.querySelectorAll('#tab-settings .settings').forEach((box) => {
+    box.hidden = ![...box.querySelectorAll('[data-cat]')].some((el) => !el.hidden);
+  });
+  document.querySelectorAll('#settingsNav [data-cat-btn]').forEach((b) => b.setAttribute('aria-current', 'false'));
+  $('settingsNoMatch').hidden = !!found;
+  $('settingsNoMatch').textContent = found ? '' : `No settings match "${query.trim()}".`;
+}
+
 function showSettingsCat(cat) {
   if (!SETTINGS_CATS.some(([id]) => id === cat)) cat = 'focus';
+  if ($('settingsSearch') && $('settingsSearch').value) $('settingsSearch').value = '';
+  $('settingsNoMatch') && ($('settingsNoMatch').hidden = true);
   settingsCat = cat;
   try { localStorage.setItem('settingsCat', cat); } catch { /* storage unavailable */ }
   $('settingsNav').innerHTML = SETTINGS_CATS.map(([id, label]) =>
@@ -567,6 +590,10 @@ function applyAppearance(s = settings) {
   const root = document.documentElement.dataset;
   root.accent = s.accent || 'pine';
   root.palette = s.palette || 'steady';
+  root.look = s.look || 'classic';
+  const pick = document.querySelector('.palette-pick');
+  if (pick) pick.classList.toggle('off', root.look !== 'classic'); // a look brings its own colors
+  if ($('paletteOffNote')) $('paletteOffNote').hidden = root.look === 'classic';
   root.corners = s.corners || 'rounded';
   root.density = s.density || 'comfortable';
   root.font = s.font || 'segoe';
@@ -578,7 +605,7 @@ function applyAppearance(s = settings) {
 function previewAppearance() {
   const f = $('settingsForm');
   const pick = {};
-  ['accent', 'palette', 'corners', 'density', 'font', 'ringStyle'].forEach((k) => {
+  ['accent', 'palette', 'look', 'corners', 'density', 'font', 'ringStyle'].forEach((k) => {
     const v = TEXT_FIELDS[k](String(f.elements[k].value));
     pick[k] = v === null ? settings[k] : v;
   });
@@ -607,6 +634,8 @@ function bindSettingsNav() {
   applyAppearance();
   setInterval(applyDayTint, 10 * 60000);
   bindBlockPermission();
+  $('settingsSearch').addEventListener('input', (e) => searchSettings(e.target.value));
+  $('settingsSearch').addEventListener('keydown', (e) => { if (e.key === 'Escape' && e.target.value) { e.preventDefault(); e.stopPropagation(); e.target.value = ''; searchSettings(''); } });
   $('settingsNav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-cat-btn]');
     if (b) showSettingsCat(b.dataset.catBtn);

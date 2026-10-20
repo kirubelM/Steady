@@ -57,8 +57,9 @@ function onKeydown(e) {
   }
   if (dialogOpen) return; // dialogs handle their own keys
 
-  if (ctrl && e.key === 'Enter' && document.activeElement !== $('task')) { e.preventDefault(); toggleSession(); return; }
+  if (ctrl && e.key === 'Enter' && document.activeElement !== $('task') && document.activeElement?.tagName !== 'TEXTAREA') { e.preventDefault(); toggleSession(); return; }
   if (ctrl && !e.shiftKey && k === 'e') { e.preventDefault(); finishFocus(true); return; }
+  if (ctrl && !e.shiftKey && e.key === '\\') { e.preventDefault(); setPaneCollapsed(!paneCollapsed); return; }
   if (ctrl && !e.shiftKey && k === 'n') { e.preventDefault(); goAddTodo(); return; }
   if (ctrl && !e.shiftKey && k === 'd') { e.preventDefault(); goAddDone(); return; }
   if (ctrl && !e.shiftKey && k === 'j') { e.preventDefault(); goPark(); return; }
@@ -121,6 +122,7 @@ function paletteCommands() {
   add('Go to Plan', () => showTab('plan'), 'Ctrl+1');
   add('Plan tomorrow', () => { planDay = shiftKey(dayKey(Date.now()), 1); showTab('plan'); ensureCalendarFor(planDay); });
   add('Go to Day view', () => showTab('day'), 'Ctrl+2');
+  add(paneCollapsed ? 'Show the timer panel' : 'Hide the timer panel', () => setPaneCollapsed(!paneCollapsed), 'Ctrl+\\');
   add('Schedule my day: give every task the next free time', () => { planDay = todayKey(); scheduleDayAndTell([todayKey()]); });
   add('Go to Work log', () => showTab('log'), 'Ctrl+3');
   add('Add an entry to the work log', () => { showTab('log'); openEntryDialog(null, viewDay); });
