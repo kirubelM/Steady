@@ -18,6 +18,11 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.15.2
+
+- **Make a subtask a task of its own.** Use the ↗ button on a subtask to turn it into a task, placed right after its parent. If the parent has a project, Steady asks whether to keep it. The new task keeps the subtask's note and whether it was done, and time you already spent on it moves with it. Undo puts it back.
+- **Notes for follow-ups.** Add a note to a task in its editor, or to a subtask with its ✎ button, for things like who to follow up with and when. Notes show under the task or subtask; click one to edit it. They stay with a task when it becomes a subtask and back.
+
 ## What's new in 1.15.1
 
 - **Project suggestions in quick capture.** Type # in the To do box of quick capture (Ctrl+Shift+Space) and your projects show up under it. Use the Up and Down arrows to choose and Tab or Enter to pick.
