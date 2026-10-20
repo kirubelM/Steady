@@ -26,6 +26,7 @@
       "backup.js",
       "calendar.js",
       "datamodel.js",
+      "apptimeline.js",
       "updater.js",
       "index.html",
       "styles.css",

@@ -178,6 +178,7 @@ function renderDay() {
   const showApps = !week && dayView.showApps && day <= today;
   $('dayAppsToggle').hidden = week || day > today;
   $('dayShowApps').checked = dayView.showApps;
+  if (showApps) loadAppDay(day, renderDay);
   const apps = showApps ? appDay(day) : null;
   const appSpans = apps ? appStretches(apps.log, day) : [];
   renderAppSummary(apps);
@@ -248,7 +249,7 @@ function renderDay() {
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
     : showDone || showApps ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span>${showDone ? `<span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span>` : ''}${showApps ? `<span class="cc-apps">Apps${appSpans.length ? '' : ' · none yet'}</span>` : ''}</div>` : '';
   const appBlocks = appSpans.map((s) => `<div class="cal-app${s.distract ? ' distract' : ''}" style="top:${y(s.startMin)}px;height:${Math.max(2, (s.endMin - s.startMin) * DAY_PX_PER_MIN - 1).toFixed(1)}px;--ac:${appColor(s.name)}"
-      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}\n${s.name}${s.distract ? '\nDistracting' : ''}`)}">${s.endMin - s.startMin >= 20 ? `<span>${esc(s.name)}</span>` : ''}</div>`).join('');
+      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}\n${s.name}${s.distract ? ' (distracting)' : ''}${s.titles.slice(0, 3).map((t) => `\n• ${t.length > 70 ? `${t.slice(0, 69)}…` : t}`).join('')}${s.titles.length > 3 ? `\n+ ${s.titles.length - 3} more` : ''}`)}">${s.endMin - s.startMin >= 20 ? `<span>${esc(s.name)}</span>` : ''}</div>`).join('');
 
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
@@ -280,14 +281,17 @@ function weekSummary(days) {
 function appStretches(log, day) {
   const midnight = atDay(day, 0);
   const out = [];
-  for (const [a, b, name, flag] of log) {
+  for (const [a, b, name, flag, title] of log) {
     const last = out[out.length - 1];
     const startMin = (a - midnight) / 60000;
     const endMin = (b - midnight) / 60000;
-    if (last && last.name === name && last.distract === !!flag && startMin - last.endMin < 1) last.endMin = endMin;
-    else out.push({ name, distract: !!flag, startMin, endMin });
+    const add = (s) => { if (title) s.titles.set(title, (s.titles.get(title) || 0) + (b - a)); };
+    if (last && last.name === name && last.distract === !!flag && startMin - last.endMin < 1) { last.endMin = endMin; add(last); }
+    else { const s = { name, distract: !!flag, startMin, endMin, titles: new Map() }; add(s); out.push(s); }
   }
-  return out.filter((s) => s.endMin > s.startMin);
+  // Each stretch names its main windows, most used first.
+  return out.filter((s) => s.endMin > s.startMin)
+    .map((s) => ({ ...s, titles: [...s.titles.entries()].sort((x, y) => y[1] - x[1]).map(([t]) => t) }));
 }
 
 // A steady color for each app, from its name.
@@ -311,8 +315,8 @@ function renderAppSummary(apps) {
   const top = apps.apps.slice(0, 6);
   const max = top[0].sec || 1;
   box.innerHTML = `<h3>Apps <span class="muted-note">${fmtMins(apps.totalSec)}</span></h3>
-    <ul class="app-list">${top.map((x) => `<li><span class="app-dot" style="--ac:${appColor(x.name)}"></span><span class="app-name">${esc(x.name)}</span>
-      <span class="app-time">${fmtMins(Math.max(60, x.sec))}</span><span class="app-bar" aria-hidden="true"><span style="width:${(x.sec / max * 100).toFixed(0)}%;--ac:${appColor(x.name)}"></span></span></li>`).join('')}</ul>
+    <ul class="app-list">${top.map((x) => `<li${x.titles.length ? ` title="${esc(x.titles.slice(0, 5).map((t) => `${t.title} (${fmtMins(Math.max(60, t.sec))})`).join('\n'))}"` : ''}><span class="app-dot" style="--ac:${appColor(x.name)}"></span><span class="app-name">${esc(x.name)}</span>
+      <span class="app-time">${fmtMins(Math.max(60, x.sec))}</span>${x.titles[0] ? `<span class="app-window">${esc(x.titles[0].title)}</span>` : ''}<span class="app-bar" aria-hidden="true"><span style="width:${(x.sec / max * 100).toFixed(0)}%;--ac:${appColor(x.name)}"></span></span></li>`).join('')}</ul>
     <p class="field-note">${apps.distractSec >= 60 ? `<strong>${fmtMins(apps.distractSec)}</strong> on distractions. ` : ''}Switched apps ${plural(apps.switches, 'time')}.</p>`;
 }
 

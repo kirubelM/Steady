@@ -652,7 +652,6 @@ function onActivity(info) {
 
   const name = friendlyApp(info.app);
   if (name) tally[name] = (tally[name] || 0) + 2;
-  if (name && settings.appTimeline !== false) recordApp(now, name, isDistracting(info.app, title));
 
   if (S.state !== 'focus') return;
   if (settings.focusBlockApps && blockedAppHit(info.app) && now - (S.lastAppBlockAt || 0) > 3000) {
@@ -677,48 +676,52 @@ function onActivity(info) {
 
 /* ---------- The all-day app timeline ---------- */
 
-const APP_LOG_DAYS = 30;
-const APP_SAMPLE_MS = 2000; // the watcher reports every 2 seconds
-let appLogSavedAt = 0;
+// The main process writes the timeline to its own files; the page asks for a day when it needs it.
+const appDays = new Map(); // day -> { log: [[start, end, app, title]], at: when it was fetched }
 
 // A window counts as distracting when its title has a distraction word, or its app is on the minimize list.
+// Judged when shown, so changing the words changes past days too.
 function isDistracting(raw, title) {
   const lower = String(title || '').toLowerCase();
   return settings.distractionKeywords.some((k) => k.trim() && lower.includes(k.trim().toLowerCase())) || blockedAppHit(raw);
 }
 
-// Adds one sample to today's timeline, stretching the last stretch when it's the same app.
-// Saves at most once a minute; only app names are kept, never window titles.
-function recordApp(now, name, distracting) {
-  const day = dayKey(now);
-  const log = data.appLog[day] || (data.appLog[day] = []);
-  const flag = distracting ? 1 : 0;
-  const last = log[log.length - 1];
-  if (last && last[2] === name && last[3] === flag && now - last[1] <= APP_SAMPLE_MS * 3) last[1] = now;
-  else log.push([now - APP_SAMPLE_MS, now, name, flag]);
-  if (now - appLogSavedAt < 60000) return;
-  appLogSavedAt = now;
-  const cutoff = shiftKey(day, -APP_LOG_DAYS);
-  Object.keys(data.appLog).forEach((k) => { if (k < cutoff) delete data.appLog[k]; });
-  persist('appLog');
+// Fetches a day (today again after a minute) and redraws the Day tab when it arrives.
+function loadAppDay(day, redraw) {
+  const have = appDays.get(day);
+  const stale = !have || (day === dayKey(Date.now()) && Date.now() - have.at > 60000);
+  if (!stale || (have && have.loading)) return;
+  appDays.set(day, { ...(have || { log: [] }), loading: true, at: Date.now() });
+  Promise.resolve(api.appDay(day)).then((log) => {
+    appDays.set(day, { log: Array.isArray(log) ? log : [], at: Date.now() });
+    if (redraw) redraw();
+  }).catch(() => appDays.set(day, { log: (have && have.log) || [], at: Date.now() }));
 }
 
-// A day of app use: the stretches, time per app, time on distractions and how often you switched apps.
+// A day of app use: stretches of [start, end, app, distracting, title], time per app (with its main windows),
+// time on distractions, and how often you switched apps.
 function appDay(day) {
-  const log = (data.appLog && data.appLog[day]) || [];
+  const raw = (appDays.get(day) || {}).log || [];
+  const log = raw
+    .map(([a, b, app, title]) => [a, b, friendlyApp(app), isDistracting(app, title) ? 1 : 0, title || ''])
+    .filter((x) => x[2]);
   const byApp = new Map();
   let switches = 0;
   let distractSec = 0;
-  log.forEach(([a, b, name, flag], i) => {
+  log.forEach(([a, b, name, flag, title], i) => {
     const sec = (b - a) / 1000;
-    const row = byApp.get(name) || { name, sec: 0, distractSec: 0 };
+    const row = byApp.get(name) || { name, sec: 0, distractSec: 0, titles: new Map() };
     row.sec += sec;
     if (flag) { row.distractSec += sec; distractSec += sec; }
+    if (title) row.titles.set(title, (row.titles.get(title) || 0) + sec);
     byApp.set(name, row);
     const prev = log[i - 1];
     if (prev && prev[2] !== name && a - prev[1] < 60000) switches++; // a gap of a minute or more is a pause, not a switch
   });
-  const apps = [...byApp.values()].sort((x, y) => y.sec - x.sec);
+  const apps = [...byApp.values()].sort((x, y) => y.sec - x.sec).map((x) => ({
+    name: x.name, sec: x.sec, distractSec: x.distractSec,
+    titles: [...x.titles.entries()].sort((p, q) => q[1] - p[1]).map(([title, sec]) => ({ title, sec }))
+  }));
   return { log, apps, switches, distractSec, totalSec: apps.reduce((t, x) => t + x.sec, 0) };
 }
 

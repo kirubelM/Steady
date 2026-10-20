@@ -402,7 +402,7 @@ async function addParking(text) {
 const NUM_FIELDS = {
   longBreakMin: [1, 120], longEvery: [2, 12],
   eyeEveryMin: [5, 120], idleCheckinMin: [10, 240], snoozeMin: [1, 30], maxSnoozes: [0, 5],
-  idlePauseMin: [1, 60], dailyGoalMin: [0, 720], weeklyReviewDay: [0, 6]
+  idlePauseMin: [1, 60], dailyGoalMin: [0, 720], weeklyReviewDay: [0, 6], appLogKeepDays: [0, 3650]
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
@@ -541,6 +541,13 @@ function bindBlockPermission() {
     'Done. Site blocking is allowed and will work in your next focus session.'));
   $('blockRevokeBtn').addEventListener('click', () => run($('blockRevokeBtn'), api.removeBlockingPermission,
     'Permission removed. Blocking will need it again before it can work.'));
+  $('appTimelineClear').addEventListener('click', async () => {
+    if (!confirm('Delete every day of your app timeline? This can\'t be undone.')) return;
+    await api.clearAppTimeline();
+    appDays.clear();
+    showNudge('Your app timeline was deleted.', 'info', true);
+    if (typeof renderDay === 'function' && !$('tab-day').hidden) renderDay();
+  });
 }
 
 // Whole-app color themes: [id, name, light background, dark background, text color for the preview].

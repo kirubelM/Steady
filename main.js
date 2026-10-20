@@ -11,6 +11,7 @@ const backup = require('./backup');
 const calendar = require('./calendar');
 const { normalize } = require('./datamodel');
 const updater = require('./updater');
+const { createTimeline } = require('./apptimeline');
 
 app.setAppUserModelId(app.isPackaged ? 'com.steady.focus' : process.execPath);
 
@@ -23,6 +24,7 @@ let breakWindows = [];
 let breakActive = false;
 let watcher = null;
 let idlePoller = null;
+let timeline = null; // the all-day app timeline, one file per day
 let data = null;
 let lastState = { state: 'idle', remaining: 0, total: 1, task: '', start: 0 };
 let miniOverride = null;      // null | 'show' | 'hide' — reset whenever a new session starts
@@ -488,14 +490,42 @@ while ($true) {
 `;
 
 function sendActivity(info) {
+  const idle = powerMonitor.getSystemIdleTime();
   sendToMain('activity', {
     app: info.app || '',
     title: info.title || '',
     mic: !!info.mic,
     presenting: info.qs === 4, // QUNS_PRESENTATION_MODE
-    idle: powerMonitor.getSystemIdleTime()
+    idle
   });
+  // Away from the keyboard for two minutes or more isn't app use.
+  if (timeline && info.app && idle < 120 && data && data.settings.appTimeline !== false) timeline.add(Date.now(), info.app, info.title);
 }
+
+/* ---------- The all-day app timeline ---------- */
+
+function startTimeline() {
+  timeline = createTimeline(path.join(app.getPath('userData'), 'apptimeline'));
+  if (data.appLog) { // 1.15 kept it in the data file
+    try { timeline.importOld(data.appLog); delete data.appLog; saveData(); } catch (e) { log.warn('Could not move the app timeline', e.message); }
+  }
+  const tidy = () => {
+    try { timeline.flush(); timeline.prune(data.settings.appLogKeepDays); } catch (e) { log.warn('App timeline', e.message); }
+  };
+  tidy();
+  setInterval(() => { try { timeline.flush(); } catch (e) { log.warn('App timeline save failed', e.message); } }, 60000);
+  setInterval(tidy, 6 * 3600000);
+}
+
+ipcMain.handle('apps:day', (_e, key) => (timeline && /^\d{4}-\d{2}-\d{2}$/.test(String(key)) ? timeline.getDay(key) : []));
+ipcMain.handle('apps:clear', () => {
+  if (!timeline) return false;
+  timeline.flush();
+  fs.rmSync(path.join(app.getPath('userData'), 'apptimeline'), { recursive: true, force: true });
+  timeline = createTimeline(path.join(app.getPath('userData'), 'apptimeline'));
+  log.info('App timeline deleted');
+  return true;
+});
 
 function startWatcher() {
   if (process.platform !== 'win32') {
@@ -941,6 +971,7 @@ ipcMain.on('capture:submit', (_e, item) => {
 });
 ipcMain.on('capture:close', () => { if (captureWindow) captureWindow.hide(); });
 ipcMain.on('capture:open', () => openCapture());
+ipcMain.handle('capture:projects', () => ((data && data.projects) || []).filter((p) => !p.archived).map((p) => ({ name: p.name, color: p.color })));
 
 /* ---------- App lifecycle ---------- */
 
@@ -960,6 +991,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!recoveredFrom) runDailyBackup();
     else saveData();
     setInterval(runDailyBackup, 6 * 3600000);
+    startTimeline();
     clearBlock(); // in case a previous run crashed mid-session
     restoreDnd();
     applyStartup(); // keeps the sign-in entry pointing at the current install
@@ -994,6 +1026,7 @@ if (!app.requestSingleInstanceLock()) {
     log.info('Quitting');
     clearBlock();
     restoreDnd();
+    try { if (timeline) timeline.flush(); } catch { /* quitting anyway */ }
     if (watcher) watcher.kill();
     if (idlePoller) clearInterval(idlePoller);
   });

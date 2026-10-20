@@ -1295,6 +1295,7 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .app-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--ac); }
 .app-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-time { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.app-window { grid-column: 2 / -1; font-size: 0.74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .app-bar { grid-column: 2 / -1; height: 3px; border-radius: 2px; background: var(--tint-pine); overflow: hidden; }
 .app-bar span { display: block; height: 100%; background: var(--ac); }
 .day-move-done { white-space: nowrap; }
