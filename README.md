@@ -18,6 +18,17 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.16.0
+
+- **Looks.** Pick a whole style in Settings > Appearance: Classic, Notion-style, Linear-style or Things-style, each with a light and a dark version. A look changes colors, surfaces, corners and titles together. With the Pine accent each look uses its own accent; pick another accent to use yours.
+- **One set of icons.** Buttons across the app now use matching outline icons.
+- **A tidier Day tab.** Show what's done, Move done items and Show apps are in a View menu, and Schedule my day is the main button at the top.
+- **A menu on every task.** Click ⋯ on a task or subtask, or right-click it, to focus, schedule, star, add a note or subtask, move it to today, tomorrow or next week, make it a subtask of another task, duplicate it or delete it (with Undo).
+- **Notes right in the list.** Use the note button on a task to write a note under it without opening the editor.
+- **Fold away the timer.** The button at the top of the timer panel (or Ctrl+\\) folds it to a slim bar while you're not focusing, with a start button and today's focus time. It opens again when a session starts.
+- **Easier settings.** Distractions is split into Sites and apps, Focus protection and App timeline, and a search box finds any setting.
+- **Fix.** Pressing Ctrl+Enter in a note box no longer starts a focus session.
+
 ## What's new in 1.15.2
 
 - **Make a subtask a task of its own.** Use the ↗ button on a subtask to turn it into a task, placed right after its parent. If the parent has a project, Steady asks whether to keep it. The new task keeps the subtask's note and whether it was done, and time you already spent on it moves with it. Undo puts it back.
