@@ -149,7 +149,7 @@ function combinedHtml(days, week) {
       const color = projectById(t.projectId)?.color;
       const when = t.done && t.doneAt ? `Done ${clock(t.doneAt)}` : `${clock(atDay(k, it.startMin))} – ${clock(atDay(k, it.endMin))}`;
       rows.push({ min: it.startMin, html: `<div class="ag-card ag-plan${t.done ? ' finished' : ''}"${color ? ` style="--bc:${color}"` : ''} data-cal-task="${t.id}" data-cal-day="${k}" tabindex="0" role="button" aria-label="${esc(`${t.done ? 'Finished' : 'Planned'}: ${t.text}, ${when}`)}">
-        <span class="ag-time">${when}</span><strong>${t.done ? '✓ ' : ''}${esc(t.text)}</strong><span class="ag-tag">${t.done ? 'Planned, done' : 'Planned'}</span></div>` });
+        <span class="ag-time">${when}</span><strong>${t.done ? '✓ ' : ''}${esc(t.text)}</strong><span class="ag-tag">${t.done ? 'Done' : 'Planned'}</span></div>` });
     });
     if (k <= today) {
       doneOnDay(k).forEach((it) => {
