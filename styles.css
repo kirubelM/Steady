@@ -1847,3 +1847,10 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .cal-task.finished { background: color-mix(in srgb, var(--bc, var(--pine)) 22%, var(--card, var(--paper))); color: var(--ink); opacity: 0.85; box-shadow: inset 3px 0 0 var(--bc, var(--pine)); }
 .cal-task.finished strong { text-decoration: line-through; text-decoration-thickness: 1px; }
 .cal-task.finished.past { opacity: 0.85; }
+
+/* Week view: each day's right side shows what was done */
+.day-cal.week .cal-actual.wk { border-left: 1px dashed var(--line); padding-left: 2px; }
+.day-cal.week .cal-done { font-size: 0.68rem; padding: 1px 4px; margin-left: 1px; }
+.day-cal.week .cal-done .cal-when, .day-cal.week .cal-done-icon { display: none; }
+.day-cal.week .cal-done:not(.point) strong { padding-right: 0; }
+.day-cal.week .cal-done.point { padding: 0 5px; }

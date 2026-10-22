@@ -148,3 +148,15 @@ test('a planned block stays on the calendar after its task is done, but stops co
   assert.equal(app.run("dayItems('2026-10-12')[0].task.done"), true);
   assert.equal(app.run("taskBlocksOn('2026-10-12').length"), 0);
 });
+
+test('the week view shows what was done on each day, beside the plan', () => {
+  const app = loadApp({ entries: [
+    { id: 'a', type: 'session', start: Date.now() - 3600000, end: Date.now() - 1800000, note: 'Write', focusSec: 1800 },
+    { id: 'b', type: 'manual', start: Date.now() - 7200000, end: Date.now() - 7200000, note: 'Called vendor', parkingCompletion: 'p' }
+  ] });
+  app.run("dayView.mode = 'week'; dayView.showDone = true; planDay = todayKey(); renderDay();");
+  const html = app.run("$('dayCal').innerHTML");
+  assert.match(html, /cal-actual wk/);
+  assert.match(html, /Write/);
+  assert.match(html, /Called vendor/);
+});

@@ -89,6 +89,19 @@ function doneOnDay(day) {
     });
 }
 
+// One day's finished things laid out for the calendar. Things with a length share columns. Quick completions
+// (ticked tasks) don't, or a burst of them would squeeze everything else; ones close together become a single pill.
+function doneLayout(day) {
+  const all = doneOnDay(day);
+  const points = all.filter((x) => x.point);
+  const bursts = [];
+  [...points].sort((p, q) => p.startMin - q.startMin).forEach((p) => {
+    const last = bursts[bursts.length - 1];
+    if (last && p.startMin - last.last < 20) { last.items.push(p); last.last = p.startMin; } else bursts.push({ items: [p], last: p.startMin });
+  });
+  return { count: all.length, ranged: layoutColumns(all.filter((x) => !x.point)), points, bursts };
+}
+
 const DONE_SNAP = 5; // finished things keep closer to their real times than plans do
 
 // Moves something finished to `start` (ms) on the same day, keeping its length. Never into the future.
@@ -168,24 +181,17 @@ function renderDay() {
   $('dayAllDay').hidden = !allDay.length;
   $('dayAllDay').innerHTML = allDay.map((ev) => `<span class="pchip" style="--pc:var(--muted)"${many ? ` title="${esc(ev.cal)}"` : ''}>${esc(ev.title)}</span>`).join('');
 
-  // What's done: day view only
-  const showDone = !week && dayView.showDone && day <= today;
-  // Things with a length share columns. Quick completions (ticked tasks) don't, or a burst of them would squeeze
-  // everything else; ones close together become a single pill.
-  const doneAll = showDone ? doneOnDay(day) : [];
-  const ranged = layoutColumns(doneAll.filter((d) => !d.point));
-  const bursts = [];
-  doneAll.filter((d) => d.point).sort((p, q) => p.startMin - q.startMin).forEach((p) => {
-    const last = bursts[bursts.length - 1];
-    if (last && p.startMin - last.last < 20) { last.items.push(p); last.last = p.startMin; } else bursts.push({ items: [p], last: p.startMin });
-  });
-  const done = [...ranged, ...doneAll.filter((d) => d.point)];
-  $('dayDoneToggle').hidden = week || day > today;
+  // What's done: the day, or each day of the week so far
+  const doneDays = days.filter((k) => k <= today);
+  const showDone = dayView.showDone && doneDays.length > 0;
+  const doneByDay = new Map((showDone ? doneDays : []).map((k) => [k, doneLayout(k)]));
+  const done = [...doneByDay.values()].flatMap((l) => [...l.ranged, ...l.points]);
+  $('dayDoneToggle').hidden = !doneDays.length;
   $('dayShowDone').checked = dayView.showDone;
-  const moveDone = showDone && dayView.moveDone;
-  $('dayMoveDoneRow').hidden = !showDone;
+  const moveDone = showDone && !week && dayView.moveDone; // dragging to a new time is for a single day
+  $('dayMoveDoneRow').hidden = !showDone || week;
   $('dayMoveDoneCheck').checked = moveDone;
-  $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
+  $('dayDoneCount').textContent = doneDays.length ? `(${doneDays.reduce((n, k) => n + (doneByDay.get(k)?.count ?? doneOnDay(k).length), 0)})` : '';
 
   // App insights: their own section under the calendar, for the day or for the whole week so far
   const appDaysShown = days.filter((k) => k <= today);
@@ -261,16 +267,22 @@ function renderDay() {
         ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
       </button>`;
   };
-  const doneBlocks = ranged.map((it) => doneBlock(it)).join('') + bursts.map((g) => {
+  const doneColumn = (k, l) => l.ranged.map((it) => doneBlock(it)).join('') + l.bursts.map((g) => {
     const first = g.items[0];
     if (g.items.length === 1) return doneBlock(first, `top:${y(first.startMin)}px;height:20px;right:4px;max-width:calc(100% - 8px)`);
     const names = g.items.map((it) => doneTitle(it.entry));
-    return `<button type="button" class="cal-done point burst" style="top:${y(first.startMin)}px;height:20px;right:4px" data-done-day="${day}"
+    return `<button type="button" class="cal-done point burst" style="top:${y(first.startMin)}px;height:20px;right:4px" data-done-day="${k}"
         aria-label="${esc(`${g.items.length} things finished around ${fmtTime(first.entry.start)}. Click to open the work log.`)}" data-tip="${esc(`${fmtTime(first.entry.start)}\n${names.slice(0, 8).join('\n')}${names.length > 8 ? `\n+ ${names.length - 8} more` : ''}`)}">
         <span class="cal-check" aria-hidden="true">✓</span><strong>${g.items.length} done</strong></button>`;
   }).join('');
+  // In the week view each day gives its right side to what was done.
+  const PLAN_SHARE = 0.62;
+  const doneCols = week && showDone ? doneDays.map((k) => {
+    const i = days.indexOf(k);
+    return `<div class="cal-col cal-actual wk" aria-label="What you did on ${esc(new Date(k + 'T12:00').toLocaleDateString([], { weekday: 'long' }))}" style="left:${((i + PLAN_SHARE) / 7 * 100).toFixed(3)}%;right:auto;width:${((1 - PLAN_SHARE) / 7 * 100).toFixed(3)}%">${doneColumn(k, doneByDay.get(k))}</div>`;
+  }).join('') : showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneColumn(day, doneByDay.get(day))}</div>` : '';
 
-  const colsHtml = cols.map((c, i) => `<div class="cal-col cal-plan${c.day < today ? ' past-day' : ''}${c.day === today ? ' today' : ''}" data-col-day="${c.day}"${week ? ` style="left:${(i / 7 * 100).toFixed(3)}%;right:auto;width:${(100 / 7).toFixed(3)}%"` : ''}>
+  const colsHtml = cols.map((c, i) => `<div class="cal-col cal-plan${c.day < today ? ' past-day' : ''}${c.day === today ? ' today' : ''}" data-col-day="${c.day}"${week ? ` style="left:${(i / 7 * 100).toFixed(3)}%;right:auto;width:${((showDone && c.day <= today ? PLAN_SHARE : 1) / 7 * 100).toFixed(3)}%"` : ''}>
       ${c.items.map((it) => blockHtml(it, c.day)).join('')}${week && c.day === today ? nowLine : ''}</div>`).join('');
   const head = week
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
@@ -283,7 +295,7 @@ function renderDay() {
   $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
-      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
+      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${doneCols}${!week && isToday ? nowLine : ''}</div>
     </div>`;
   $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone;
 }
