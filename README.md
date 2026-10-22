@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.17.11
+
+- **Left-over rows.** The "Move to today" button now sits clear of the row's border, and how long ago a task was planned ("8 days ago") is bold red.
+
 ## What's new in 1.17.10
 
 - **More room on the left-over rows.** The "Move to today" button now has space between it and the task text.
