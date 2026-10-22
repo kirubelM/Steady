@@ -191,3 +191,11 @@ test('left-over tasks can be sorted', () => {
   assert.equal(ids('project'), '2,1,3');
   assert.equal(ids('az'), '2,3,1');
 });
+
+test('#project in a missed check-in files it under that project', async () => {
+ const app = loadApp({projects:[{id:'a', name:'Acme Corp', color:'#111', archived:false}]});
+ app.run("S.checkinKind = 'checkin'; $('checkinNote').value = 'Reviewed contract #acme'; $('checkinMinutes').value = '30'; $('checkinTask').value = ''; $('checkinProject').value = ''; $('checkinDoneRow').hidden = true;");
+ await app.run('saveCheckin(true)');
+ assert.equal(app.run('data.entries[0].note'), 'Reviewed contract');
+ assert.equal(app.run('data.entries[0].projectId'), 'a');
+});

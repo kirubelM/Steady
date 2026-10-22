@@ -535,9 +535,9 @@ function openCheckin(kind) {
 }
 
 async function saveCheckin(primary) {
-  const note = $('checkinNote').value.trim();
+  const typedNote = $('checkinNote').value.trim();
   const rating = document.querySelector('input[name="rating"]:checked')?.value || 'on-track';
-  const projectId = $('checkinProject').value || null;
+  const { text: note, projectId } = typedNote ? await takeProjectTag(typedNote, $('checkinProject').value || null) : { text: '', projectId: $('checkinProject').value || null };
 
   if (S.checkinKind === 'session') {
     const p = S.pendingSession;

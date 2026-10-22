@@ -206,17 +206,17 @@ function openEntryDialog(id, day) {
 }
 
 async function saveEntryDialog() {
-  const note = $('entryNote').value.trim();
+  const typed = $('entryNote').value.trim();
   const date = $('entryDate').value;
   const time = $('entryStart').value;
   const mins = Math.max(0, Math.round(Number($('entryMinutes').value) || 0));
-  if (!note) { $('entryError').textContent = 'Describe what you worked on.'; $('entryNote').focus(); return; }
+  if (!typed) { $('entryError').textContent = 'Describe what you worked on.'; $('entryNote').focus(); return; }
   if (!date || !time) { $('entryError').textContent = 'Pick a date and start time.'; return; }
   const start = new Date(`${date}T${time}`).getTime();
   if (start > Date.now()) { $('entryError').textContent = 'The start time is in the future.'; return; }
 
   const rating = $('entryRating').value || null;
-  const projectId = $('entryProject').value || null;
+  const { text: note, projectId } = await takeProjectTag(typed, $('entryProject').value || null); // "#project" beats the picker
   let e = editingEntryId ? data.entries.find((x) => x.id === editingEntryId) : null;
   if (!e) {
     e = { id: uid(), type: 'manual' };
