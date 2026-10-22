@@ -167,7 +167,16 @@ function renderDay() {
 
   // What's done: day view only
   const showDone = !week && dayView.showDone && day <= today;
-  const done = showDone ? layoutColumns(doneOnDay(day)) : [];
+  // Things with a length share columns. Quick completions (ticked tasks) don't, or a burst of them would squeeze
+  // everything else; ones close together become a single pill.
+  const doneAll = showDone ? doneOnDay(day) : [];
+  const ranged = layoutColumns(doneAll.filter((d) => !d.point));
+  const bursts = [];
+  doneAll.filter((d) => d.point).sort((p, q) => p.startMin - q.startMin).forEach((p) => {
+    const last = bursts[bursts.length - 1];
+    if (last && p.startMin - last.last < 20) { last.items.push(p); last.last = p.startMin; } else bursts.push({ items: [p], last: p.startMin });
+  });
+  const done = [...ranged, ...doneAll.filter((d) => d.point)];
   $('dayDoneToggle').hidden = week || day > today;
   $('dayShowDone').checked = dayView.showDone;
   const moveDone = showDone && dayView.moveDone;
@@ -237,19 +246,25 @@ function renderDay() {
       </div>`;
   };
 
-  const doneBlocks = done.map((it) => {
+  const doneBlock = (it, forced) => {
     const e = it.entry;
     const color = projectById(e.projectId)?.color;
     const title = doneTitle(e);
     const when = it.point ? fmtTime(e.start) : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
     const label = `${entryLabel(e)}: ${title}, ${when}.${moveDone ? ' Drag, or use the Up and Down arrow keys, to change its time.' : ''}`;
-    const style = it.point
-      ? `top:${y(it.startMin)}px;height:20px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`
-      : place(it);
+    const style = forced || place(it);
     return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}${moveDone ? ' movable' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
         data-done-entry="${esc(e.id)}" data-done-start="${e.start}" data-done-len="${it.point ? 0 : e.end - e.start}" aria-label="${esc(label)} Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
         ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
       </button>`;
+  };
+  const doneBlocks = ranged.map((it) => doneBlock(it)).join('') + bursts.map((g) => {
+    const first = g.items[0];
+    if (g.items.length === 1) return doneBlock(first, `top:${y(first.startMin)}px;height:20px;right:4px;max-width:calc(100% - 8px)`);
+    const names = g.items.map((it) => doneTitle(it.entry));
+    return `<button type="button" class="cal-done point burst" style="top:${y(first.startMin)}px;height:20px;right:4px" data-done-day="${day}"
+        aria-label="${esc(`${g.items.length} things finished around ${fmtTime(first.entry.start)}. Click to open the work log.`)}" data-tip="${esc(`${fmtTime(first.entry.start)}\n${names.slice(0, 8).join('\n')}${names.length > 8 ? `\n+ ${names.length - 8} more` : ''}`)}">
+        <span class="cal-check" aria-hidden="true">✓</span><strong>${g.items.length} done</strong></button>`;
   }).join('');
 
   const colsHtml = cols.map((c, i) => `<div class="cal-col cal-plan${c.day < today ? ' past-day' : ''}${c.day === today ? ' today' : ''}" data-col-day="${c.day}"${week ? ` style="left:${(i / 7 * 100).toFixed(3)}%;right:auto;width:${(100 / 7).toFixed(3)}%"` : ''}>
@@ -259,7 +274,7 @@ function renderDay() {
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
     : showDone || showApps ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span>${showDone ? `<span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span>` : ''}${showApps ? `<span class="cc-apps">Apps${appSpans.length ? '' : ' · none yet'}</span>` : ''}</div>` : '';
   const appBlocks = appSpans.map((s) => `<div class="cal-app${s.distract ? ' distract' : ''}" style="top:${y(s.startMin)}px;height:${Math.max(2, (s.endMin - s.startMin) * DAY_PX_PER_MIN - 1).toFixed(1)}px;--ac:${appColor(s.name)}"
-      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}\n${s.name}${s.distract ? ' (distracting)' : ''}${s.titles.slice(0, 3).map((t) => `\n• ${t.length > 70 ? `${t.slice(0, 69)}…` : t}`).join('')}${s.titles.length > 3 ? `\n+ ${s.titles.length - 3} more` : ''}`)}">${s.endMin - s.startMin >= 20 ? `<span>${esc(s.name)}</span>` : ''}</div>`).join('');
+      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}${s.distract ? ' (distracting)' : ''}\n${s.mix.slice(0, 5).map(([app, sec]) => `${app}: ${fmtMins(Math.max(60, sec))}`).join('\n')}${s.mix.length > 5 ? `\n+ ${s.mix.length - 5} more` : ''}${s.titles.slice(0, 3).map((t) => `\n• ${t.length > 70 ? `${t.slice(0, 69)}…` : t}`).join('')}`)}"><span>${esc(s.name)}${s.endMin - s.startMin >= 30 ? ` <small>${fmtMins((s.endMin - s.startMin) * 60)}</small>` : ''}</span></div>`).join('');
 
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
@@ -288,20 +303,45 @@ function weekSummary(days) {
 
 // The timeline as stretches in minutes after midnight, joining samples of the same app less than a minute apart
 // so the column reads as blocks rather than slivers.
+// Switching apps every few seconds would draw hairlines, so the day is cut into 15-minute slots, each named for
+// the app used most in it, and neighbouring slots with the same app join into one labelled block.
+const APP_SLOT = 15;
 function appStretches(log, day) {
   const midnight = atDay(day, 0);
-  const out = [];
+  const slots = new Map();
   for (const [a, b, name, flag, title] of log) {
-    const last = out[out.length - 1];
-    const startMin = (a - midnight) / 60000;
-    const endMin = (b - midnight) / 60000;
-    const add = (s) => { if (title) s.titles.set(title, (s.titles.get(title) || 0) + (b - a)); };
-    if (last && last.name === name && last.distract === !!flag && startMin - last.endMin < 1) { last.endMin = endMin; add(last); }
-    else { const s = { name, distract: !!flag, startMin, endMin, titles: new Map() }; add(s); out.push(s); }
+    for (let t = a; t < b;) {
+      const slot = Math.floor((t - midnight) / 60000 / APP_SLOT);
+      const next = Math.min(b, midnight + (slot + 1) * APP_SLOT * 60000);
+      const s = slots.get(slot) || { apps: new Map(), titles: new Map(), distractMs: 0, ms: 0 };
+      s.apps.set(name, (s.apps.get(name) || 0) + (next - t));
+      if (title) s.titles.set(title, (s.titles.get(title) || 0) + (next - t));
+      if (flag) s.distractMs += next - t;
+      s.ms += next - t;
+      slots.set(slot, s);
+      t = next;
+    }
   }
-  // Each stretch names its main windows, most used first.
-  return out.filter((s) => s.endMin > s.startMin)
-    .map((s) => ({ ...s, titles: [...s.titles.entries()].sort((x, y) => y[1] - x[1]).map(([t]) => t) }));
+  const out = [];
+  [...slots.keys()].sort((x, y) => x - y).forEach((n) => {
+    const s = slots.get(n);
+    if (s.ms < 30000) return; // barely at the computer
+    const [name] = [...s.apps.entries()].sort((x, y) => y[1] - x[1])[0];
+    const distract = s.distractMs > s.ms / 2;
+    const last = out[out.length - 1];
+    const block = last && last.name === name && last.distract === distract && last.slot === n - 1 ? last : null;
+    const into = block || { name, distract, slot: n, startMin: n * APP_SLOT, endMin: n * APP_SLOT, apps: new Map(), titles: new Map() };
+    into.slot = n;
+    into.endMin = (n + 1) * APP_SLOT;
+    s.apps.forEach((ms, k) => into.apps.set(k, (into.apps.get(k) || 0) + ms));
+    s.titles.forEach((ms, k) => into.titles.set(k, (into.titles.get(k) || 0) + ms));
+    if (!block) out.push(into);
+  });
+  return out.map((s) => ({
+    ...s,
+    mix: [...s.apps.entries()].sort((x, y) => y[1] - x[1]).map(([app, ms]) => [app, ms / 1000]),
+    titles: [...s.titles.entries()].sort((x, y) => y[1] - x[1]).map(([t]) => t)
+  }));
 }
 
 // A steady color for each app, from its name.
@@ -410,6 +450,7 @@ function bindDay() {
     if (b.dataset.blockStart) startTask(b.dataset.blockStart);
     else if (b.dataset.unblock) unblockTask(b.dataset.unblock);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
+    else if (b.dataset.doneDay) { viewDay = b.dataset.doneDay; showTab('log'); }
     else if (b.dataset.doneEntry) { if (Date.now() - doneDragEnd > 300) openEntryDialog(b.dataset.doneEntry); }
     else if (b.dataset.reschedNext) rescheduleBlock(b.dataset.reschedNext, 'next');
     else if (b.dataset.reschedTomorrow) rescheduleBlock(b.dataset.reschedTomorrow, 'tomorrow');

@@ -1289,13 +1289,13 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
 /* "Show apps": a narrow lane of the apps you used, beside the plan (and the done column) */
-.day-cal.with-apps .cal-plan { right: 24%; }
-.day-cal.with-apps .cal-apps { left: 78%; border-left: 1px dashed var(--line); padding-left: 4px; }
-.day-cal.with-done.with-apps .cal-plan { right: 56%; }
-.day-cal.with-done.with-apps .cal-actual { left: 45%; right: 24%; }
+.day-cal.with-apps .cal-plan { right: 32%; }
+.day-cal.with-apps .cal-apps { left: 70%; border-left: 1px dashed var(--line); padding-left: 4px; }
+.day-cal.with-done.with-apps .cal-plan { right: 64%; }
+.day-cal.with-done.with-apps .cal-actual { left: 37%; right: 32%; }
 .cal-cols .cc-plan { flex: 0 0 58%; }
-.day-cal.with-apps .cal-cols .cc-plan { flex-basis: 76%; }
-.day-cal.with-done.with-apps .cal-cols .cc-plan { flex-basis: 44%; }
+.day-cal.with-apps .cal-cols .cc-plan { flex-basis: 68%; }
+.day-cal.with-done.with-apps .cal-cols .cc-plan { flex-basis: 36%; }
 .day-cal.with-done.with-apps .cal-cols .cc-done { flex: 0 0 32%; padding-left: 8px; }
 .cal-cols .cc-apps { flex: 1; padding-left: 8px; }
 .cal-app { position: absolute; left: 4px; right: 2px; box-sizing: border-box; border-radius: 3px; background: color-mix(in srgb, var(--ac) 70%, var(--card)); overflow: hidden; z-index: 2; }
@@ -1835,3 +1835,9 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .day-mode { flex-wrap: nowrap; }
 /* The looks keep the settings menu plain too. */
 :root:is([data-look="notion"], [data-look="linear"], [data-look="things"]) .settings-nav { background-image: none; }
+
+/* Quick completions float at the right edge of the Done column; a burst of them is one pill */
+.cal-done.point { left: auto; width: auto; }
+.cal-done.point strong { overflow: visible; }
+.cal-app span { line-height: 12px; }
+.cal-app small { font-weight: 500; opacity: 0.85; }

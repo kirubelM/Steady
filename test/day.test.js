@@ -124,3 +124,18 @@ test('a drag counts as "make it a subtask" when Ctrl+Shift were held as it began
   assert.equal(get(`nestKeys({ type: 'drop', dataTransfer: { dropEffect: 'link' } })`), true);
   assert.equal(get(`nestKeys({ type: 'drop', dataTransfer: { dropEffect: 'move' } })`), false);
 });
+
+test('the app column joins switching into labelled 15-minute blocks', () => {
+  const app = loadApp();
+  const out = app.run(`(() => {
+    const m = atDay('2026-10-12', 0);
+    const min = (n) => m + n * 60000;
+    // Chrome and Word swapped every minute from 9:00 to 9:30, then Chrome alone until 9:45, then a few seconds of Mail.
+    const log = [];
+    for (let i = 0; i < 30; i++) log.push([min(540 + i), min(541 + i), i % 3 ? 'Chrome' : 'Word', 0, 't']);
+    log.push([min(570), min(585), 'Chrome', 0, 't']);
+    log.push([min(600), min(600) + 5000, 'Mail', 0, '']);
+    return JSON.stringify(appStretches(log, '2026-10-12').map((s) => [s.name, s.startMin, s.endMin]));
+  })()`);
+  assert.deepEqual(JSON.parse(out), [['Chrome', 540, 585]]);
+});
