@@ -1901,4 +1901,7 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .leftover-icon { font-size: 1.05rem; line-height: 1; }
 .leftover-count { min-width: 1.5em; padding: 0 7px; border-radius: 999px; background: var(--amber); color: #2B1D05; font-size: 0.75rem; font-weight: 700; line-height: 1.6; text-align: center; }
 .leftovers .task.leftover { background: color-mix(in srgb, var(--amber) 8%, var(--card, var(--paper))); border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent); border-radius: 10px; margin-bottom: 6px; }
-.leftover-age { color: var(--amber-ink); font-weight: 600; }
+.leftover-age { color: var(--amber-ink); font-weight: 600; }
+.leftovers .task.leftover { column-gap: 16px; padding-inline: 12px; }
+.leftovers .task.leftover .task-actions { padding-left: 16px; flex: none; }
+.leftovers .task.leftover .btn { padding-inline: 14px; white-space: nowrap; }
