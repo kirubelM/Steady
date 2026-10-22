@@ -58,11 +58,12 @@ function dayItems(day) {
   return [...meetings, ...tasks, ...finished];
 }
 
-const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, showApps: false, mode: 'day' };
+const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, showApps: false, combine: false, mode: 'day' };
 try {
   dayView.showApps = localStorage.getItem('dayShowApps') === '1';
   dayView.showDone = localStorage.getItem('dayShowDone') === '1';
   dayView.moveDone = localStorage.getItem('dayMoveDone') === '1';
+  dayView.combine = localStorage.getItem('dayCombine') === '1';
   dayView.mode = localStorage.getItem('dayMode') === 'week' ? 'week' : 'day';
 } catch { /* storage unavailable */ }
 
@@ -131,6 +132,41 @@ function doneTitle(e) {
   return e.note || 'Logged work';
 }
 
+// Planned and done together: each day is one stacked list in time order, so nothing has to share a narrow lane.
+function combinedHtml(days, week) {
+  const today = todayKey();
+  const clock = (ms) => fmtTime(ms);
+  const column = (k) => {
+    const rows = [];
+    const midnight = atDay(k, 0);
+    dayItems(k).forEach((it) => {
+      if (it.kind === 'meet') {
+        const ev = it.ev;
+        rows.push({ min: it.startMin, html: `<div class="ag-card ag-meet"><span class="ag-time">${clock(ev.start)} – ${clock(ev.end)}</span><strong>${esc(ev.title)}</strong><span class="ag-tag">Meeting</span></div>` });
+        return;
+      }
+      const t = it.task;
+      const color = projectById(t.projectId)?.color;
+      const when = t.done && t.doneAt ? `Done ${clock(t.doneAt)}` : `${clock(atDay(k, it.startMin))} – ${clock(atDay(k, it.endMin))}`;
+      rows.push({ min: it.startMin, html: `<div class="ag-card ag-plan${t.done ? ' finished' : ''}"${color ? ` style="--bc:${color}"` : ''} data-cal-task="${t.id}" data-cal-day="${k}" tabindex="0" role="button" aria-label="${esc(`${t.done ? 'Finished' : 'Planned'}: ${t.text}, ${when}`)}">
+        <span class="ag-time">${when}</span><strong>${t.done ? '✓ ' : ''}${esc(t.text)}</strong><span class="ag-tag">${t.done ? 'Planned, done' : 'Planned'}</span></div>` });
+    });
+    if (k <= today) {
+      doneOnDay(k).forEach((it) => {
+        const e = it.entry;
+        // A ticked task that kept its planned block is already shown there.
+        if (e.taskCompletion && findTask(e.taskCompletion)?.block?.day === k) return;
+        const color = projectById(e.projectId)?.color;
+        const when = it.point ? clock(e.start) : `${clock(e.start)} – ${clock(e.end)}`;
+        rows.push({ min: it.startMin, html: `<button type="button" class="ag-card ag-done${it.point ? ' point' : ''} kind-${e.type}"${color ? ` style="--bc:${color}"` : ''} data-done-entry="${esc(e.id)}" aria-label="${esc(`${entryLabel(e)}: ${doneTitle(e)}, ${when}. Click to edit.`)}">
+          <span class="ag-time">${when}</span><strong>${it.point ? '✓ ' : ''}${esc(doneTitle(e))}</strong><span class="ag-tag">${esc(entryLabel(e))}</span></button>` });
+      });
+    }
+    return rows.sort((x, y) => x.min - y.min).map((r) => r.html).join('') || '<p class="ag-empty">Nothing</p>';
+  };
+  return `<div class="ag-grid${week ? ' week' : ''}">${days.map((k) => `<div class="ag-col${k === today ? ' today' : ''}" data-col-day="${k}" ${week ? '' : `aria-label="${esc(k)}"`}>${column(k)}</div>`).join('')}</div>`;
+}
+
 function renderDay() {
   const week = dayView.mode === 'week';
   const day = planDay;
@@ -188,8 +224,11 @@ function renderDay() {
   const done = [...doneByDay.values()].flatMap((l) => [...l.ranged, ...l.points]);
   $('dayDoneToggle').hidden = !doneDays.length;
   $('dayShowDone').checked = dayView.showDone;
-  const moveDone = showDone && !week && dayView.moveDone; // dragging to a new time is for a single day
-  $('dayMoveDoneRow').hidden = !showDone || week;
+  const combine = showDone && dayView.combine; // planned and done stacked together instead of side by side
+  const moveDone = showDone && !week && !combine && dayView.moveDone; // dragging to a new time is for a single day
+  $('dayMoveDoneRow').hidden = !showDone || week || combine;
+  $('dayCombineRow').hidden = !showDone;
+  $('dayCombineCheck').checked = dayView.combine;
   $('dayMoveDoneCheck').checked = moveDone;
   $('dayDoneCount').textContent = doneDays.length ? `(${doneDays.reduce((n, k) => n + (doneByDay.get(k)?.count ?? doneOnDay(k).length), 0)})` : '';
 
@@ -288,11 +327,18 @@ function renderDay() {
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
     : showDone ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span><span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span></div>` : '';
+  $('dayCal').classList.toggle('combined', combine);
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
   $('dayCal').classList.toggle('moving-done', moveDone);
   $('dayCal').classList.toggle('week', week);
   $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
+  if (combine) {
+    $('dayCal').classList.remove('with-done');
+    $('dayCal').innerHTML = `${week ? head : ''}${combinedHtml(days, week)}`;
+    $('dayEmpty').hidden = true;
+    return;
+  }
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
       ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${doneCols}${!week && isToday ? nowLine : ''}</div>
@@ -419,6 +465,11 @@ function bindDay() {
     renderDay();
   });
   bindMenu($('dayViewBtn'), $('dayViewMenu'));
+  $('dayCombineCheck').addEventListener('change', (e) => {
+    dayView.combine = e.target.checked;
+    try { localStorage.setItem('dayCombine', dayView.combine ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
   $('dayMoveDoneCheck').addEventListener('change', (e) => {
     dayView.moveDone = e.target.checked;
     try { localStorage.setItem('dayMoveDone', dayView.moveDone ? '1' : '0'); } catch { /* storage unavailable */ }

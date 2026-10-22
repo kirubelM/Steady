@@ -160,3 +160,20 @@ test('the week view shows what was done on each day, beside the plan', () => {
   assert.match(html, /Write/);
   assert.match(html, /Called vendor/);
 });
+
+test('combining planned and done stacks both kinds in time order, once each', () => {
+  const at = (h) => new Date(`${'2026-10-12'}T${String(h).padStart(2, '0')}:00`).getTime();
+  const app = loadApp({
+    tasks: [
+      { id: 'p', text: 'Plan report', day: '2026-10-12', done: false, order: 0, block: { day: '2026-10-12', startMin: 600, mins: 60 } },
+      { id: 'q', text: 'Sent invoice', day: '2026-10-12', done: true, doneAt: at(11), order: 1, block: { day: '2026-10-12', startMin: 660, mins: 30 } }
+    ],
+    entries: [{ id: 's', type: 'session', start: at(9), end: at(9) + 1800000, note: 'Deep work', focusSec: 1800 }]
+  });
+  const html = app.run(`combinedHtml(['2026-10-12'], false)`);
+  assert.ok(html.indexOf('Deep work') < html.indexOf('Plan report'));
+  assert.ok(html.indexOf('Plan report') < html.indexOf('Sent invoice'));
+  assert.equal((html.match(/class="ag-card/g) || []).length, 3); // a ticked task's completion marker isn't listed again
+  app.run("dayView.mode = 'week'; dayView.showDone = true; dayView.combine = true; planDay = '2026-10-12'; renderDay();");
+  assert.match(app.run("$('dayCal').innerHTML"), /ag-grid week/);
+});

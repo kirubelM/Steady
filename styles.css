@@ -1854,3 +1854,31 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .day-cal.week .cal-done .cal-when, .day-cal.week .cal-done-icon { display: none; }
 .day-cal.week .cal-done:not(.point) strong { padding-right: 0; }
 .day-cal.week .cal-done.point { padding: 0 5px; }
+
+/* Planned and done combined: one stacked, time-ordered list per day */
+.day-cal.combined .cal-days-head { margin-left: 4px; }
+.ag-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0 4px 4px; }
+.ag-grid.week { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.ag-col { display: flex; flex-direction: column; gap: 6px; padding: 4px 4px 10px; min-width: 0; align-items: stretch; }
+.ag-grid.week .ag-col { border-left: 1px solid var(--line); }
+.ag-col.today { background: color-mix(in srgb, var(--pine) 5%, transparent); }
+.ag-empty { margin: 4px; color: var(--muted); font-size: 0.8rem; text-align: center; opacity: 0.6; }
+.ag-card {
+  display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px; width: 100%; box-sizing: border-box;
+  padding: 7px 10px; border: 0; border-left: 4px solid var(--bc, var(--pine)); border-radius: 8px; text-align: left; font: inherit; color: var(--ink);
+  background: color-mix(in srgb, var(--bc, var(--pine)) 14%, var(--card, var(--paper)));
+}
+.ag-card strong { font-weight: 600; overflow-wrap: anywhere; }
+.ag-time { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ag-tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.ag-card.ag-plan { cursor: pointer; }
+.ag-card.ag-plan.finished { opacity: 0.8; }
+.ag-card.ag-plan.finished strong { text-decoration: line-through; text-decoration-thickness: 1px; }
+.ag-card.ag-meet { --bc: var(--muted); background: color-mix(in srgb, var(--muted) 10%, var(--card, var(--paper))); }
+.ag-card.ag-done { cursor: pointer; border-left-style: dashed; background: color-mix(in srgb, var(--bc, var(--pine)) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bc, var(--pine)) 25%, transparent); }
+.ag-card.ag-done.kind-session { border-left-style: solid; }
+.ag-card.ag-done.point { padding-block: 4px; }
+.ag-card:hover { background: color-mix(in srgb, var(--bc, var(--pine)) 22%, var(--card, var(--paper))); }
+.ag-grid.week .ag-card { grid-template-columns: minmax(0, 1fr); padding: 5px 7px; gap: 1px; font-size: 0.78rem; }
+.ag-grid.week .ag-time { font-size: 0.7rem; }
+.ag-grid.week .ag-tag { font-size: 0.6rem; }

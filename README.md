@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.17.6
+
+- **Combine planned and done.** With View > Show what's done on, a new View > Combine planned and done puts both in one stacked list for each day, in time order, instead of splitting each day in two. Planned tasks, ticked tasks, sessions, check-ins and meetings each get a readable card with its time and a label. It works in Day and Week view.
+
 ## What's new in 1.17.5
 
 - **What you did, in the Week view.** View > Show what's done now works in the Week view too. Each day gives its right side to its sessions, check-ins and finished things, with ticked tasks gathered into one pill. Hover for details, click to edit, or click a pill to open that day in the work log.
