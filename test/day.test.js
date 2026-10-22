@@ -141,3 +141,10 @@ test('app insights add up each app across days, with stretches and longest run',
   assert.equal(rows[0][2], 3);  // 9:00-9:30 run, 10:00 run, 13th run
   assert.equal(rows[0][3], 30);
 });
+
+test('a planned block stays on the calendar after its task is done, but stops counting as busy time', () => {
+  const app = loadApp({ tasks: [{ id: 't', text: 'Report', day: '2026-10-12', done: true, doneAt: 1, block: { day: '2026-10-12', startMin: 600, mins: 60 }, order: 0 }] });
+  assert.equal(app.run("dayItems('2026-10-12').length"), 1);
+  assert.equal(app.run("dayItems('2026-10-12')[0].task.done"), true);
+  assert.equal(app.run("taskBlocksOn('2026-10-12').length"), 0);
+});

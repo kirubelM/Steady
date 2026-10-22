@@ -1842,3 +1842,8 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .ai-windows { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--muted); }
 .ai-windows > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-windows small { opacity: 0.8; }
+
+/* A planned block whose task is done: still there, ticked and quiet */
+.cal-task.finished { background: color-mix(in srgb, var(--bc, var(--pine)) 22%, var(--card, var(--paper))); color: var(--ink); opacity: 0.85; box-shadow: inset 3px 0 0 var(--bc, var(--pine)); }
+.cal-task.finished strong { text-decoration: line-through; text-decoration-thickness: 1px; }
+.cal-task.finished.past { opacity: 0.85; }

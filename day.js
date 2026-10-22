@@ -52,7 +52,10 @@ function dayItems(day) {
     .map((ev) => ({ kind: 'meet', ev, startMin: toMin(ev.start), endMin: toMin(ev.end) }))
     .filter((m) => m.endMin > m.startMin);
   const tasks = taskBlocksOn(day).map((b) => ({ kind: 'task', task: b.task, startMin: b.task.block.startMin, endMin: b.task.block.startMin + b.task.block.mins }));
-  return [...meetings, ...tasks];
+  // Planned blocks stay on the calendar once ticked off, so the plan and what came of it are both visible.
+  const finished = data.tasks.filter((t) => t.block && t.block.day === day && t.done)
+    .map((t) => ({ kind: 'task', task: t, startMin: t.block.startMin, endMin: t.block.startMin + t.block.mins }));
+  return [...meetings, ...tasks, ...finished];
 }
 
 const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, showApps: false, mode: 'day' };
@@ -225,18 +228,19 @@ function renderDay() {
         <strong>${esc(ev.title)}</strong><span class="cal-when">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</span></div>`;
     }
     const t = it.task;
-    const canEdit = colDay >= today;
+    const isDone = !!t.done;
+    const canEdit = colDay >= today && !isDone;
     const color = projectById(t.projectId)?.color;
     const start = atDay(colDay, it.startMin);
     const end = atDay(colDay, it.endMin);
     const isShort = it.endMin - it.startMin < 40;
-    const missed = missedIds.has(t.id);
+    const missed = !isDone && missedIds.has(t.id);
     const keys = canEdit ? ` Arrow keys move it${week ? ', Left and Right move it a day' : ''}, Shift with arrows changes its length, Delete clears its time.` : '';
-    return `<div class="cal-task${isShort ? ' short' : ''}${end < Date.now() ? ' past' : ''}${missed ? ' missed' : ''}${canEdit ? ' movable' : ''}" style="${place(it)}${color ? `;--bc:${color}` : ''}" data-cal-task="${t.id}" data-cal-day="${colDay}" tabindex="0" role="button"
+    return `<div class="cal-task${isDone ? ' finished' : ''}${isShort ? ' short' : ''}${end < Date.now() ? ' past' : ''}${missed ? ' missed' : ''}${canEdit ? ' movable' : ''}" style="${place(it)}${color ? `;--bc:${color}` : ''}" data-cal-task="${t.id}" data-cal-day="${colDay}" tabindex="0" role="button"
         aria-label="${esc(`${t.text}, ${week ? `${new Date(colDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ` : ''}${fmtTime(start)} to ${fmtTime(end)}.${keys}`)}">
-        <strong>${esc(t.text)}</strong><span class="cal-when">${fmtTime(start)} – ${fmtTime(end)}</span>
+        <strong>${isDone ? '✓ ' : ''}${esc(t.text)}</strong><span class="cal-when">${isDone && t.doneAt ? `Done ${fmtTime(t.doneAt)}` : `${fmtTime(start)} – ${fmtTime(end)}`}</span>
         <span class="cal-task-actions">
-          ${canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">${icon('play')}</button>` : ''}
+          ${!isDone && canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">${icon('play')}</button>` : ''}
           ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">${icon('retry')}</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">${icon('next')}</button>` : ''}
           ${canEdit ? `<button type="button" data-unblock="${t.id}" title="Clear the time" aria-label="Clear the time for ${esc(t.text)}">${icon('close')}</button>` : ''}
           <button type="button" data-row-menu title="More (or right-click)" aria-label="More for ${esc(t.text)}">${icon('more')}</button>
