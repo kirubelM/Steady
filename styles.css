@@ -1908,3 +1908,11 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .leftover-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .leftover-sort { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--amber-ink); }
 .leftover-sort select { font-size: 0.82rem; padding: 3px 8px; }
+
+/* Project suggestions while typing "#" */
+.hash-suggest { position: fixed; z-index: 60; display: flex; flex-direction: column; padding: 4px; border-radius: 10px; background: var(--card, var(--paper)); border: 1px solid var(--card-line, var(--line)); box-shadow: var(--shadow); }
+.hash-suggest[hidden] { display: none; }
+.hash-suggest button { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer; }
+.hash-suggest button i { width: 9px; height: 9px; border-radius: 50%; background: var(--pc, var(--pine)); flex: none; }
+.hash-suggest button:hover, .hash-suggest button[aria-selected="true"] { background: var(--pine); color: var(--on-accent); }
+.hash-none { padding: 6px 10px; font-size: 0.82rem; color: var(--muted); }

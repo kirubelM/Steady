@@ -112,6 +112,75 @@ function renderProjectsSettings() {
     : '<li class="empty">No projects yet. Add one to group your tasks and time.</li>';
 }
 
+/* "#" in a text box offers your projects: arrows move, Tab or Enter picks, Esc closes. One popup is shared by every box. */
+function bindHashSuggest(ids) {
+  const pop = document.createElement('div');
+  pop.className = 'hash-suggest';
+  pop.setAttribute('role', 'listbox');
+  pop.hidden = true;
+  document.body.appendChild(pop);
+  let field = null;
+  let picks = [];
+  let pick = 0;
+  const flat = (s) => s.replace(/s+/g, '').toLowerCase();
+  const atCaret = (el) => {
+    const m = el.value.slice(0, el.selectionStart).match(/(^|s)#([^s#]*)$/);
+    return m ? { query: m[2].toLowerCase(), start: el.selectionStart - m[2].length - 1, end: el.selectionStart } : null;
+  };
+  const close = () => { pop.hidden = true; picks = []; };
+  const show = (el) => {
+    field = el;
+    const host = el.closest('dialog') || document.body; // a modal dialog covers anything outside it
+    if (pop.parentNode !== host) host.appendChild(pop);
+    const at = atCaret(el);
+    if (!at) return close();
+    picks = activeProjects().filter((x) => flat(x.name).startsWith(at.query) || x.name.toLowerCase().includes(at.query)).slice(0, 6);
+    pick = Math.min(pick, Math.max(0, picks.length - 1));
+    const r = el.getBoundingClientRect();
+    pop.style.left = `${Math.round(r.left)}px`;
+    pop.style.top = `${Math.round(r.bottom + 4)}px`;
+    pop.style.minWidth = `${Math.min(260, Math.round(r.width))}px`;
+    pop.innerHTML = picks.length
+      ? picks.map((x, i) => `<button type="button" role="option" data-hash-pick="${i}" aria-selected="${i === pick}" style="--pc:${x.color}"><i></i>${esc(x.name)}</button>`).join('')
+      : `<span class="hash-none">${activeProjects().length ? 'No project matches. Press Enter to create it.' : 'No projects yet. Typing #name creates one.'}</span>`;
+    pop.hidden = false;
+  };
+  const accept = (i = pick) => {
+    const at = field && atCaret(field);
+    const x = picks[i];
+    if (!at || !x) return false;
+    const tag = `#${flat(x.name)} `;
+    field.value = field.value.slice(0, at.start) + tag + field.value.slice(at.end).replace(/^s+/, '');
+    const caret = at.start + tag.length;
+    field.setSelectionRange(caret, caret);
+    close();
+    field.focus();
+    return true;
+  };
+  ids.forEach((id) => {
+    const el = $(id);
+    el.addEventListener('input', () => { pick = 0; show(el); });
+    el.addEventListener('click', () => show(el));
+    el.addEventListener('blur', () => setTimeout(close, 150));
+    el.addEventListener('keydown', (e) => {
+      if (pop.hidden || !picks.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        pick = (pick + (e.key === 'ArrowDown' ? 1 : picks.length - 1)) % picks.length;
+        show(el);
+      } else if (e.key === 'Tab' || e.key === 'Enter') {
+        if (accept()) { e.preventDefault(); e.stopPropagation(); }
+      } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
+    }, true);
+  });
+  pop.addEventListener('mousedown', (e) => {
+    const b = e.target.closest('[data-hash-pick]');
+    if (!b) return;
+    e.preventDefault(); // keep the cursor in the box
+    accept(Number(b.dataset.hashPick));
+  });
+}
+
 function bindProjects() {
   $('projectForm').addEventListener('submit', async (e) => {
     e.preventDefault();

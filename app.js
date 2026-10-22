@@ -310,6 +310,7 @@ function bind() {
   bindReview();
   bindInsights();
   bindProjects();
+  bindHashSuggest(['taskInput', 'parkInput', 'doneInput', 'entryNote', 'checkinNote']);
   bindSound();
 }
 

@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.17.14
+
+- **Project suggestions while you type #.** The Plan page's task box, the Done box, the Parking lot box, check-ins and log entries now offer your projects as soon as you type #, the way quick capture does. Arrow keys move, Tab or Enter picks, Esc closes.
+
 ## What's new in 1.17.13
 
 - **`#project` in check-ins.** Type `#Acme` in a check-in, a missed check-in or an added log entry to file it under that project, the same as in quick capture.
