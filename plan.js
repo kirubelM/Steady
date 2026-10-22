@@ -40,6 +40,12 @@ function nextOrder(day) {
   return same.length ? Math.max(...same.map((t) => t.order)) + 1 : 0;
 }
 
+// "3 days ago" for a day key before today.
+function ageLabel(day) {
+  const n = Math.round((new Date(todayKey() + 'T12:00') - new Date(day + 'T12:00')) / 86400000);
+  return n === 1 ? 'yesterday' : `${n} days ago`;
+}
+
 let freshTaskId = null; // the task just added, so it can ease in
 
 async function addTask(text, est = 0, day = todayKey(), projectId = null) {
@@ -850,12 +856,13 @@ function renderPlan() {
 
   const left = isToday ? leftoverTasks() : [];
   $('leftoverSection').hidden = !left.length;
+  $('leftoverCount').textContent = left.length;
   $('leftoverList').innerHTML = left.map((t) => {
     const from = new Date(t.day + 'T12:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     return `<li class="task leftover">
       <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
         <span class="task-text">${esc(t.text)}</span>
-        <span class="task-meta">${projectChip(t.projectId)}<span>Planned for ${esc(from)}</span></span>
+        <span class="task-meta">${projectChip(t.projectId)}<span>Planned for ${esc(from)}</span><span class="leftover-age">${esc(ageLabel(t.day))}</span></span>
       </button>
       <div class="task-actions">
         <button class="btn small" type="button" data-task-today="${t.id}">Move to today</button>

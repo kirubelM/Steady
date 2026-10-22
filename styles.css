@@ -362,9 +362,6 @@ button.task-main:hover { background: var(--tint-pine); }
 .task-meta { color: var(--muted); font-size: 0.82rem; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
 .task.done .task-text { text-decoration: line-through; color: var(--muted); font-weight: 400; }
 .task-actions { display: flex; gap: 6px; align-items: center; }
-.leftovers { margin-top: 18px; }
-.leftover-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.leftover-head .link { font-size: 0.85rem; color: var(--pine); }
 
 .done-item {
   display: grid; grid-template-columns: 18px 1fr auto; gap: 12px; align-items: center;
@@ -1896,3 +1893,12 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .dh-key.done { border-left: 4px solid var(--pine); background: color-mix(in srgb, var(--pine) 16%, var(--card, var(--paper))); }
 .dh-key.meet { border-left: 4px solid var(--muted); background: color-mix(in srgb, var(--muted) 14%, var(--card, var(--paper))); }
 .dh-key.pill { border-radius: 999px; background: var(--tint-pine); }
+
+/* Left over from earlier: its own amber box, so unfinished work from before can't be missed */
+.leftovers { margin-top: 20px; padding: 12px 14px 8px; border-radius: 12px; background: var(--tint-amber); border: 1px solid color-mix(in srgb, var(--amber) 55%, transparent); border-left: 5px solid var(--amber); }
+.leftover-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.leftover-head h4 { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--amber-ink); }
+.leftover-icon { font-size: 1.05rem; line-height: 1; }
+.leftover-count { min-width: 1.5em; padding: 0 7px; border-radius: 999px; background: var(--amber); color: #2B1D05; font-size: 0.75rem; font-weight: 700; line-height: 1.6; text-align: center; }
+.leftovers .task.leftover { background: color-mix(in srgb, var(--amber) 8%, var(--card, var(--paper))); border: 1px solid color-mix(in srgb, var(--amber) 28%, transparent); border-radius: 10px; margin-bottom: 6px; }
+.leftover-age { color: var(--amber-ink); font-weight: 600; }

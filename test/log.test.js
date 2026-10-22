@@ -172,3 +172,9 @@ test('work log shows each app as its own chip', () => {
  assert.match(html, /app-chip">Chrome <small>15 min/);
  assert.match(html, /app-chip">Word/);
 });
+
+test('leftover tasks say how long ago they were planned', () => {
+  const app = loadApp();
+  assert.equal(app.run("ageLabel(shiftKey(todayKey(), -1))"), 'yesterday');
+  assert.equal(app.run("ageLabel(shiftKey(todayKey(), -3))"), '3 days ago');
+});
