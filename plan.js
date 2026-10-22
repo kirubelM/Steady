@@ -104,6 +104,58 @@ async function placeTask(id, targetId, after) {
   await saveOrder(list, t, want);
 }
 
+// Ctrl+Shift drag and drop: task `id` becomes a subtask of `parentId`, bringing its own subtasks along.
+// Sessions logged against it now count for the parent. Undo puts everything back.
+async function nestTask(id, parentId) {
+  const t = findTask(id);
+  const parent = findTask(parentId);
+  if (!t || !parent || id === parentId) return false;
+  if ((S.state === 'focus' || S.state === 'paused') && S.taskId === t.id) {
+    showNudge(`"${t.text}" is in focus right now. End the session before making it a subtask.`, 'info', true);
+    return false;
+  }
+  const before = { task: JSON.parse(JSON.stringify(t)), subs: (parent.subtasks || []).map((s) => ({ ...s })) };
+  const sub = { id: uid(), text: t.text, done: !!t.done, doneAt: t.done ? t.doneAt || Date.now() : null, ...(t.note ? { note: t.note } : {}) };
+  const carried = (t.subtasks || []).map((s) => ({ ...s }));
+  parent.subtasks = [...(parent.subtasks || []), sub, ...carried];
+  parent.subsHidden = false;
+  const moved = data.entries.filter((e) => e.taskId === t.id).map((e) => [e, e.subId || null]);
+  moved.forEach(([e]) => { e.taskId = parent.id; e.subId = e.subId && carried.some((s) => s.id === e.subId) ? e.subId : sub.id; });
+  rememberSkip(t);
+  data.tasks = data.tasks.filter((x) => x.id !== t.id);
+  await persist('tasks', 'entries', 'meta');
+  renderPlan();
+  showNudge(`"${t.text}" is now a subtask of "${parent.text}".`, 'info', true, {
+    label: 'Undo',
+    fn: async () => {
+      if (findTask(before.task.id)) return;
+      const p = findTask(parent.id);
+      if (p) p.subtasks = before.subs;
+      data.tasks.push(before.task);
+      moved.forEach(([e, subId]) => { e.taskId = before.task.id; e.subId = subId; });
+      await persist('tasks', 'entries');
+      renderPlan();
+    }
+  });
+  return true;
+}
+
+// The drag counts as "make it a subtask" while Ctrl (or Cmd) and Shift are held.
+// Windows runs its own loop during a drag, so drag events often arrive without the keys set and key
+// events stop. So it also counts when the keys were down as the drag began, or when the system
+// offers a "link" drop, which is what Ctrl+Shift asks it for.
+const heldKeys = { nest: false, atDragStart: false };
+const keysDown = (e) => !!((e.ctrlKey || e.metaKey) && e.shiftKey);
+for (const type of ['keydown', 'keyup', 'pointerdown', 'pointermove', 'mousedown', 'mousemove']) {
+  addEventListener(type, (e) => { heldKeys.nest = keysDown(e); }, true);
+}
+addEventListener('dragstart', (e) => { heldKeys.atDragStart = keysDown(e) || heldKeys.nest; }, true);
+addEventListener('dragend', () => { heldKeys.atDragStart = false; }, true);
+addEventListener('blur', () => { heldKeys.nest = false; heldKeys.atDragStart = false; });
+const nestKeys = (e) => keysDown(e) || (e.type?.startsWith('drag') || e.type === 'drop'
+  ? heldKeys.atDragStart || e.dataTransfer?.dropEffect === 'link'
+  : heldKeys.nest);
+
 async function moveToDay(ids, day) {
   ids.forEach((id) => {
     const t = findTask(id);
@@ -300,6 +352,9 @@ function renderGlance(force = false) {
 let subAddFor = null; // task whose "Add a subtask" box is open
 let subEditing = null; // { taskId, subId } while a subtask is being renamed
 let subDrag = null; // { taskId, subId } while a subtask is being dragged
+let subNoteFor = null; // { taskId, subId } while a subtask's note is open
+let taskNoteFor = null; // task whose note is open right in the list
+let subPromote = null; // { taskId, subId } while asking whether a new task keeps the project
 let subOpening = null; // task whose subtask list was just opened, so it can slide in
 
 function findSub(taskId, subId) {
@@ -317,9 +372,102 @@ function subtaskRow(t, s, canFocus) {
       ? `<input class="sub-edit" type="text" value="${esc(s.text)}" maxlength="140" data-sub-edit="${t.id}" data-sub-id="${s.id}" aria-label="Rename subtask">`
       : `<button class="sub-text" type="button" data-sub-rename="${t.id}" data-sub-id="${s.id}" title="Click to rename">${esc(s.text)}</button>`}
     ${focused ? '<span class="sub-now">In focus</span>' : ''}
-    ${!s.done && canFocus ? `<button class="sub-act" type="button" data-sub-focus="${t.id}" data-sub-id="${s.id}" aria-label="Focus on ${esc(s.text)}" title="Focus on just this">▶</button>` : ''}
-    <button class="sub-act del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}" title="Remove">×</button>
-  </li>`;
+    ${!s.done && canFocus ? `<button class="sub-act" type="button" data-sub-focus="${t.id}" data-sub-id="${s.id}" aria-label="Focus on ${esc(s.text)}" title="Focus on just this">${icon('play')}</button>` : ''}
+    <button class="sub-act${s.note ? ' has-note' : ''}" type="button" data-sub-note="${t.id}" data-sub-id="${s.id}" aria-label="${s.note ? 'Edit the note on' : 'Add a note to'} ${esc(s.text)}" title="${s.note ? 'Edit note' : 'Add a note'}">${icon('note')}</button>
+    <button class="sub-act" type="button" data-sub-promote="${t.id}" data-sub-id="${s.id}" aria-label="Make ${esc(s.text)} a task of its own" title="Make it a task of its own">${icon('promote')}</button>
+    <button class="sub-act more" type="button" data-row-menu aria-label="More for ${esc(s.text)}" title="More">${icon('more')}</button>
+    <button class="sub-act del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}" title="Remove">${icon('close')}</button>
+  </li>${subExtras(t, s)}`;
+}
+
+// Under a subtask: its note (or the box to write one), and the "keep the project?" question when it becomes a task.
+function subExtras(t, s) {
+  const here = (x) => x && x.taskId === t.id && x.subId === s.id;
+  let out = '';
+  if (here(subNoteFor)) {
+    out += `<li class="sub-note-edit"><textarea data-sub-note-text="${t.id}" data-sub-id="${s.id}" rows="2" maxlength="2000" placeholder="A note for later, like who to follow up with" aria-label="Note on ${esc(s.text)}">${esc(s.note || '')}</textarea>
+      <span class="field-note">Ctrl+Enter saves, Esc cancels</span></li>`;
+  } else if (s.note) {
+    out += `<li class="sub-note"><button type="button" data-sub-note="${t.id}" data-sub-id="${s.id}" title="Edit note">${esc(s.note)}</button></li>`;
+  }
+  if (here(subPromote)) {
+    const p = projectById(t.projectId);
+    out += `<li class="sub-promote" role="group" aria-label="Make it a task">Make "${esc(s.text)}" a task:
+      <button class="btn small" type="button" data-promote-keep="${t.id}" data-sub-id="${s.id}">Keep ${p ? esc(p.name) : 'the project'}</button>
+      <button class="btn small quiet" type="button" data-promote-none="${t.id}" data-sub-id="${s.id}">No project</button>
+      <button class="link" type="button" data-promote-cancel>Cancel</button></li>`;
+  }
+  return out;
+}
+
+// Turns a subtask into a task of its own on the parent's day, right after the parent. It keeps its note and
+// whether it's done, and sessions spent on it move with it. Undo puts it back.
+async function promoteSubtask(taskId, subId, keepProject) {
+  const t = findTask(taskId);
+  const s = findSub(taskId, subId);
+  subPromote = null;
+  if (!t || !s) return null;
+  if ((S.state === 'focus' || S.state === 'paused') && S.taskId === t.id && S.subId === s.id) {
+    showNudge(`"${s.text}" is in focus right now. End the session before making it a task.`, 'info', true);
+    renderPlan();
+    return null;
+  }
+  const before = { subs: t.subtasks.map((x) => ({ ...x })), order: tasksFor(t.day).map((x) => [x, x.order]) };
+  const task = {
+    id: uid(), text: s.text, day: t.day, est: 0, projectId: keepProject ? t.projectId || null : null,
+    done: !!s.done, doneAt: s.done ? s.doneAt || Date.now() : null, createdAt: Date.now(), order: 0,
+    ...(s.note ? { note: s.note } : {})
+  };
+  t.subtasks = t.subtasks.filter((x) => x.id !== s.id);
+  const list = tasksFor(t.day);
+  list.splice(list.indexOf(t) + 1, 0, task);
+  data.tasks.push(task);
+  list.forEach((x, n) => { x.order = n; });
+  const moved = data.entries.filter((e) => e.taskId === t.id && e.subId === s.id);
+  moved.forEach((e) => { e.taskId = task.id; e.subId = null; });
+  await persist('tasks', 'entries');
+  renderPlan();
+  showNudge(`"${task.text}" is now a task of its own${task.projectId ? ` in ${projectName(task.projectId)}` : ''}.`, 'info', true, {
+    label: 'Undo',
+    fn: async () => {
+      if (!findTask(task.id)) return;
+      data.tasks = data.tasks.filter((x) => x.id !== task.id);
+      const p = findTask(t.id);
+      if (p) p.subtasks = before.subs;
+      before.order.forEach(([x, o]) => { x.order = o; });
+      moved.forEach((e) => { e.taskId = t.id; e.subId = s.id; });
+      await persist('tasks', 'entries');
+      renderPlan();
+    }
+  });
+  return task;
+}
+
+async function saveTaskNote(id, text) {
+  taskNoteFor = null;
+  const t = findTask(id);
+  if (!t) { renderPlan(); return; }
+  const clean = String(text || '').trim();
+  if (clean) t.note = clean; else delete t.note;
+  await persist('tasks');
+  renderPlan();
+}
+
+// Opens a task's note right in the list, without the editor.
+function openTaskNote(id) {
+  taskNoteFor = id;
+  renderPlan();
+  const box = document.querySelector(`[data-task-note-text="${id}"]`);
+  if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+}
+
+async function saveSubNote(taskId, subId, text) {
+  subNoteFor = null;
+  const s = findSub(taskId, subId);
+  if (!s) { renderPlan(); return; }
+  const clean = String(text || '').trim();
+  if (clean) s.note = clean; else delete s.note;
+  await updateSubtasks(taskId, () => {});
 }
 
 function subtaskBlock(t, canFocus) {
@@ -433,6 +581,24 @@ function bindSubtasks() {
       updateSubtasks(b.dataset.subDel, (t) => { t.subtasks = t.subtasks.filter((s) => s.id !== subId); });
     } else if (b.dataset.subFocus) {
       startSubtask(b.dataset.subFocus, subId);
+    } else if (b.dataset.taskNote) {
+      openTaskNote(b.dataset.taskNote);
+    } else if (b.dataset.subNote) {
+      subNoteFor = { taskId: b.dataset.subNote, subId };
+      renderPlan();
+      const box = list.querySelector('[data-sub-note-text]');
+      if (box) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+    } else if (b.dataset.subPromote) {
+      const t = findTask(b.dataset.subPromote);
+      if (t && t.projectId) { subPromote = { taskId: t.id, subId }; renderPlan(); list.querySelector('[data-promote-keep]')?.focus(); }
+      else promoteSubtask(b.dataset.subPromote, subId, false);
+    } else if (b.dataset.promoteKeep) {
+      promoteSubtask(b.dataset.promoteKeep, subId, true);
+    } else if (b.dataset.promoteNone) {
+      promoteSubtask(b.dataset.promoteNone, subId, false);
+    } else if (b.dataset.promoteCancel !== undefined) {
+      subPromote = null;
+      renderPlan();
     } else if (b.dataset.subRename) {
       subEditing = { taskId: b.dataset.subRename, subId };
       renderPlan();
@@ -455,6 +621,19 @@ function bindSubtasks() {
     addSubtask(id, text);
   });
   list.addEventListener('keydown', (e) => {
+    const taskNote = e.target.dataset?.taskNoteText;
+    if (taskNote) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); saveTaskNote(taskNote, e.target.value); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); taskNoteFor = null; renderPlan(); }
+      return;
+    }
+    const note = e.target.dataset?.subNoteText;
+    if (note) {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); saveSubNote(note, e.target.dataset.subId, e.target.value); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); subNoteFor = null; renderPlan(); }
+      return;
+    }
+    if (e.key === 'Escape' && subPromote) { e.preventDefault(); subPromote = null; renderPlan(); return; }
     if (e.target.classList.contains('sub-edit')) {
       if (e.key === 'Enter') { e.preventDefault(); finishRename(e.target, true); }
       if (e.key === 'Escape') { e.preventDefault(); finishRename(e.target, false); }
@@ -464,6 +643,10 @@ function bindSubtasks() {
   });
   list.addEventListener('focusout', (e) => {
     if (e.target.classList.contains('sub-edit') && subEditing) { finishRename(e.target, true); return; }
+    const taskNote = e.target.dataset?.taskNoteText;
+    if (taskNote && taskNoteFor) { saveTaskNote(taskNote, e.target.value); return; } // clicking away keeps what you wrote
+    const note = e.target.dataset?.subNoteText;
+    if (note && subNoteFor) { saveSubNote(note, e.target.dataset.subId, e.target.value); return; } // clicking away keeps what you wrote
     const form = e.target.closest('[data-sub-add]');
     // Close an empty add box once you click elsewhere.
     if (form && !e.target.value.trim() && subAddFor === form.dataset.subAdd) {
@@ -633,8 +816,8 @@ function renderPlan() {
       const movable = !t.done;
       const due = dueStatus(t);
       const timed = !t.done && (isToday || isFuture);
-      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && timeFor !== t.id ? ' draggable="true"' : ''}>
-        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder"></span>' : ''}
+      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && timeFor !== t.id && taskNoteFor !== t.id ? ' draggable="true"' : ''}>
+        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder. Hold Ctrl+Shift and drop it on another task to make it a subtask."></span>' : ''}
         <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
@@ -643,11 +826,17 @@ function renderPlan() {
         </button>
         <div class="task-actions">
           ${timed ? timeButton(t) : ''}
-          ${t.done ? '' : `<button class="star-btn${t.starred ? ' on' : ''}" type="button" data-task-star="${t.id}" aria-pressed="${!!t.starred}" aria-label="${t.starred ? 'Unstar' : 'Star'} ${esc(t.text)}" title="${t.starred ? 'Starred' : 'Star this task'}">${t.starred ? '★' : '☆'}</button>
-          ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">+</button>`}
+          ${t.done ? '' : `<button class="star-btn${t.starred ? ' on' : ''}" type="button" data-task-star="${t.id}" aria-pressed="${!!t.starred}" aria-label="${t.starred ? 'Unstar' : 'Star'} ${esc(t.text)}" title="${t.starred ? 'Starred' : 'Star this task'}">${icon(t.starred ? 'starOn' : 'star')}</button>
+          ${(t.subtasks || []).length ? '' : `<button class="icon-btn small" type="button" data-sub-new="${t.id}" aria-label="Add a subtask to ${esc(t.text)}" title="Add subtask">${icon('plus')}</button>`}
           ${isToday ? `<button class="btn small" type="button" data-task-start="${t.id}" ${canFocus ? '' : 'disabled'}>Focus</button>` : ''}`}
+          <button class="note-btn${t.note ? ' on' : ''}" type="button" data-task-note="${t.id}" aria-label="${t.note ? 'Edit the note on' : 'Add a note to'} ${esc(t.text)}" title="${t.note ? 'Edit note' : 'Add a note'}">${icon('note')}</button>
+          <button class="row-more" type="button" data-row-menu aria-label="More for ${esc(t.text)}" title="More (or right-click)">${icon('more')}</button>
         </div>
         ${timed && timeFor === t.id ? timeFormHtml(t, planDay) : ''}
+        ${taskNoteFor === t.id
+          ? `<div class="task-note-edit"><textarea data-task-note-text="${t.id}" rows="2" maxlength="2000" placeholder="A note for later, like who to follow up with" aria-label="Note on ${esc(t.text)}">${esc(t.note || '')}</textarea>
+              <span class="field-note">Ctrl+Enter saves, Esc cancels</span></div>`
+          : t.note ? `<button class="task-note" type="button" data-task-note="${t.id}" title="Edit note">${esc(t.note)}</button>` : ''}
         ${subtaskBlock(t, canFocus)}
       </li>`;
     }).join('')
@@ -843,8 +1032,8 @@ let taskReorderOk = true; // false while the list is sorted or filtered
 function bindTaskDrag() {
   const list = $('taskList');
   let dragId = null;
-  const clearDrop = () => list.querySelectorAll('.drop-before, .drop-after')
-    .forEach((r) => r.classList.remove('drop-before', 'drop-after'));
+  const clearDrop = () => list.querySelectorAll('.drop-before, .drop-after, .drop-into')
+    .forEach((r) => r.classList.remove('drop-before', 'drop-after', 'drop-into'));
   const targetRow = (e) => e.target.closest?.('[data-task-row][draggable="true"]');
 
   list.addEventListener('dragstart', (e) => {
@@ -852,22 +1041,46 @@ function bindTaskDrag() {
     const row = e.target.closest?.('[data-task-row]');
     if (!row || row.getAttribute('draggable') !== 'true') return;
     dragId = row.dataset.taskRow;
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.effectAllowed = 'all'; // Ctrl+Shift asks the system for a link drop, which nests the task
     e.dataTransfer.setData('text/plain', dragId);
     e.dataTransfer.setData('application/x-steady-task', dragId);
     requestAnimationFrame(() => row.classList.add('dragging'));
   });
   list.addEventListener('dragover', (e) => {
+    if (dragId && nestKeys(e)) {
+      // Ctrl+Shift: drop onto another task to make this one its subtask, whatever the sort.
+      const row = targetRow(e);
+      if (!row) return;
+      e.preventDefault();
+      clearDrop();
+      if (row.dataset.taskRow === dragId) { e.dataTransfer.dropEffect = 'none'; return; }
+      e.dataTransfer.dropEffect = 'link';
+      row.classList.add('drop-into');
+      list.querySelector('.task.dragging')?.classList.add('as-sub');
+      return;
+    }
     const row = dragId && taskReorderOk && targetRow(e);
     if (!row) return;
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     clearDrop();
+    list.querySelector('.task.dragging')?.classList.remove('as-sub');
     if (row.dataset.taskRow === dragId) return;
     // Judge by the task's own line, not its subtasks, so tall rows behave.
     const r = row.getBoundingClientRect();
     row.classList.add(e.clientY < r.top + Math.min(r.height / 2, 28) ? 'drop-before' : 'drop-after');
   });
   list.addEventListener('drop', (e) => {
+    if (dragId && nestKeys(e)) {
+      const row = targetRow(e);
+      if (!row) return;
+      e.preventDefault();
+      const id = dragId;
+      dragId = null;
+      clearDrop();
+      if (row.dataset.taskRow !== id) nestTask(id, row.dataset.taskRow);
+      return;
+    }
     const row = dragId && taskReorderOk && targetRow(e);
     if (!row) return;
     e.preventDefault();
@@ -880,7 +1093,7 @@ function bindTaskDrag() {
   list.addEventListener('dragend', () => {
     dragId = null;
     clearDrop();
-    list.querySelectorAll('.task.dragging').forEach((r) => r.classList.remove('dragging'));
+    list.querySelectorAll('.task.dragging').forEach((r) => r.classList.remove('dragging', 'as-sub'));
   });
 
   list.addEventListener('keydown', async (e) => {
@@ -894,6 +1107,74 @@ function bindTaskDrag() {
   });
 }
 
+/* ---------- Ctrl+Shift drag: make a task a subtask of another ---------- */
+
+// The browser won't start an ordinary drag while Shift is held (Shift+press extends a text selection),
+// so a press with Ctrl+Shift on a task in the Plan list or the Day list starts this drag instead.
+// The calendar's blocks handle Ctrl+Shift in their own drag (day.js).
+function bindNestDrag() {
+  let nd = null;
+  let swallowClickUntil = 0;
+  const SOURCES = '#taskList [data-task-row][draggable="true"], #dayTodo [data-day-task][draggable="true"]';
+  const idOf = (el) => el.dataset.taskRow || el.dataset.dayTask || el.dataset.calTask;
+  const clear = () => document.querySelectorAll('.drop-into').forEach((r) => r.classList.remove('drop-into'));
+  const finish = () => {
+    if (!nd) return;
+    clear();
+    nd.ghost?.remove();
+    nd.row.classList.remove('dragging', 'as-sub');
+    document.body.classList.remove('nest-dragging');
+    nd = null;
+  };
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || !keysDown(e) || e.target.closest('input, select, textarea')) return;
+    const row = e.target.closest(SOURCES);
+    if (!row) return;
+    e.preventDefault(); // no text selection
+    nd = { row, id: idOf(row), x: e.clientX, y: e.clientY, moved: false, target: null, pointerId: e.pointerId };
+  }, true);
+
+  document.addEventListener('pointermove', (e) => {
+    if (!nd) return;
+    if (!nd.moved) {
+      if (Math.abs(e.clientX - nd.x) + Math.abs(e.clientY - nd.y) < 5) return;
+      nd.moved = true;
+      try { nd.row.setPointerCapture(nd.pointerId); } catch { /* pointer already gone */ }
+      const t = findTask(nd.id);
+      nd.ghost = document.createElement('div');
+      nd.ghost.className = 'nest-ghost';
+      nd.ghost.textContent = t ? t.text : '';
+      document.body.appendChild(nd.ghost);
+      nd.row.classList.add('dragging');
+      document.body.classList.add('nest-dragging');
+    }
+    nd.ghost.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 10}px)`;
+    clear();
+    const tab = nd.row.closest('.tab');
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-task-row][draggable="true"], [data-day-task], [data-cal-task]');
+    nd.target = over && tab?.contains(over) && idOf(over) !== nd.id ? idOf(over) : null;
+    if (nd.target) over.classList.add('drop-into');
+    nd.row.classList.toggle('as-sub', !!nd.target);
+    nd.ghost.classList.toggle('on-target', !!nd.target);
+  }, true);
+
+  document.addEventListener('pointerup', (e) => {
+    if (!nd) return;
+    const { moved, id, target } = nd;
+    finish();
+    if (!moved) return;
+    swallowClickUntil = Date.now() + 300;
+    if (target) nestTask(id, target);
+  }, true);
+  document.addEventListener('pointercancel', finish, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nd) { e.preventDefault(); finish(); } }, true);
+  // The press was taken over, so the click that follows it isn't a click on the row.
+  document.addEventListener('click', (e) => {
+    if (Date.now() < swallowClickUntil) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+}
+
 /* ---------- Task editor ---------- */
 
 let editingTaskId = null;
@@ -903,7 +1184,7 @@ function renderSubEditor() {
   $('taskEditSubs').innerHTML = editingSubs.map((s, i) => `<li>
       <input type="checkbox" data-esub-done="${i}" ${s.done ? 'checked' : ''} aria-label="Done">
       <input type="text" value="${esc(s.text)}" data-esub-text="${i}" maxlength="140" aria-label="Subtask">
-      <button class="del" type="button" data-esub-del="${i}" aria-label="Remove subtask">×</button>
+      <button class="del" type="button" data-esub-del="${i}" aria-label="Remove subtask">${icon('close')}</button>
     </li>`).join('');
 }
 
@@ -939,6 +1220,7 @@ function openTaskDialog(id) {
   $('taskEditDay').value = t.day;
   $('taskEditPreset').innerHTML = '<option value="">Whatever is selected</option>' + settings.presets
     .map((p) => `<option value="${p.id}" ${p.id === t.presetId ? 'selected' : ''}>${esc(p.name)} (${p.focusMin} min)</option>`).join('');
+  $('taskEditNote').value = t.note || '';
   $('taskEditDone').checked = !!t.done;
   showTaskDoneWhen(t.doneAt);
   $('taskEditError').textContent = '';
@@ -983,6 +1265,8 @@ async function saveTaskDialog() {
     return { ...s, doneAt: s.done ? (old?.done && old.doneAt ? old.doneAt : Date.now()) : null };
   });
   t.due = $('taskEditDue').value || null;
+  const note = $('taskEditNote').value.trim();
+  if (note) t.note = note; else delete t.note;
   t.starred = $('taskEditStar').checked;
   const blockStart = $('taskEditBlockStart').value;
   if (blockStart) {
@@ -1003,21 +1287,18 @@ async function saveTaskDialog() {
 /* ---------- Events ---------- */
 
 function bindPlan() {
-  $('taskForm').addEventListener('submit', async (e) => {
+  $('taskForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    const typed = $('taskInput').value.trim();
-    if (!typed) return;
-    const est = $('taskEst').value;
-    const chosen = $('taskProject').value || null;
+    const text = $('taskInput').value.trim();
+    if (!text) return;
+    addQuickTask(text, { baseDay: planDay, est: $('taskEst').value, projectId: $('taskProject').value || null }).then((added) => {
+      const q = added && added.parsed;
+      if (q && q.day !== planDay) showNudge(`Added "${q.text}" for ${quickAddSummary(q)}.`, 'info', true, { label: 'Show', fn: () => { planDay = q.day; renderPlan(); } });
+    });
     $('taskInput').value = '';
     showTimeHint();
     $('taskEst').value = '0';
     $('taskInput').focus();
-    const { text, projectId } = await takeProjectTag(typed, chosen); // "#project" beats the picker
-    const when = planDay >= todayKey() ? parseTaskTime(text) : null;
-    const day = planDay;
-    const id = await addTask(when ? when.text : text, est, day, projectId);
-    if (when) setBlock(id, day, when.startMin, when.mins || defaultBlockMins(findTask(id)));
   });
 
   $('doneOpen').addEventListener('click', () => {
@@ -1097,6 +1378,7 @@ function bindPlan() {
   });
   bindSubtasks();
   bindTaskDrag();
+  bindNestDrag();
   bindTaskView();
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {

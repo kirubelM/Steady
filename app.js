@@ -51,6 +51,26 @@ function setCompact(on) {
   api.setCompact(compact);
 }
 
+/* ---------- Hiding the timer panel while you're not in a session ---------- */
+
+let paneCollapsed = false;
+try { paneCollapsed = localStorage.getItem('paneCollapsed') === '1'; } catch { /* storage unavailable */ }
+
+// The panel folds to a slim bar only while nothing is running; a session (or a break) always brings it back.
+function applyPaneCollapse() {
+  const folded = paneCollapsed && S.state === 'idle' && !compact;
+  document.body.classList.toggle('pane-collapsed', folded);
+  $('paneRail').hidden = !folded;
+  if (folded) $('railToday').textContent = fmtMins(todayFocusSec());
+}
+function setPaneCollapsed(on) {
+  paneCollapsed = !!on;
+  try { localStorage.setItem('paneCollapsed', paneCollapsed ? '1' : '0'); } catch { /* storage unavailable */ }
+  applyPaneCollapse();
+  (paneCollapsed ? $('paneExpandBtn') : $('paneCollapseBtn')).focus();
+  if (paneCollapsed && S.state !== 'idle') showNudge('The timer panel will fold away once this session is over.', 'info', true);
+}
+
 function afterSessionStart() {
   if (settings.compactAuto && !compact) {
     autoCompacted = true;
@@ -97,6 +117,12 @@ function onCommand(cmd) {
 function bind() {
   // Focus pane
   $('startBtn').addEventListener('click', () => startFocus());
+  $('paneCollapseBtn').innerHTML = icon('panel');
+  $('paneExpandBtn').innerHTML = icon('panel');
+  $('railStart').innerHTML = icon('play');
+  $('paneCollapseBtn').addEventListener('click', () => setPaneCollapsed(true));
+  $('paneExpandBtn').addEventListener('click', () => setPaneCollapsed(false));
+  $('railStart').addEventListener('click', () => startFocus());
   $('pauseBtn').addEventListener('click', pauseFocus);
   $('stopBtn').addEventListener('click', () => finishFocus(true));
   $('breakNowBtn').addEventListener('click', launchBreak);
@@ -265,13 +291,14 @@ function bind() {
   document.addEventListener('click', (e) => { if (e.target.closest?.('[data-cal-refresh]')) refreshCalendar(); });
   $('settingsForm').addEventListener('submit', saveSettings);
   $('settingsForm').addEventListener('change', (e) => {
-    if (['accent', 'palette', 'corners', 'density', 'font', 'ringStyle'].includes(e.target.name)) previewAppearance();
+    if (['accent', 'palette', 'look', 'corners', 'density', 'font', 'ringStyle'].includes(e.target.name)) previewAppearance();
   });
   bindCalendars();
 
   bindScrollPolish();
   bindPlanning();
   bindDay();
+  bindRowMenus();
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
@@ -324,11 +351,17 @@ async function init() {
   api.onCapture(async (item) => {
     const typed = String(item.text || '').trim();
     if (!typed) return;
+    if (item.kind === 'todo') {
+      const added = await addQuickTask(typed);
+      const q = added && added.parsed;
+      const extra = q && quickAddSummary(q, todayKey());
+      showNudge(`Added "${q ? q.text : typed}" to ${q && q.day !== todayKey() ? 'your plan' : "today's plan"}${extra ? `: ${extra}` : ''}.`, 'info', true);
+      return;
+    }
     const { text, projectId } = await takeProjectTag(typed);
-    if (item.kind === 'todo') await addTask(text, 0, dayKey(Date.now()), projectId);
-    else if (item.kind === 'done') await addDoneItem(text, item.minutes, projectId, dayKey(Date.now()));
+    if (item.kind === 'done') await addDoneItem(text, item.minutes, projectId, dayKey(Date.now()));
     else await addParking(text, projectId);
-    const where = { todo: 'today\'s plan', done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
+    const where = { done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
     showNudge(`Added "${text}" to ${where}${projectId ? ` (${projectName(projectId)})` : ''}.`, 'info', true);
   });
   api.onRecovered((name) => {

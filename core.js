@@ -80,6 +80,42 @@ function fmtMins(sec) {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+// One outline icon set for the whole app (16px grid, drawn with the text color).
+const ICONS = {
+  play: '<path d="M5 3.5v9l7.5-4.5z" fill="currentColor" stroke="none"/>',
+  note: '<path d="M10.5 2.5l3 3-7.5 7.5H3v-3z"/><path d="M9 4l3 3"/>',
+  promote: '<path d="M5.5 10.5L11 5"/><path d="M6 4.5h5.5V10"/><path d="M3 13h10"/>',
+  close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+  star: '<path d="M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.4l-3.6 1.9.7-4L2.2 6.5l4-.6z"/>',
+  starOn: '<path d="M8 2.2l1.8 3.7 4 .6-2.9 2.8.7 4L8 11.4l-3.6 1.9.7-4L2.2 6.5l4-.6z" fill="currentColor"/>',
+  plus: '<path d="M8 3.5v9M3.5 8h9"/>',
+  more: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
+  retry: '<path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2"/><path d="M12 2.5v2.8H9.2"/>',
+  next: '<path d="M3 8h9.5"/><path d="M9 4.5L12.5 8 9 11.5"/>',
+  clock: '<circle cx="8" cy="8" r="5.8"/><path d="M8 4.8V8l2.2 1.5"/>',
+  calendar: '<rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/>',
+  copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/>',
+  trash: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/>',
+  subtask: '<path d="M4 3v5.5a1.5 1.5 0 0 0 1.5 1.5H12"/><path d="M9.5 7.5L12 10l-2.5 2.5"/>',
+  view: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"/>',
+  chevron: '<path d="M4.5 6.5L8 10l3.5-3.5"/>',
+  panel: '<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>'
+};
+const icon = (name, label) => `<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${ICONS[name] || ''}</svg>`;
+
+// A button that opens a small dropdown menu; it closes on Esc, on a click outside and when the window loses focus.
+function bindMenu(btn, menu) {
+  const set = (open) => {
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+  };
+  btn.addEventListener('click', (e) => { e.stopPropagation(); set(menu.hidden); });
+  document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) set(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) { set(false); btn.focus(); } });
+  window.addEventListener('blur', () => set(false));
+  return set;
+}
+
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -209,6 +245,7 @@ function renderTimer() {
   $('ringProgress').style.opacity = frac > 0.001 ? '1' : '0';
   $('ringProgress').parentElement.parentElement.style.setProperty('--ring-pct', `${(Math.min(1, Math.max(0, frac)) * 100).toFixed(1)}%`); // the clock style's bar
   document.body.dataset.state = S.state;
+  if (typeof applyPaneCollapse === 'function') applyPaneCollapse();
   const inFocus = S.state === 'focus' || S.state === 'paused';
   const sessionProject = inFocus && settings.projectTint !== false && S.projectId ? projectById(S.projectId) : null;
   document.body.classList.toggle('has-proj', !!sessionProject);
@@ -319,6 +356,10 @@ async function startFocus(opts = {}) {
   if (typeof renderPlan === 'function') renderPlan();
   if (typeof afterSessionStart === 'function') afterSessionStart();
 
+  if (settings.focusDnd) {
+    const r = await api.setDnd(true);
+    if (r && !r.ok) showNudge(r.error, 'warn', true);
+  }
   if (settings.blockSites && settings.blockedSites.length) {
     const r = await api.applyBlock(settings.blockedSites);
     if (!r.ok) {
@@ -338,8 +379,14 @@ function pauseFocus() {
   renderTimer();
 }
 
-function finishFocus(early) {
+function finishFocus(early, { force = false } = {}) {
   if (S.state !== 'focus' && S.state !== 'paused') return;
+  // Strict mode: no ending early, except in the first minute (a session started by mistake) or when coming back from away.
+  if (early && settings.strictFocus && !force && Date.now() - S.start > 60000) {
+    showNudge('Strict mode is on, so this session runs to the end. You can pause it, or turn strict mode off in Settings > Focus protection.', 'info', true,
+      { label: 'Pause', fn: pauseFocus });
+    return;
+  }
   const end = Date.now();
   const remaining = S.state === 'paused' ? S.remaining : Math.max(0, S.endsAt - end);
   const focusSec = Math.round((S.total - (early ? remaining : 0)) / 1000);
@@ -369,6 +416,7 @@ function finishFocus(early) {
   if (typeof afterSessionEnd === 'function') afterSessionEnd();
   renderTimer();
   if (settings.blockSites) api.clearBlock();
+  api.setDnd(false); // even if the setting was turned off mid-session
 
   if (!early) {
     if (meetingHold()) {
@@ -425,7 +473,7 @@ function handleAway(choice) {
   } else if (choice === 'resume') {
     resumeFocus();
   } else if (choice === 'end') {
-    finishFocus(true);
+    finishFocus(true, { force: true });
   }
 }
 
@@ -643,6 +691,12 @@ function onActivity(info) {
   if (name) tally[name] = (tally[name] || 0) + 2;
 
   if (S.state !== 'focus') return;
+  if (settings.focusBlockApps && blockedAppHit(info.app) && now - (S.lastAppBlockAt || 0) > 3000) {
+    S.lastAppBlockAt = now;
+    api.minimizeApp(info.app);
+    showNudge(`${friendlyApp(info.app) || info.app} is minimized while you focus on "${S.task}".`, 'warn', true);
+    return;
+  }
   const lower = title.toLowerCase();
   const hit = settings.distractionKeywords.find((k) => k.trim() && lower.includes(k.trim().toLowerCase()));
   if (!hit) return;
@@ -655,6 +709,68 @@ function onActivity(info) {
     api.notify(`Drifting to ${label}?`, `You're focusing on: ${S.task}`);
     showNudge(`${label} is open. You're focusing on "${S.task}".`, 'warn', true);
   }
+}
+
+/* ---------- The all-day app timeline ---------- */
+
+// The main process writes the timeline to its own files; the page asks for a day when it needs it.
+const appDays = new Map(); // day -> { log: [[start, end, app, title]], at: when it was fetched }
+
+// A window counts as distracting when its title has a distraction word, or its app is on the minimize list.
+// Judged when shown, so changing the words changes past days too.
+function isDistracting(raw, title) {
+  const lower = String(title || '').toLowerCase();
+  return settings.distractionKeywords.some((k) => k.trim() && lower.includes(k.trim().toLowerCase())) || blockedAppHit(raw);
+}
+
+// Fetches a day (today again after a minute) and redraws the Day tab when it arrives.
+function loadAppDay(day, redraw) {
+  const have = appDays.get(day);
+  const stale = !have || (day === dayKey(Date.now()) && Date.now() - have.at > 60000);
+  if (!stale || (have && have.loading)) return;
+  appDays.set(day, { ...(have || { log: [] }), loading: true, at: Date.now() });
+  Promise.resolve(api.appDay(day)).then((log) => {
+    appDays.set(day, { log: Array.isArray(log) ? log : [], at: Date.now() });
+    if (redraw) redraw();
+  }).catch(() => appDays.set(day, { log: (have && have.log) || [], at: Date.now() }));
+}
+
+// A day of app use: stretches of [start, end, app, distracting, title], time per app (with its main windows),
+// time on distractions, and how often you switched apps.
+function appDay(day) {
+  const raw = (appDays.get(day) || {}).log || [];
+  const log = raw
+    .map(([a, b, app, title]) => [a, b, friendlyApp(app), isDistracting(app, title) ? 1 : 0, title || ''])
+    .filter((x) => x[2]);
+  const byApp = new Map();
+  let switches = 0;
+  let distractSec = 0;
+  log.forEach(([a, b, name, flag, title], i) => {
+    const sec = (b - a) / 1000;
+    const row = byApp.get(name) || { name, sec: 0, distractSec: 0, titles: new Map() };
+    row.sec += sec;
+    if (flag) { row.distractSec += sec; distractSec += sec; }
+    if (title) row.titles.set(title, (row.titles.get(title) || 0) + sec);
+    byApp.set(name, row);
+    const prev = log[i - 1];
+    if (prev && prev[2] !== name && a - prev[1] < 60000) switches++; // a gap of a minute or more is a pause, not a switch
+  });
+  const apps = [...byApp.values()].sort((x, y) => y.sec - x.sec).map((x) => ({
+    name: x.name, sec: x.sec, distractSec: x.distractSec,
+    titles: [...x.titles.entries()].sort((p, q) => q[1] - p[1]).map(([title, sec]) => ({ title, sec }))
+  }));
+  return { log, apps, switches, distractSec, totalSec: apps.reduce((t, x) => t + x.sec, 0) };
+}
+
+// Whether a process name (like "Discord" or "discord.exe" in the list) is one to minimize during focus.
+function blockedAppHit(raw) {
+  const app = String(raw || '').toLowerCase();
+  if (!app || IGNORED_APPS.has(app)) return false;
+  const friendly = friendlyApp(raw).toLowerCase();
+  return (settings.blockedApps || []).some((x) => {
+    const want = String(x).trim().toLowerCase().replace(/\.exe$/, '');
+    return want && (want === app || want === friendly);
+  });
 }
 
 /* ---------- Tick ---------- */

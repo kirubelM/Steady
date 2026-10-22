@@ -160,3 +160,84 @@ test('weekday repeats skip the weekend', async () => {
   assert.equal(get(`data.tasks.filter((t) => t.day === '${keys.sat}').length`), 0);
   assert.equal(get(`data.tasks.filter((t) => t.day === '${keys.mon}').length`), 1);
 });
+
+/* ---------- 1.15.2: a subtask becomes a task; notes ---------- */
+
+test('a subtask becomes a task right after its parent, keeping the project only when asked, and Undo puts it back', async () => {
+  const { loadApp } = require('./helpers/app');
+  const app = loadApp({ projects: [{ id: 'p1', name: 'Client', color: '#000' }] });
+  const get = (code) => JSON.parse(app.run(`JSON.stringify(${code})`) ?? 'null');
+  const call = async (code) => { await app.run(`(async () => { ${code} })()`); };
+  await call(`await addTask('Launch', 0, todayKey(), 'p1'); await addTask('Other');
+    const t = data.tasks[0];
+    t.subtasks = [{ id: 's1', text: 'Write post', done: false, note: 'Ask Sam for the logo' }, { id: 's2', text: 'Tweet', done: true, doneAt: 5 }];
+    data.entries.push({ id: 'e1', type: 'session', taskId: t.id, subId: 's1', start: 1, end: 2, focusSec: 1 });
+    globalThis.__made = await promoteSubtask(t.id, 's1', true);`);
+  assert.deepEqual(get('openInOrder(todayKey()).map((t) => t.text)'), ['Launch', 'Write post', 'Other']);
+  const made = get('__made');
+  assert.deepEqual([made.projectId, made.note, made.done], ['p1', 'Ask Sam for the logo', false]);
+  assert.deepEqual(get('data.tasks[0].subtasks.map((s) => s.id)'), ['s2']);
+  assert.deepEqual(get('[data.entries[0].taskId === __made.id, data.entries[0].subId]'), [true, null]);
+  await app.run('__nudges.at(-1).fn()');
+  assert.deepEqual(get('data.tasks.map((t) => t.text)'), ['Launch', 'Other']);
+  assert.deepEqual(get('data.tasks[0].subtasks.map((s) => s.id)'), ['s1', 's2']);
+  assert.equal(get('data.entries[0].subId'), 's1');
+  await call(`globalThis.__made = await promoteSubtask(data.tasks[0].id, 's2', false)`);
+  assert.deepEqual(get('[__made.projectId, __made.done, __made.doneAt]'), [null, true, 5]);
+});
+
+test('notes stay with a task when it becomes a subtask, and a subtask note can be saved or cleared', async () => {
+  const { loadApp } = require('./helpers/app');
+  const app = loadApp({});
+  const get = (code) => JSON.parse(app.run(`JSON.stringify(${code})`) ?? 'null');
+  const call = async (code) => { await app.run(`(async () => { ${code} })()`); };
+  await call(`await addTask('Parent'); await addTask('Child'); data.tasks[1].note = 'Follow up Friday';
+    await nestTask(data.tasks[1].id, data.tasks[0].id);`);
+  const sub = get('data.tasks[0].subtasks[0]');
+  assert.deepEqual([sub.text, sub.note], ['Child', 'Follow up Friday']);
+  await call(`await saveSubNote(data.tasks[0].id, '${sub.id}', '  Call back  ')`);
+  assert.equal(get('data.tasks[0].subtasks[0].note'), 'Call back');
+  await call(`await saveSubNote(data.tasks[0].id, '${sub.id}', '   ')`);
+  assert.equal(get('data.tasks[0].subtasks[0].note'), null);
+});
+
+/* ---------- 1.16: the row menu and inline task notes ---------- */
+
+test('the row menu duplicates a task after itself, moves it between days, and deletes with Undo', async () => {
+  const { loadApp } = require('./helpers/app');
+  const app = loadApp({ projects: [{ id: 'p1', name: 'Client', color: '#000' }] });
+  const get = (code) => JSON.parse(app.run(`JSON.stringify(${code})`) ?? 'null');
+  const call = async (code) => { await app.run(`(async () => { ${code} })()`); };
+  await call(`await addTask('Write', 0, todayKey(), 'p1'); await addTask('Read');
+    const t = data.tasks[0]; t.note = 'Ask Sam'; t.subtasks = [{ id: 's', text: 'Outline', done: true, doneAt: 1 }];
+    t.block = { day: todayKey(), startMin: 600, mins: 30 };
+    globalThis.__copy = await duplicateTask(t.id);`);
+  assert.deepEqual(get('openInOrder(todayKey()).map((t) => t.text)'), ['Write', 'Write', 'Read']);
+  assert.deepEqual(get('[__copy.projectId, __copy.note, __copy.block || null, __copy.subtasks[0].done, __copy.subtasks[0].id === "s"]'), ['p1', 'Ask Sam', null, false, false]);
+  await call(`await moveTaskToDay(data.tasks[0].id, shiftKey(todayKey(), 1))`);
+  assert.deepEqual(get('[data.tasks[0].day === shiftKey(todayKey(), 1), data.tasks[0].block]'), [true, null]); // its old time stays behind
+  await call(`await deleteTaskUndoable(data.tasks[2].id)`);
+  assert.equal(get('data.tasks.length'), 2);
+  await app.run('__nudges.at(-1).fn()');
+  assert.deepEqual(get('data.tasks.map((t) => t.text).sort()'), ['Read', 'Write', 'Write']);
+});
+
+test('the task menu offers what fits the task', async () => {
+  const { loadApp } = require('./helpers/app');
+  const app = loadApp({});
+  const get = (code) => JSON.parse(app.run(`JSON.stringify(${code})`) ?? 'null');
+  await app.run(`(async () => { await addTask('A'); await addTask('B'); })()`);
+  const labels = get(`taskMenuItems(data.tasks[0].id, 'plan').filter((x) => x && x !== 'sep').map((x) => x.label)`);
+  assert.ok(labels.includes('Move to tomorrow') && labels.includes('Make it a subtask of…') && labels.includes('Duplicate') && labels.includes('Delete'));
+  assert.ok(!labels.includes('Move to today')); // already today
+});
+
+test('a note on a main task is saved straight from the list, and clearing it removes it', async () => {
+  const { loadApp } = require('./helpers/app');
+  const app = loadApp({});
+  const get = (code) => JSON.parse(app.run(`JSON.stringify(${code})`) ?? 'null');
+  await app.run(`(async () => { await addTask('A'); await saveTaskNote(data.tasks[0].id, '  Call IT  '); })()`);
+  assert.equal(get('data.tasks[0].note'), 'Call IT');
+  await app.run(`(async () => { await saveTaskNote(data.tasks[0].id, ''); })()`);
+  assert.equal(get('data.tasks[0].note'), null);
+});

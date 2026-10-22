@@ -14,7 +14,56 @@ Run `npm test` to check the app's logic (tasks, subtasks, repeating tasks, calen
 
 ## Release notes
 
-Each GitHub release includes the matching **What's new in VERSION** section below. Before tagging a release, move the relevant Unreleased notes into a section matching the exact version in package.json. The release workflow checks that notes exist and adds them to the published release.
+Each GitHub release includes the matching **What's new in VERSION** section below.
+
+**Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
+
+## What's new in 1.17.0
+
+- **Projects in the Parking lot.** Park items can have a project: pick one next to the box or type `#project`. Filter the list by project and sort it newest, oldest, by project or A to Z.
+- **`#project` in quick capture.** Type `#Acme` in the Done and Park tabs (and in the Plan page's Done box) to file an item under that project. It matches an existing project by name, or creates one.
+- **Change when something was finished.** Tasks have a "Finished on / at" date and time in the task editor, and parked items have an Edit button with the same. Set it when you tick Done, or fix it later; the work log follows.
+- **Move things between the plan and the Parking lot.** Tasks have "Move to parking lot", and parked items have "Move to today's plan".
+- **Readable apps in the work log.** Each app used in a session is now its own chip with its time, instead of tiny run-together text.
+
+## What's new in 1.16.1
+
+- **Your app history is kept forever.** The app timeline now keeps every day unless you choose otherwise in Settings > App timeline. If you were on the old 30-day default, Steady switches you to forever; a period you pick yourself stays as you set it.
+
+## What's new in 1.16.0
+
+- **Looks.** Pick a whole style in Settings > Appearance: Classic, Notion-style, Linear-style or Things-style, each with a light and a dark version. A look changes colors, surfaces, corners and titles together. With the Pine accent each look uses its own accent; pick another accent to use yours.
+- **One set of icons.** Buttons across the app now use matching outline icons.
+- **A tidier Day tab.** Show what's done, Move done items and Show apps are in a View menu, and Schedule my day is the main button at the top.
+- **A menu on every task.** Click ⋯ on a task or subtask, or right-click it, to focus, schedule, star, add a note or subtask, move it to today, tomorrow or next week, make it a subtask of another task, duplicate it or delete it (with Undo).
+- **Notes right in the list.** Use the note button on a task to write a note under it without opening the editor.
+- **Fold away the timer.** The button at the top of the timer panel (or Ctrl+Backslash) folds it to a slim bar while you're not focusing, with a start button and today's focus time. It opens again when a session starts.
+- **Easier settings.** Distractions is split into Sites and apps, Focus protection and App timeline, and a search box finds any setting.
+- **Fix.** Pressing Ctrl+Enter in a note box no longer starts a focus session.
+
+## What's new in 1.15.2
+
+- **Make a subtask a task of its own.** Use the ↗ button on a subtask to turn it into a task, placed right after its parent. If the parent has a project, Steady asks whether to keep it. The new task keeps the subtask's note and whether it was done, and time you already spent on it moves with it. Undo puts it back.
+- **Notes for follow-ups.** Add a note to a task in its editor, or to a subtask with its ✎ button, for things like who to follow up with and when. Notes show under the task or subtask; click one to edit it. They stay with a task when it becomes a subtask and back.
+
+## What's new in 1.15.1
+
+- **Project suggestions in quick capture.** Type # in the To do box of quick capture (Ctrl+Shift+Space) and your projects show up under it. Use the Up and Down arrows to choose and Tab or Enter to pick.
+- **Window titles on the app timeline.** The timeline now notes the window you were in, not just the app. Hover a stretch in the apps lane on the Day tab to see its main windows; the summary beside it shows each app's most-used window.
+- **Keep your app history as long as you like.** In Settings > Distractions, keep the timeline for a week, 30 days, 90 days, a year or forever, or delete it. It's now stored in its own files, so a long history doesn't slow Steady down.
+
+## What's new in 1.15.0
+
+- **Smarter quick add.** Type a day, a repeat, a project and a star along with a task, in the Plan box or quick capture (Ctrl+Shift+Space): "Send invoice fri 2pm 1h #client ! every week". Steady understands days like tomorrow, fri, next week, oct 31 or in 3 days, and repeats like every weekday, every friday or monthly. A line under the box shows what it will do before you press Enter, and repeating tasks keep their time on later days.
+- **Schedule my day.** One click on the Day tab gives every task without a time the next free time in your working hours, around your meetings, starred and due tasks first. Blocks you missed earlier move forward, and Steady tells you if anything didn't fit. Undo puts it all back. In the Week view it schedules each day from today on.
+- **An all-day app timeline.** Turn on "Show apps" on the Day tab to see which apps you used through the day beside your plan, with time per app, time on distractions and how often you switched apps. Steady keeps only app names and times, never window titles, on this computer for 30 days. You can turn it off in Settings > Distractions.
+- **Do not disturb.** New options in Settings > Distractions, all off until you turn them on: silence Windows notifications during focus sessions, minimize apps you list (like Discord) if you open them while focusing, and a strict mode that won't let a session end early after its first minute.
+
+## What's new in 1.14.0
+
+- **Make a task a subtask by dragging.** Hold Ctrl+Shift, then drag a task onto another one to make it a subtask. It works in the Plan list, the Day tab's "No time yet" list and on the Day calendar. Its own subtasks and logged focus sessions move with it, and Undo puts everything back.
+- **See which drag you're doing.** A plain drag reorders the list, and a bar slides in where the task will land. A Ctrl+Shift drag shows the task under your cursor with a "Make subtask" badge on the task it will go into.
+- **Move done items on the Day tab.** With "Show what's done" on, turn on "Move done items" to drag sessions, check-ins, logged work and finished tasks to the time they really happened, or nudge one with the Up and Down arrow keys. They keep their length and can't move into the future.
 
 ## What's new in 1.13.0
 

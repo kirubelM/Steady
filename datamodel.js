@@ -41,6 +41,7 @@ const DEFAULTS = {
     calendars: [], // { id, kind: 'outlook' | 'link', name, url }
     accent: 'pine',
     palette: 'steady',
+    look: 'classic',
     corners: 'rounded',
     density: 'comfortable',
     font: 'segoe',
@@ -55,6 +56,12 @@ const DEFAULTS = {
     startAtLogin: false,
     startMinimized: true,
     blockSites: false,
+    focusDnd: false,
+    focusBlockApps: false,
+    blockedApps: ['Discord', 'Steam', 'Spotify'],
+    strictFocus: false,
+    appTimeline: true,
+    appLogKeepDays: 0, // 0 keeps it forever (the default since 1.16.1)
     blockedSites: ['youtube.com', 'reddit.com', 'x.com', 'twitter.com', 'facebook.com', 'instagram.com', 'tiktok.com'],
     distractionKeywords: ['YouTube', 'Reddit', 'Twitter', ' / X', 'Facebook', 'Instagram', 'TikTok', 'Netflix']
   },
@@ -78,6 +85,12 @@ function normalize(input) {
     const std = raw.settings.presets.find((p) => p.id === 'standard');
     std.focusMin = raw.settings.focusMin || 30;
     std.breakMin = raw.settings.shortBreakMin || 5;
+  }
+  // 1.15.1 to 1.16.0 kept the app timeline 30 days by default; keeping it forever is the default now.
+  // The 30 every earlier save stored moves over once, so a period chosen after this stays as chosen.
+  if (raw.settings && !(raw.meta && raw.meta.appLogKeepForever)) {
+    if (raw.settings.appLogKeepDays === 30) raw.settings.appLogKeepDays = 0;
+    raw.meta = { ...(raw.meta && typeof raw.meta === 'object' && !Array.isArray(raw.meta) ? raw.meta : {}), appLogKeepForever: true };
   }
   // Before 1.3.1 there was a single calendar source; carry it into the list.
   if (raw.settings && !Array.isArray(raw.settings.calendars)) {

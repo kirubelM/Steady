@@ -55,9 +55,11 @@ function dayItems(day) {
   return [...meetings, ...tasks];
 }
 
-const dayView = { range: [0, 0], scrolled: '', showDone: false, mode: 'day' };
+const dayView = { range: [0, 0], scrolled: '', showDone: false, moveDone: false, showApps: false, mode: 'day' };
 try {
+  dayView.showApps = localStorage.getItem('dayShowApps') === '1';
   dayView.showDone = localStorage.getItem('dayShowDone') === '1';
+  dayView.moveDone = localStorage.getItem('dayMoveDone') === '1';
   dayView.mode = localStorage.getItem('dayMode') === 'week' ? 'week' : 'day';
 } catch { /* storage unavailable */ }
 
@@ -82,6 +84,29 @@ function doneOnDay(day) {
       // A point still needs room on screen, so give it about 20 minutes when laying things out.
       return { kind: 'done', entry: e, point, startMin, endMin: point ? startMin + 20 : Math.max(startMin + 1, toMin(e.end)) };
     });
+}
+
+const DONE_SNAP = 5; // finished things keep closer to their real times than plans do
+
+// Moves something finished to `start` (ms) on the same day, keeping its length. Never into the future.
+async function moveDoneItem(id, start) {
+  const midnight = atDay(dayKey(start), 0);
+  if (id.startsWith('task:') || id.startsWith('subtask:')) {
+    const [, taskId, subId] = id.split(':');
+    const item = subId ? findSub(taskId, subId) : findTask(taskId);
+    if (!item || !item.done) return;
+    item.doneAt = Math.max(midnight, Math.min(start, Date.now()));
+    await persist('tasks');
+  } else {
+    const e = data.entries.find((x) => x.id === id);
+    if (!e) return;
+    const len = e.end - e.start;
+    e.start = Math.max(midnight, Math.min(start, Date.now() - len));
+    e.end = e.start + len;
+    await persist('entries');
+  }
+  renderPlan();
+  renderLog();
 }
 
 function doneTitle(e) {
@@ -126,10 +151,14 @@ function renderDay() {
         <button class="day-todo-text" type="button" data-task-edit="${t.id}" title="Edit task">${esc(t.text)}</button>
         <span class="day-todo-len">${week ? `${esc(new Date(t.day + 'T12:00').toLocaleDateString([], { weekday: 'short' }))} · ` : ''}${fmtMins(defaultBlockMins(t) * 60)}</span>
         ${movable ? `<button class="link" type="button" data-day-next="${t.id}" title="Schedule at the next free time">Next free time</button>` : ''}
+        <button class="row-more" type="button" data-row-menu aria-label="More for ${esc(t.text)}" title="More (or right-click)">${icon('more')}</button>
       </li>`;
     }).join('')
     : `<li class="empty">${days.some((d) => tasksFor(d).some((t) => !t.done)) ? 'Everything has a time.' : `No tasks for this ${week ? 'week' : 'day'}. Add some on the Plan tab.`}</li>`;
   $('dayTodoHint').hidden = !anyEditable;
+  const missedToday = days.includes(today) ? missedBlocks().length : 0;
+  $('dayScheduleAll').hidden = !anyEditable || !(days.filter((d) => d >= today).some((d) => unscheduledTasks(d).length) || missedToday);
+  $('dayScheduleAll').textContent = week ? 'Schedule the week' : 'Schedule my day';
 
   // All-day events (day view only; the week view keeps its columns uncluttered)
   const allDay = !week && calendarOn() ? eventsOn(day).filter((ev) => ev.allDay) : [];
@@ -141,11 +170,31 @@ function renderDay() {
   const done = showDone ? layoutColumns(doneOnDay(day)) : [];
   $('dayDoneToggle').hidden = week || day > today;
   $('dayShowDone').checked = dayView.showDone;
+  const moveDone = showDone && dayView.moveDone;
+  $('dayMoveDoneRow').hidden = !showDone;
+  $('dayMoveDoneCheck').checked = moveDone;
   $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
+
+  // Apps used: day view only
+  const showApps = !week && dayView.showApps && day <= today;
+  $('dayAppsToggle').hidden = week || day > today;
+  $('dayShowApps').checked = dayView.showApps;
+  if (showApps) loadAppDay(day, renderDay);
+  const apps = showApps ? appDay(day) : null;
+  const appSpans = apps ? appStretches(apps.log, day) : [];
+  renderAppSummary(apps);
+
+  // The View menu: only what applies to the day shown, and a count of what's on.
+  const viewItems = [!$('dayDoneToggle').hidden, !$('dayAppsToggle').hidden];
+  $('dayView').hidden = week || day > today;
+  const on = (showDone ? 1 : 0) + (showApps ? 1 : 0);
+  $('dayViewCount').hidden = !on;
+  $('dayViewCount').textContent = on;
+  $('dayViewEmpty').hidden = viewItems.some(Boolean);
 
   // The calendar
   const cols = days.map((d) => ({ day: d, items: layoutColumns(dayItems(d)) }));
-  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done]);
+  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done, ...appSpans]);
   dayView.range = [a, b];
   const y = (m) => ((m - a) * DAY_PX_PER_MIN).toFixed(1);
   const place = (it) => `top:${y(it.startMin)}px;height:${Math.max(18, (it.endMin - it.startMin) * DAY_PX_PER_MIN - 2).toFixed(1)}px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`;
@@ -179,9 +228,10 @@ function renderDay() {
         aria-label="${esc(`${t.text}, ${week ? `${new Date(colDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ` : ''}${fmtTime(start)} to ${fmtTime(end)}.${keys}`)}">
         <strong>${esc(t.text)}</strong><span class="cal-when">${fmtTime(start)} – ${fmtTime(end)}</span>
         <span class="cal-task-actions">
-          ${canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">▶</button>` : ''}
-          ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">↻</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">→</button>` : ''}
-          ${canEdit ? `<button type="button" data-unblock="${t.id}" title="Clear the time" aria-label="Clear the time for ${esc(t.text)}">×</button>` : ''}
+          ${canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">${icon('play')}</button>` : ''}
+          ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">${icon('retry')}</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">${icon('next')}</button>` : ''}
+          ${canEdit ? `<button type="button" data-unblock="${t.id}" title="Clear the time" aria-label="Clear the time for ${esc(t.text)}">${icon('close')}</button>` : ''}
+          <button type="button" data-row-menu title="More (or right-click)" aria-label="More for ${esc(t.text)}">${icon('more')}</button>
         </span>
         ${canEdit ? '<span class="cal-resize" data-cal-resize aria-hidden="true" title="Drag to change the length"></span>' : ''}
       </div>`;
@@ -192,12 +242,12 @@ function renderDay() {
     const color = projectById(e.projectId)?.color;
     const title = doneTitle(e);
     const when = it.point ? fmtTime(e.start) : `${fmtTime(e.start)} – ${fmtTime(e.end)}`;
-    const label = `${entryLabel(e)}: ${title}, ${when}`;
+    const label = `${entryLabel(e)}: ${title}, ${when}.${moveDone ? ' Drag, or use the Up and Down arrow keys, to change its time.' : ''}`;
     const style = it.point
       ? `top:${y(it.startMin)}px;height:20px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`
       : place(it);
-    return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
-        data-done-entry="${esc(e.id)}" aria-label="${esc(label)}. Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
+    return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}${moveDone ? ' movable' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
+        data-done-entry="${esc(e.id)}" data-done-start="${e.start}" data-done-len="${it.point ? 0 : e.end - e.start}" aria-label="${esc(label)} Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
         ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
       </button>`;
   }).join('');
@@ -207,17 +257,21 @@ function renderDay() {
   const head = week
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
-    : showDone ? `<div class="cal-cols" aria-hidden="true"><span>Planned</span><span>Done${done.length ? '' : ' · nothing yet'}</span></div>` : '';
+    : showDone || showApps ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span>${showDone ? `<span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span>` : ''}${showApps ? `<span class="cc-apps">Apps${appSpans.length ? '' : ' · none yet'}</span>` : ''}</div>` : '';
+  const appBlocks = appSpans.map((s) => `<div class="cal-app${s.distract ? ' distract' : ''}" style="top:${y(s.startMin)}px;height:${Math.max(2, (s.endMin - s.startMin) * DAY_PX_PER_MIN - 1).toFixed(1)}px;--ac:${appColor(s.name)}"
+      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}\n${s.name}${s.distract ? ' (distracting)' : ''}${s.titles.slice(0, 3).map((t) => `\n• ${t.length > 70 ? `${t.slice(0, 69)}…` : t}`).join('')}${s.titles.length > 3 ? `\n+ ${s.titles.length - 3} more` : ''}`)}">${s.endMin - s.startMin >= 20 ? `<span>${esc(s.name)}</span>` : ''}</div>`).join('');
 
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
+  $('dayCal').classList.toggle('with-apps', showApps);
+  $('dayCal').classList.toggle('moving-done', moveDone);
   $('dayCal').classList.toggle('week', week);
-  $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
+  $('daySide').parentElement.classList.toggle('wide-cal', showDone || showApps || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
-      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
+      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${showApps ? `<div class="cal-col cal-apps" aria-label="Apps you used">${appBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
     </div>`;
-  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone;
+  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone || showApps;
 }
 
 // The week's scheduled and free time, from today on.
@@ -228,6 +282,52 @@ function weekSummary(days) {
   const free = ahead.reduce((a, d) => a + freeBlocks(d).reduce((s, [x, y]) => s + (y - x), 0), 0);
   const text = `${blocked ? `${fmtMins(blocked / 1000)} scheduled for tasks this week. ` : 'Nothing scheduled this week yet. '}${ahead.length ? `${fmtMins(free / 1000)} free in your working hours${ahead.length < 7 ? ' from today on' : ''}.` : ''}`;
   return { text, warning: calendarOn() && !Cal.error ? Cal.warning : null };
+}
+
+/* ---------- Day view: the apps you used ---------- */
+
+// The timeline as stretches in minutes after midnight, joining samples of the same app less than a minute apart
+// so the column reads as blocks rather than slivers.
+function appStretches(log, day) {
+  const midnight = atDay(day, 0);
+  const out = [];
+  for (const [a, b, name, flag, title] of log) {
+    const last = out[out.length - 1];
+    const startMin = (a - midnight) / 60000;
+    const endMin = (b - midnight) / 60000;
+    const add = (s) => { if (title) s.titles.set(title, (s.titles.get(title) || 0) + (b - a)); };
+    if (last && last.name === name && last.distract === !!flag && startMin - last.endMin < 1) { last.endMin = endMin; add(last); }
+    else { const s = { name, distract: !!flag, startMin, endMin, titles: new Map() }; add(s); out.push(s); }
+  }
+  // Each stretch names its main windows, most used first.
+  return out.filter((s) => s.endMin > s.startMin)
+    .map((s) => ({ ...s, titles: [...s.titles.entries()].sort((x, y) => y[1] - x[1]).map(([t]) => t) }));
+}
+
+// A steady color for each app, from its name.
+function appColor(name) {
+  let h = 0;
+  for (const c of String(name)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 42% 52%)`;
+}
+
+// The side panel's summary: top apps, time on distractions and how often you switched.
+function renderAppSummary(apps) {
+  const box = $('dayApps');
+  box.hidden = !apps;
+  if (!apps) return;
+  if (!apps.apps.length) {
+    box.innerHTML = `<h3>Apps</h3><p class="field-note">${settings.appTimeline === false
+      ? 'The app timeline is off. Turn it on in Settings > App timeline.'
+      : 'Nothing recorded for this day yet. Steady notes the app in front every few seconds while you\'re at the computer.'}</p>`;
+    return;
+  }
+  const top = apps.apps.slice(0, 6);
+  const max = top[0].sec || 1;
+  box.innerHTML = `<h3>Apps <span class="muted-note">${fmtMins(apps.totalSec)}</span></h3>
+    <ul class="app-list">${top.map((x) => `<li${x.titles.length ? ` title="${esc(x.titles.slice(0, 5).map((t) => `${t.title} (${fmtMins(Math.max(60, t.sec))})`).join('\n'))}"` : ''}><span class="app-dot" style="--ac:${appColor(x.name)}"></span><span class="app-name">${esc(x.name)}</span>
+      <span class="app-time">${fmtMins(Math.max(60, x.sec))}</span>${x.titles[0] ? `<span class="app-window">${esc(x.titles[0].title)}</span>` : ''}<span class="app-bar" aria-hidden="true"><span style="width:${(x.sec / max * 100).toFixed(0)}%;--ac:${appColor(x.name)}"></span></span></li>`).join('')}</ul>
+    <p class="field-note">${apps.distractSec >= 60 ? `<strong>${fmtMins(apps.distractSec)}</strong> on distractions. ` : ''}Switched apps ${plural(apps.switches, 'time')}.</p>`;
 }
 
 // Scrolls the calendar to the current time (today) or the first thing on the day, once per day shown.
@@ -252,9 +352,21 @@ function bindDay() {
   $('dayPrev').addEventListener('click', () => go(shiftKey(planDay, -step())));
   $('dayNext').addEventListener('click', () => go(shiftKey(planDay, step())));
   $('dayToday').addEventListener('click', () => go(todayKey()));
+  $('dayScheduleAll').addEventListener('click', () => scheduleDayAndTell(shownDays()));
+  $('dayShowApps').addEventListener('change', (e) => {
+    dayView.showApps = e.target.checked;
+    try { localStorage.setItem('dayShowApps', dayView.showApps ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
   $('dayShowDone').addEventListener('change', (e) => {
     dayView.showDone = e.target.checked;
     try { localStorage.setItem('dayShowDone', dayView.showDone ? '1' : '0'); } catch { /* storage unavailable */ }
+    renderDay();
+  });
+  bindMenu($('dayViewBtn'), $('dayViewMenu'));
+  $('dayMoveDoneCheck').addEventListener('change', (e) => {
+    dayView.moveDone = e.target.checked;
+    try { localStorage.setItem('dayMoveDone', dayView.moveDone ? '1' : '0'); } catch { /* storage unavailable */ }
     renderDay();
   });
   const setMode = (mode) => {
@@ -287,6 +399,9 @@ function bindDay() {
   };
   const clampStart = (start, mins) => Math.max(dayView.range[0], Math.min(Math.max(dayView.range[0], dayView.range[1] - mins), start));
   const refocus = (id) => cal.querySelector(`[data-cal-task="${id}"]`)?.focus();
+  const refocusDone = (id) => cal.querySelector(`[data-done-entry="${CSS.escape(id)}"]`)?.focus();
+  const clearNest = () => document.querySelectorAll('#tab-day .drop-into, #tab-day .as-sub').forEach((r) => r.classList.remove('drop-into', 'as-sub'));
+  let doneDragEnd = 0; // when a finished item was last dropped, so the click that follows doesn't open it
 
   // Clicks: buttons on blocks, day headers and the side list.
   const onClick = (e) => {
@@ -295,7 +410,7 @@ function bindDay() {
     if (b.dataset.blockStart) startTask(b.dataset.blockStart);
     else if (b.dataset.unblock) unblockTask(b.dataset.unblock);
     else if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
-    else if (b.dataset.doneEntry) openEntryDialog(b.dataset.doneEntry);
+    else if (b.dataset.doneEntry) { if (Date.now() - doneDragEnd > 300) openEntryDialog(b.dataset.doneEntry); }
     else if (b.dataset.reschedNext) rescheduleBlock(b.dataset.reschedNext, 'next');
     else if (b.dataset.reschedTomorrow) rescheduleBlock(b.dataset.reschedTomorrow, 'tomorrow');
     else if (b.dataset.openDay) { planDay = b.dataset.openDay; setMode('day'); }
@@ -346,7 +461,17 @@ function bindDay() {
         }
       }
     }
-    drag.out = !drag.resize && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#daySide');
+    // Ctrl+Shift: drop onto another task to make this one its subtask.
+    clearNest();
+    drag.nest = null;
+    if (!drag.resize && nestKeys(e)) {
+      const over = document.elementsFromPoint(e.clientX, e.clientY)
+        .map((x) => x.closest('[data-cal-task], [data-day-task]')).find((x) => x && x !== drag.el);
+      const nestId = over && (over.dataset.calTask || over.dataset.dayTask);
+      if (nestId && nestId !== drag.t.id) { drag.nest = nestId; over.classList.add('drop-into'); }
+    }
+    drag.el.classList.toggle('nesting', !!drag.nest);
+    drag.out = !drag.resize && !drag.nest && !!document.elementFromPoint(e.clientX, e.clientY)?.closest('#daySide');
     side.classList.toggle('drop-out', drag.out);
     drag.el.classList.toggle('leaving', drag.out);
     drag.el.style.top = `${((drag.start - dayView.range[0]) * DAY_PX_PER_MIN).toFixed(1)}px`;
@@ -360,17 +485,67 @@ function bindDay() {
     const d = drag;
     drag = null;
     side.classList.remove('drop-out');
+    clearNest();
     if (d.click || !d.moved) {
       if (!cancelled && Math.abs(e.clientY - d.y) + Math.abs(e.clientX - d.x) < 5) openTaskDialog(d.t.id);
       return;
     }
     if (cancelled) { renderDay(); return; }
-    if (d.out) await unblockTask(d.t.id);
+    if (d.nest && nestKeys(e)) { if (!(await nestTask(d.t.id, d.nest))) renderDay(); }
+    else if (d.out) await unblockTask(d.t.id);
     else if (d.day !== d.fromDay || d.start !== d.t.block.startMin || d.mins !== d.t.block.mins) await setBlock(d.t.id, d.day, d.start, d.mins);
     else renderDay();
   };
   cal.addEventListener('pointerup', (e) => endDrag(e, false));
   cal.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+  // Moving finished things to the time they really happened, while "Move done items" is on.
+  let doneDrag = null;
+  cal.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.cal-done.movable');
+    if (!el || e.button !== 0) return;
+    const startMin = (Number(el.dataset.doneStart) - atDay(planDay, 0)) / 60000;
+    doneDrag = { el, id: el.dataset.doneEntry, x: e.clientX, y: e.clientY, pointerId: e.pointerId, moved: false,
+      startMin, start: startMin, len: Number(el.dataset.doneLen) / 60000, grab: minuteAtY(e.clientY) - startMin };
+  });
+  cal.addEventListener('pointermove', (e) => {
+    const d = doneDrag;
+    if (!d) return;
+    if (!d.moved) {
+      if (Math.abs(e.clientY - d.y) + Math.abs(e.clientX - d.x) < 5) return;
+      d.moved = true;
+      cal.setPointerCapture(d.pointerId);
+      d.el.classList.add('moving');
+    }
+    const [a, b] = dayView.range;
+    const nowMin = (Date.now() - atDay(planDay, 0)) / 60000;
+    const latest = Math.min(b, nowMin) - d.len;
+    d.start = Math.max(a, Math.min(latest, Math.round((minuteAtY(e.clientY) - d.grab) / DONE_SNAP) * DONE_SNAP));
+    d.el.style.top = `${((d.start - a) * DAY_PX_PER_MIN).toFixed(1)}px`;
+    const when = d.el.querySelector('.cal-when');
+    if (when) when.textContent = `${fmtTime(atDay(planDay, d.start))} – ${fmtTime(atDay(planDay, d.start + d.len))}`;
+    else d.el.dataset.time = fmtTime(atDay(planDay, d.start));
+  });
+  const endDoneDrag = async (cancelled) => {
+    const d = doneDrag;
+    doneDrag = null;
+    if (!d || !d.moved) return;
+    doneDragEnd = Date.now();
+    if (cancelled || Math.abs(d.start - d.startMin) < 0.5) { renderDay(); return; }
+    await moveDoneItem(d.id, atDay(planDay, d.start));
+    refocusDone(d.id);
+  };
+  cal.addEventListener('pointerup', () => endDoneDrag(false));
+  cal.addEventListener('pointercancel', () => endDoneDrag(true));
+  cal.addEventListener('keydown', async (e) => {
+    const el = e.target.closest?.('.cal-done.movable');
+    if (!el || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const start = Number(el.dataset.doneStart) + (e.key === 'ArrowUp' ? -DONE_SNAP : DONE_SNAP) * 60000;
+    if (dayKey(start) !== planDay) return;
+    await moveDoneItem(el.dataset.doneEntry, start);
+    refocusDone(el.dataset.doneEntry);
+  });
 
   // Keyboard: arrows move a block by 15 minutes (Left/Right by a day in the week view),
   // Shift+arrows change its length, Delete clears its time.
@@ -399,17 +574,46 @@ function bindDay() {
   });
 
   // Dragging a task from the side list onto the calendar.
+  // Holding Ctrl+Shift while dropping onto another task (in the list or on the calendar) makes it a subtask instead.
   const isTaskDrag = (e) => [...(e.dataTransfer?.types || [])].includes('application/x-steady-task');
+  let sideDragId = null;
   side.addEventListener('dragstart', (e) => {
     const row = e.target.closest?.('[data-day-task][draggable="true"]');
     if (!row) return;
-    e.dataTransfer.effectAllowed = 'move';
+    sideDragId = row.dataset.dayTask;
+    e.dataTransfer.effectAllowed = 'all'; // Ctrl+Shift asks the system for a link drop
     e.dataTransfer.setData('text/plain', row.dataset.dayTask);
     e.dataTransfer.setData('application/x-steady-task', row.dataset.dayTask);
     requestAnimationFrame(() => row.classList.add('dragging'));
   });
+  // The task a Ctrl+Shift drop would nest under, marked; null when there isn't one.
+  const nestTargetAt = (e) => {
+    clearNest();
+    if (!sideDragId || !nestKeys(e)) return null;
+    const el = e.target.closest?.('[data-day-task], [data-cal-task]');
+    const target = el && (el.dataset.dayTask || el.dataset.calTask);
+    if (!target || target === sideDragId) return null;
+    el.classList.add('drop-into');
+    side.querySelector('.day-todo.dragging')?.classList.add('as-sub');
+    return target;
+  };
+  side.addEventListener('dragover', (e) => {
+    if (!isTaskDrag(e) || !nestTargetAt(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'link';
+  });
+  side.addEventListener('drop', (e) => {
+    if (!isTaskDrag(e)) return;
+    const target = nestTargetAt(e);
+    clearNest();
+    if (!target) return;
+    e.preventDefault();
+    nestTask(sideDragId, target);
+  });
   side.addEventListener('dragend', () => {
-    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging'));
+    sideDragId = null;
+    clearNest();
+    side.querySelectorAll('.dragging').forEach((r) => r.classList.remove('dragging', 'as-sub'));
     cal.querySelector('.cal-ghost')?.remove();
   });
   // Shows where a drop would land; returns the day and start, or null over a past day.
@@ -427,13 +631,26 @@ function bindDay() {
   };
   cal.addEventListener('dragover', (e) => {
     if (!isTaskDrag(e) || !e.target.closest?.('.cal-grid')) return;
-    if (ghostAt(e)) e.preventDefault();
+    if (nestKeys(e)) {
+      cal.querySelector('.cal-ghost')?.remove();
+      if (nestTargetAt(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'link'; }
+      return;
+    }
+    clearNest();
+    if (ghostAt(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
   });
   cal.addEventListener('dragleave', (e) => {
-    if (!e.relatedTarget || !cal.contains(e.relatedTarget)) cal.querySelector('.cal-ghost')?.remove();
+    if (!e.relatedTarget || !cal.contains(e.relatedTarget)) { cal.querySelector('.cal-ghost')?.remove(); clearNest(); }
   });
   cal.addEventListener('drop', (e) => {
     if (!isTaskDrag(e)) return;
+    if (nestKeys(e)) {
+      const target = nestTargetAt(e);
+      clearNest();
+      cal.querySelector('.cal-ghost')?.remove();
+      if (target) { e.preventDefault(); nestTask(sideDragId, target); }
+      return;
+    }
     const spot = ghostAt(e);
     cal.querySelector('.cal-ghost')?.remove();
     if (!spot) return;

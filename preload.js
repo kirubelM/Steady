@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld('steady', {
   allowBlocking: () => ipcRenderer.invoke('block:grant'),
   removeBlockingPermission: () => ipcRenderer.invoke('block:revoke'),
   clearBlock: () => ipcRenderer.invoke('block:clear'),
+  setDnd: (on) => ipcRenderer.invoke('dnd:set', on),
+  minimizeApp: (name) => ipcRenderer.send('app:minimize', name),
+  appDay: (day) => ipcRenderer.invoke('apps:day', day),
+  clearAppTimeline: () => ipcRenderer.invoke('apps:clear'),
   exportCsv: (csv) => ipcRenderer.invoke('export:csv', csv),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   zoom: (direction) => ipcRenderer.send('window:zoom', direction),
@@ -56,6 +60,7 @@ contextBridge.exposeInMainWorld('steady', {
   openCapture: () => ipcRenderer.send('capture:open'),
   submitCapture: (item) => ipcRenderer.send('capture:submit', item),
   closeCapture: () => ipcRenderer.send('capture:close'),
+  captureProjects: () => ipcRenderer.invoke('capture:projects'),
   onCapture: (cb) => ipcRenderer.on('capture', (_e, item) => cb(item)),
   onCaptureReset: (cb) => ipcRenderer.on('capture:reset', () => cb())
 });
