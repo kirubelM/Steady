@@ -2,8 +2,8 @@ const $ = (id) => document.getElementById(id);
 const KINDS = ['todo', 'done', 'park'];
 const PLACEHOLDERS = {
   todo: 'Something to do, e.g. Call Sam fri 2pm #project !',
-  done: 'Something you just finished',
-  park: 'A stray thought to deal with later'
+  done: 'Something you just finished, e.g. Called the vendor 20m #project',
+  park: 'A stray thought to deal with later #project'
 };
 let kind = 'park';
 try { kind = localStorage.getItem('captureKind') || 'park'; } catch { /* storage unavailable */ }
@@ -41,7 +41,7 @@ function hashAtCaret() {
 
 function renderSuggest() {
   const box = $('suggest');
-  const at = kind === 'todo' ? hashAtCaret() : null;
+  const at = hashAtCaret();
   picks = at ? projects.filter((p) => flat(p.name).toLowerCase().startsWith(at.query) || p.name.toLowerCase().includes(at.query)).slice(0, 6) : [];
   pick = Math.min(pick, Math.max(0, picks.length - 1));
   const open = !!at;
