@@ -184,18 +184,17 @@ function renderDay() {
   $('dayMoveDoneCheck').checked = moveDone;
   $('dayDoneCount').textContent = !week && day <= today ? `(${doneOnDay(day).length})` : '';
 
-  // Apps used: day view only
-  const showApps = !week && dayView.showApps && day <= today;
-  $('dayAppsToggle').hidden = week || day > today;
+  // App insights: their own section under the calendar, for the day or for the whole week so far
+  const appDaysShown = days.filter((k) => k <= today);
+  const showApps = dayView.showApps && appDaysShown.length > 0;
+  $('dayAppsToggle').hidden = !appDaysShown.length;
   $('dayShowApps').checked = dayView.showApps;
-  if (showApps) loadAppDay(day, renderDay);
-  const apps = showApps ? appDay(day) : null;
-  const appSpans = apps ? appStretches(apps.log, day) : [];
-  renderAppSummary(apps);
+  if (showApps) appDaysShown.forEach((k) => loadAppDay(k, renderDay));
+  renderAppInsights(showApps ? appDaysShown : null, week);
 
   // The View menu: only what applies to the day shown, and a count of what's on.
   const viewItems = [!$('dayDoneToggle').hidden, !$('dayAppsToggle').hidden];
-  $('dayView').hidden = week || day > today;
+  $('dayView').hidden = !viewItems.some(Boolean);
   const on = (showDone ? 1 : 0) + (showApps ? 1 : 0);
   $('dayViewCount').hidden = !on;
   $('dayViewCount').textContent = on;
@@ -203,7 +202,7 @@ function renderDay() {
 
   // The calendar
   const cols = days.map((d) => ({ day: d, items: layoutColumns(dayItems(d)) }));
-  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done, ...appSpans]);
+  const [a, b] = dayRange([...cols.flatMap((c) => c.items), ...done]);
   dayView.range = [a, b];
   const y = (m) => ((m - a) * DAY_PX_PER_MIN).toFixed(1);
   const place = (it) => `top:${y(it.startMin)}px;height:${Math.max(18, (it.endMin - it.startMin) * DAY_PX_PER_MIN - 2).toFixed(1)}px;left:${(it.col / it.cols * 100).toFixed(3)}%;width:calc(${(100 / it.cols).toFixed(3)}% - 4px)`;
@@ -272,21 +271,17 @@ function renderDay() {
   const head = week
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
-    : showDone || showApps ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span>${showDone ? `<span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span>` : ''}${showApps ? `<span class="cc-apps">Apps${appSpans.length ? '' : ' · none yet'}</span>` : ''}</div>` : '';
-  const appBlocks = appSpans.map((s) => `<div class="cal-app${s.distract ? ' distract' : ''}" style="top:${y(s.startMin)}px;height:${Math.max(2, (s.endMin - s.startMin) * DAY_PX_PER_MIN - 1).toFixed(1)}px;--ac:${appColor(s.name)}"
-      data-tip="${esc(`${fmtTime(atDay(day, s.startMin))} – ${fmtTime(atDay(day, s.endMin))}${s.distract ? ' (distracting)' : ''}\n${s.mix.slice(0, 5).map(([app, sec]) => `${app}: ${fmtMins(Math.max(60, sec))}`).join('\n')}${s.mix.length > 5 ? `\n+ ${s.mix.length - 5} more` : ''}${s.titles.slice(0, 3).map((t) => `\n• ${t.length > 70 ? `${t.slice(0, 69)}…` : t}`).join('')}`)}"><span>${esc(s.name)}${s.endMin - s.startMin >= 30 ? ` <small>${fmtMins((s.endMin - s.startMin) * 60)}</small>` : ''}</span></div>`).join('');
-
+    : showDone ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span><span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span></div>` : '';
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
-  $('dayCal').classList.toggle('with-apps', showApps);
   $('dayCal').classList.toggle('moving-done', moveDone);
   $('dayCal').classList.toggle('week', week);
-  $('daySide').parentElement.classList.toggle('wide-cal', showDone || showApps || week); // more columns: a narrower list, and it stacks sooner
+  $('daySide').parentElement.classList.toggle('wide-cal', showDone || week); // more columns: a narrower list, and it stacks sooner
   $('dayCal').innerHTML = `${head}
     <div class="cal-grid" style="height:${((b - a) * DAY_PX_PER_MIN).toFixed(0)}px">
-      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${showApps ? `<div class="cal-col cal-apps" aria-label="Apps you used">${appBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
+      ${hours.join('')}<div class="cal-lane">${shade}${colsHtml}${showDone ? `<div class="cal-col cal-actual" aria-label="What you did">${doneBlocks}</div>` : ''}${!week && isToday ? nowLine : ''}</div>
     </div>`;
-  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone || showApps;
+  $('dayEmpty').hidden = cols.some((c) => c.items.length) || !anyEditable || showDone;
 }
 
 // The week's scheduled and free time, from today on.
@@ -303,47 +298,6 @@ function weekSummary(days) {
 
 // The timeline as stretches in minutes after midnight, joining samples of the same app less than a minute apart
 // so the column reads as blocks rather than slivers.
-// Switching apps every few seconds would draw hairlines, so the day is cut into 15-minute slots, each named for
-// the app used most in it, and neighbouring slots with the same app join into one labelled block.
-const APP_SLOT = 15;
-function appStretches(log, day) {
-  const midnight = atDay(day, 0);
-  const slots = new Map();
-  for (const [a, b, name, flag, title] of log) {
-    for (let t = a; t < b;) {
-      const slot = Math.floor((t - midnight) / 60000 / APP_SLOT);
-      const next = Math.min(b, midnight + (slot + 1) * APP_SLOT * 60000);
-      const s = slots.get(slot) || { apps: new Map(), titles: new Map(), distractMs: 0, ms: 0 };
-      s.apps.set(name, (s.apps.get(name) || 0) + (next - t));
-      if (title) s.titles.set(title, (s.titles.get(title) || 0) + (next - t));
-      if (flag) s.distractMs += next - t;
-      s.ms += next - t;
-      slots.set(slot, s);
-      t = next;
-    }
-  }
-  const out = [];
-  [...slots.keys()].sort((x, y) => x - y).forEach((n) => {
-    const s = slots.get(n);
-    if (s.ms < 30000) return; // barely at the computer
-    const [name] = [...s.apps.entries()].sort((x, y) => y[1] - x[1])[0];
-    const distract = s.distractMs > s.ms / 2;
-    const last = out[out.length - 1];
-    const block = last && last.name === name && last.distract === distract && last.slot === n - 1 ? last : null;
-    const into = block || { name, distract, slot: n, startMin: n * APP_SLOT, endMin: n * APP_SLOT, apps: new Map(), titles: new Map() };
-    into.slot = n;
-    into.endMin = (n + 1) * APP_SLOT;
-    s.apps.forEach((ms, k) => into.apps.set(k, (into.apps.get(k) || 0) + ms));
-    s.titles.forEach((ms, k) => into.titles.set(k, (into.titles.get(k) || 0) + ms));
-    if (!block) out.push(into);
-  });
-  return out.map((s) => ({
-    ...s,
-    mix: [...s.apps.entries()].sort((x, y) => y[1] - x[1]).map(([app, ms]) => [app, ms / 1000]),
-    titles: [...s.titles.entries()].sort((x, y) => y[1] - x[1]).map(([t]) => t)
-  }));
-}
-
 // A steady color for each app, from its name.
 function appColor(name) {
   let h = 0;
@@ -351,23 +305,68 @@ function appColor(name) {
   return `hsl(${h} 42% 52%)`;
 }
 
-// The side panel's summary: top apps, time on distractions and how often you switched.
-function renderAppSummary(apps) {
-  const box = $('dayApps');
-  box.hidden = !apps;
-  if (!apps) return;
-  if (!apps.apps.length) {
-    box.innerHTML = `<h3>Apps</h3><p class="field-note">${settings.appTimeline === false
+// What each app was used for over `days`: time, share, how many stretches, the longest one and the windows behind it.
+function appUsage(days) {
+  const rows = new Map();
+  const out = { rows: [], totalSec: 0, distractSec: 0, switches: 0 };
+  days.forEach((k) => {
+    const a = appDay(k);
+    out.totalSec += a.totalSec;
+    out.distractSec += a.distractSec;
+    out.switches += a.switches;
+    a.apps.forEach((x) => {
+      const r = rows.get(x.name) || { name: x.name, sec: 0, distractSec: 0, stretches: 0, longest: 0, titles: new Map() };
+      r.sec += x.sec;
+      r.distractSec += x.distractSec;
+      x.titles.forEach((t) => r.titles.set(t.title, (r.titles.get(t.title) || 0) + t.sec));
+      rows.set(x.name, r);
+    });
+    // A stretch is one unbroken run in the same app; a gap of a minute or more ends it.
+    let run = null;
+    const end = () => {
+      if (!run) return;
+      const r = rows.get(run.name);
+      r.stretches++;
+      r.longest = Math.max(r.longest, (run.end - run.start) / 1000);
+      run = null;
+    };
+    a.log.forEach(([s, e, name]) => {
+      if (run && run.name === name && s - run.end < 60000) run.end = e;
+      else { end(); run = { name, start: s, end: e }; }
+    });
+    end();
+  });
+  out.rows = [...rows.values()].sort((x, y) => y.sec - x.sec)
+    .map((r) => ({ ...r, titles: [...r.titles.entries()].sort((x, y) => y[1] - x[1]).map(([title, sec]) => ({ title, sec })) }));
+  return out;
+}
+
+// The Apps section under the calendar: every app for the day (or week), by itself, with its own numbers.
+function renderAppInsights(days, week) {
+  const box = $('dayAppInsights');
+  box.hidden = !days;
+  if (!days) return;
+  const first = days[0];
+  const last = days[days.length - 1];
+  const fmtDay = (k) => new Date(k + 'T12:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  const label = !week ? (first === todayKey() ? 'Today' : fmtDay(first)) : `${fmtDay(first)} to ${fmtDay(last)}`;
+  const u = appUsage(days);
+  if (!u.rows.length) {
+    box.innerHTML = `<h3>Apps <span class="muted-note">${esc(label)}</span></h3><p class="field-note">${settings.appTimeline === false
       ? 'The app timeline is off. Turn it on in Settings > App timeline.'
-      : 'Nothing recorded for this day yet. Steady notes the app in front every few seconds while you\'re at the computer.'}</p>`;
+      : 'Nothing recorded yet. Steady notes the app in front every few seconds while you\'re at the computer.'}</p>`;
     return;
   }
-  const top = apps.apps.slice(0, 6);
-  const max = top[0].sec || 1;
-  box.innerHTML = `<h3>Apps <span class="muted-note">${fmtMins(apps.totalSec)}</span></h3>
-    <ul class="app-list">${top.map((x) => `<li${x.titles.length ? ` title="${esc(x.titles.slice(0, 5).map((t) => `${t.title} (${fmtMins(Math.max(60, t.sec))})`).join('\n'))}"` : ''}><span class="app-dot" style="--ac:${appColor(x.name)}"></span><span class="app-name">${esc(x.name)}</span>
-      <span class="app-time">${fmtMins(Math.max(60, x.sec))}</span>${x.titles[0] ? `<span class="app-window">${esc(x.titles[0].title)}</span>` : ''}<span class="app-bar" aria-hidden="true"><span style="width:${(x.sec / max * 100).toFixed(0)}%;--ac:${appColor(x.name)}"></span></span></li>`).join('')}</ul>
-    <p class="field-note">${apps.distractSec >= 60 ? `<strong>${fmtMins(apps.distractSec)}</strong> on distractions. ` : ''}Switched apps ${plural(apps.switches, 'time')}.</p>`;
+  const max = u.rows[0].sec || 1;
+  box.innerHTML = `<div class="ai-head"><h3>Apps <span class="muted-note">${esc(label)}</span></h3><span class="ai-total">${fmtMins(u.totalSec)} tracked</span></div>
+    <p class="field-note">${u.distractSec >= 60 ? `<strong>${fmtMins(u.distractSec)}</strong> on distractions. ` : ''}Switched apps ${plural(u.switches, 'time')}.</p>
+    <ul class="ai-list">${u.rows.map((r) => `<li style="--ac:${appColor(r.name)}">
+      <span class="ai-name"><span class="app-dot"></span>${esc(r.name)}</span>
+      <span class="ai-time">${fmtMins(Math.max(60, r.sec))} <small>${Math.round(r.sec / (u.totalSec || 1) * 100)}%</small></span>
+      <span class="app-bar" aria-hidden="true"><span style="width:${Math.max(2, r.sec / max * 100).toFixed(0)}%"></span></span>
+      <span class="ai-meta">${plural(r.stretches, 'stretch')}, longest ${fmtMins(Math.max(60, r.longest))}${r.distractSec >= 60 ? `, ${fmtMins(r.distractSec)} distracting` : ''}</span>
+      ${r.titles.length ? `<span class="ai-windows">${r.titles.slice(0, 3).map((t) => `<span title="${esc(t.title)}">${esc(t.title)} <small>${fmtMins(Math.max(60, t.sec))}</small></span>`).join('')}</span>` : ''}
+    </li>`).join('')}</ul>`;
 }
 
 // Scrolls the calendar to the current time (today) or the first thing on the day, once per day shown.

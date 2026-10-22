@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.17.3
+
+- **App insights, on their own.** The Day tab no longer squeezes your apps into a column beside the calendar. View > Show app insights adds a section under the calendar listing every app for the day (or the whole week in Week view): time and share, number of stretches, the longest one, time on distractions and the main windows.
+
 ## What's new in 1.17.2
 
 - **Project suggestions in every quick capture tab.** Typing # in the Done and Park tabs now offers your projects, just like Todo. Tab or Enter picks one.

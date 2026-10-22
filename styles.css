@@ -1289,20 +1289,7 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-done.point { flex-direction: row; align-items: center; gap: 6px; padding: 0 8px; border-left: 0; border-radius: 999px; background: var(--tint-pine); color: var(--pine); font-size: 0.76rem; z-index: 3; }
 .cal-check { font-weight: 700; }
 /* "Show apps": a narrow lane of the apps you used, beside the plan (and the done column) */
-.day-cal.with-apps .cal-plan { right: 32%; }
-.day-cal.with-apps .cal-apps { left: 70%; border-left: 1px dashed var(--line); padding-left: 4px; }
-.day-cal.with-done.with-apps .cal-plan { right: 64%; }
-.day-cal.with-done.with-apps .cal-actual { left: 37%; right: 32%; }
 .cal-cols .cc-plan { flex: 0 0 58%; }
-.day-cal.with-apps .cal-cols .cc-plan { flex-basis: 68%; }
-.day-cal.with-done.with-apps .cal-cols .cc-plan { flex-basis: 36%; }
-.day-cal.with-done.with-apps .cal-cols .cc-done { flex: 0 0 32%; padding-left: 8px; }
-.cal-cols .cc-apps { flex: 1; padding-left: 8px; }
-.cal-app { position: absolute; left: 4px; right: 2px; box-sizing: border-box; border-radius: 3px; background: color-mix(in srgb, var(--ac) 70%, var(--card)); overflow: hidden; z-index: 2; }
-.cal-app span { display: block; padding: 2px 5px; font-size: 0.7rem; font-weight: 600; color: var(--on-accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cal-app.distract { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--berry) 75%, var(--card)) 0 5px, color-mix(in srgb, var(--berry) 55%, var(--card)) 5px 10px); }
-.day-apps { margin: 4px 0 10px; padding-top: 10px; border-top: 1px solid var(--line); }
-.day-apps h3 { display: flex; align-items: baseline; justify-content: space-between; }
 .app-list { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 0.82rem; }
 .app-list li { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 2px 8px; }
 .app-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--ac); }
@@ -1839,5 +1826,19 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 /* Quick completions float at the right edge of the Done column; a burst of them is one pill */
 .cal-done.point { left: auto; width: auto; }
 .cal-done.point strong { overflow: visible; }
-.cal-app span { line-height: 12px; }
-.cal-app small { font-weight: 500; opacity: 0.85; }
+
+/* App insights: a section of its own under the calendar */
+.app-insights { margin: 18px 0 8px; padding: 14px 16px; border-radius: 12px; background: var(--card, var(--paper)); border: 1px solid var(--card-line, var(--line)); max-width: 900px; }
+.app-insights h3 { margin: 0; }
+.ai-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ai-total { font-size: 0.85rem; color: var(--muted); }
+.ai-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; }
+.ai-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.ai-name { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.ai-time { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.ai-time small { font-weight: 500; color: var(--muted); }
+.ai-list .app-bar { grid-column: 1 / -1; height: 6px; }
+.ai-meta { grid-column: 1 / -1; font-size: 0.82rem; color: var(--muted); }
+.ai-windows { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--muted); }
+.ai-windows > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-windows small { opacity: 0.8; }

@@ -125,17 +125,19 @@ test('a drag counts as "make it a subtask" when Ctrl+Shift were held as it began
   assert.equal(get(`nestKeys({ type: 'drop', dataTransfer: { dropEffect: 'move' } })`), false);
 });
 
-test('the app column joins switching into labelled 15-minute blocks', () => {
+test('app insights add up each app across days, with stretches and longest run', () => {
   const app = loadApp();
   const out = app.run(`(() => {
     const m = atDay('2026-10-12', 0);
     const min = (n) => m + n * 60000;
-    // Chrome and Word swapped every minute from 9:00 to 9:30, then Chrome alone until 9:45, then a few seconds of Mail.
-    const log = [];
-    for (let i = 0; i < 30; i++) log.push([min(540 + i), min(541 + i), i % 3 ? 'Chrome' : 'Word', 0, 't']);
-    log.push([min(570), min(585), 'Chrome', 0, 't']);
-    log.push([min(600), min(600) + 5000, 'Mail', 0, '']);
-    return JSON.stringify(appStretches(log, '2026-10-12').map((s) => [s.name, s.startMin, s.endMin]));
+    appDays.set('2026-10-12', { log: [[min(540), min(560), 'chrome.exe', 'Docs'], [min(560), min(570), 'chrome.exe', 'Docs'], [min(600), min(605), 'chrome.exe', 'Mail'], [min(570), min(575), 'code.exe', 'x']], at: Date.now() });
+    appDays.set('2026-10-13', { log: [[atDay('2026-10-13', 0) + 60000, atDay('2026-10-13', 0) + 6 * 60000, 'chrome.exe', 'Docs']], at: Date.now() });
+    const u = appUsage(['2026-10-12', '2026-10-13']);
+    return JSON.stringify(u.rows.map((r) => [r.name, Math.round(r.sec / 60), r.stretches, Math.round(r.longest / 60)]));
   })()`);
-  assert.deepEqual(JSON.parse(out), [['Chrome', 540, 585]]);
+  const rows = JSON.parse(out);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0][1], 40); // 30 + 5 on the 12th, 5 on the 13th
+  assert.equal(rows[0][2], 3);  // 9:00-9:30 run, 10:00 run, 13th run
+  assert.equal(rows[0][3], 30);
 });
