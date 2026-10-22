@@ -132,6 +132,29 @@ function doneTitle(e) {
   return e.note || 'Logged work';
 }
 
+// A short guide to what the calendar is showing right now, for the view and options that are on.
+function dayHelpHtml(week, showDone, combine, showApps) {
+  const key = (cls, text) => `<li><span class="dh-key ${cls}" aria-hidden="true"></span><span>${text}</span></li>`;
+  const items = [];
+  if (combine) {
+    items.push(key('plan', '<strong>Hollow, dashed card:</strong> planned, not done yet. Click to edit it.'));
+    items.push(key('done', '<strong>Filled card, solid bar:</strong> done. Planned tasks you ticked off show a ✓ and the time you finished.'));
+    items.push(key('meet', '<strong>Grey card:</strong> a meeting from your calendar.'));
+    items.push('<li><span class="dh-key" aria-hidden="true">↓</span><span>Each day is one list in time order, so overlapping things stack instead of squeezing side by side. Turn off View > Combine planned and done to get the hour grid back, where you can drag tasks to schedule them.</span></li>');
+  } else {
+    items.push(key('plan solid', '<strong>Colored block on the grid:</strong> a task or meeting you planned. Drag it to move it, drag its bottom edge to change its length.'));
+    if (showDone) {
+      items.push(key('done', `<strong>${week ? 'Right side of each day' : 'Done column'}:</strong> what you actually did, at the real time. Solid bar means done.`));
+      items.push(key('pill', '<strong>✓ N done:</strong> ticked-off tasks close together, gathered into one pill. Click it to open that day in the work log.'));
+      items.push('<li><span class="dh-key" aria-hidden="true">✓</span><span>A planned block you finished stays in its slot, ticked and dimmed.</span></li>');
+    } else {
+      items.push('<li><span class="dh-key" aria-hidden="true">+</span><span>Turn on View > Show what\'s done to see sessions, check-ins and finished tasks next to your plan. Add Combine planned and done to stack them in one list.</span></li>');
+    }
+  }
+  items.push(`<li><span class="dh-key" aria-hidden="true">?</span><span>${week ? 'Click a day\'s name to open it. Drop a task from "No time yet" onto any day and hour to schedule it. ' : 'Drag a task from "No time yet" onto an hour to schedule it. '}${showApps ? '' : 'View > Show app insights adds how long you used each app. '}Hover anything for its details.</span></li>`);
+  return `<ul class="dh-list">${items.join('')}</ul>`;
+}
+
 // Planned and done together: each day is one stacked list in time order, so nothing has to share a narrow lane.
 function combinedHtml(days, week) {
   const today = todayKey();
@@ -327,6 +350,7 @@ function renderDay() {
     ? `<div class="cal-days-head">${days.map((d) => `<button type="button" class="${d === today ? 'today' : ''}" data-open-day="${d}" title="Open this day">
         <span>${esc(new Date(d + 'T12:00').toLocaleDateString([], { weekday: 'short' }))}</span><strong>${new Date(d + 'T12:00').getDate()}</strong></button>`).join('')}</div>`
     : showDone ? `<div class="cal-cols" aria-hidden="true"><span class="cc-plan">Planned</span><span class="cc-done">Done${done.length ? '' : ' · nothing yet'}</span></div>` : '';
+  $('dayHelpBody').innerHTML = dayHelpHtml(week, showDone, combine, showApps);
   $('dayCal').classList.toggle('combined', combine);
   $('dayCal').classList.toggle('editable', anyEditable);
   $('dayCal').classList.toggle('with-done', showDone);
@@ -465,6 +489,10 @@ function bindDay() {
     renderDay();
   });
   bindMenu($('dayViewBtn'), $('dayViewMenu'));
+  try { $('dayHelp').open = localStorage.getItem('dayHelpOpen') === '1'; } catch { /* storage unavailable */ }
+  $('dayHelp').addEventListener('toggle', () => {
+    try { localStorage.setItem('dayHelpOpen', $('dayHelp').open ? '1' : '0'); } catch { /* storage unavailable */ }
+  });
   $('dayCombineCheck').addEventListener('change', (e) => {
     dayView.combine = e.target.checked;
     try { localStorage.setItem('dayCombine', dayView.combine ? '1' : '0'); } catch { /* storage unavailable */ }

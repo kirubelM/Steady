@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.17.8
+
+- **How to read the calendar.** A short, collapsible "How to read this" guide under the Day tab calendar explains what you are looking at: planned vs done, the ✓ pill, the Done side, the combined list and how to schedule tasks. It changes with the view and options you have on.
+
 ## What's new in 1.17.7
 
 - **Solid means done.** In the combined Day and Week list, planned tasks are hollow cards with a dashed outline, and anything done (finished tasks, sessions, check-ins, logged work) is a filled card with a solid bar. The Done column no longer uses a dashed bar for check-ins.

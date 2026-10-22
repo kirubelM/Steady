@@ -177,3 +177,10 @@ test('combining planned and done stacks both kinds in time order, once each', ()
   app.run("dayView.mode = 'week'; dayView.showDone = true; dayView.combine = true; planDay = '2026-10-12'; renderDay();");
   assert.match(app.run("$('dayCal').innerHTML"), /ag-grid week/);
 });
+
+test('the how-to-read guide matches the view that is on', () => {
+  const app = loadApp();
+  assert.match(app.run('dayHelpHtml(false, false, false, false)'), /Show what's done/);
+  assert.match(app.run('dayHelpHtml(true, true, false, false)'), /Right side of each day/);
+  assert.match(app.run('dayHelpHtml(true, true, true, false)'), /Hollow, dashed card/);
+});
