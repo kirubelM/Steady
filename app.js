@@ -197,12 +197,24 @@ function bind() {
   });
 
   // Parking lot
-  $('parkForm').addEventListener('submit', (e) => {
+  $('parkForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = $('parkInput').value.trim();
-    if (!text) return;
+    const typed = $('parkInput').value.trim();
+    if (!typed) return;
+    const chosen = $('parkProject').value || null;
     $('parkInput').value = '';
-    addParking(text);
+    const { text, projectId } = await takeProjectTag(typed, chosen);
+    addParking(text, projectId);
+  });
+  $('parkFilter').addEventListener('change', (e) => {
+    parkFilter = e.target.value;
+    try { localStorage.setItem('parkFilter', parkFilter); } catch { /* storage unavailable */ }
+    renderParking();
+  });
+  $('parkSort').addEventListener('change', (e) => {
+    parkSort = e.target.value;
+    try { localStorage.setItem('parkSort', parkSort); } catch { /* storage unavailable */ }
+    renderParking();
   });
   $('parkList').addEventListener('change', async (e) => {
     const id = e.target.dataset?.toggle;
@@ -214,6 +226,13 @@ function bind() {
       parkingToTask(e.target.dataset.parkTask);
       return;
     }
+    if (e.target.dataset?.parkEdit) { openParkDialog(e.target.dataset.parkEdit); return; }
+    if (e.target.dataset?.parkReset !== undefined) {
+      parkFilter = 'all';
+      try { localStorage.setItem('parkFilter', 'all'); } catch { /* storage unavailable */ }
+      renderParking();
+      return;
+    }
     const id = e.target.dataset?.parkDel;
     if (!id) return;
     data.parking = data.parking.filter((p) => p.id !== id);
@@ -223,8 +242,25 @@ function bind() {
   $('parkCompleted').addEventListener('click', (e) => {
     const button = e.target.closest('button');
     if (button?.dataset.parkReopen) reopenParking(button.dataset.parkReopen);
-    else if (button?.dataset.parkLog) openEntryDialog(button.dataset.parkLog);
+    else if (button?.dataset.parkEdit) openParkDialog(button.dataset.parkEdit);
   });
+  $('parkEditSave').addEventListener('click', saveParkDialog);
+  $('parkEditCancel').addEventListener('click', () => $('parkDialog').close());
+  $('parkEditDone').addEventListener('change', () => {
+    const done = $('parkEditDone').checked;
+    $('parkEditWhen').hidden = !done;
+    $('parkEditPlan').hidden = done;
+    if (done) {
+      $('parkEditDate').value = todayKey();
+      $('parkEditTime').value = toTimeInput(Date.now());
+    }
+  });
+  $('parkEditPlan').addEventListener('click', async () => {
+    const id = editingParkId;
+    $('parkDialog').close();
+    await parkingToTask(id);
+  });
+  $('parkEditText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveParkDialog(); } });
 
   document.addEventListener('click', (e) => { if (e.target.closest?.('[data-cal-refresh]')) refreshCalendar(); });
   $('settingsForm').addEventListener('submit', saveSettings);
@@ -286,13 +322,14 @@ async function init() {
   api.onBreakSnoozed(onBreakSnoozed);
   api.onCommand(onCommand);
   api.onCapture(async (item) => {
-    const text = String(item.text || '').trim();
-    if (!text) return;
-    if (item.kind === 'todo') await addTask(text, 0, dayKey(Date.now()));
-    else if (item.kind === 'done') await addDoneItem(text, item.minutes, null, dayKey(Date.now()));
-    else await addParking(text);
+    const typed = String(item.text || '').trim();
+    if (!typed) return;
+    const { text, projectId } = await takeProjectTag(typed);
+    if (item.kind === 'todo') await addTask(text, 0, dayKey(Date.now()), projectId);
+    else if (item.kind === 'done') await addDoneItem(text, item.minutes, projectId, dayKey(Date.now()));
+    else await addParking(text, projectId);
     const where = { todo: 'today\'s plan', done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
-    showNudge(`Added "${text}" to ${where}.`, 'info', true);
+    showNudge(`Added "${text}" to ${where}${projectId ? ` (${projectName(projectId)})` : ''}.`, 'info', true);
   });
   api.onRecovered((name) => {
     showNudge(name === 'none'

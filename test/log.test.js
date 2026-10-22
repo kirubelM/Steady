@@ -105,3 +105,70 @@ test('reopening a cleared parking completion restores the open item and removes 
  assert.equal(app.run('data.parking[0].done'), false);
  assert.equal(app.run('data.entries.length'), 0);
 });
+
+test('#project in quick capture text matches an existing project or creates one', async () => {
+ const app = loadApp({projects:[{id:'a', name:'Acme Corp', color:'#111', archived:false}]});
+ let r = await app.run("takeProjectTag('Call Sam #acmecorp')");
+ assert.equal(r.text, 'Call Sam'); assert.equal(r.projectId, 'a');
+ r = await app.run("takeProjectTag('#Acme call Sam about Friday')");
+ assert.equal(r.text, 'call Sam about Friday'); assert.equal(r.projectId, 'a');
+ r = await app.run("takeProjectTag('Plan trip #Holiday-2027')");
+ assert.equal(r.text, 'Plan trip'); assert.equal(app.run("projectName(data.projects[1].id)"), 'Holiday 2027');
+ r = await app.run("takeProjectTag('No tag here', 'a')");
+ assert.equal(r.text, 'No tag here'); assert.equal(r.projectId, 'a');
+ r = await app.run("takeProjectTag('item#notatag')");
+ assert.equal(r.projectId, null);
+});
+
+test('parking items can be filtered and sorted by project', () => {
+ const app = loadApp({projects:[{id:'a', name:'Alpha', color:'#111'},{id:'b', name:'Beta', color:'#222'}],
+  parking:[{id:'1', text:'one', at:1, projectId:'b'},{id:'2', text:'two', at:2},{id:'3', text:'three', at:3, projectId:'a'}]});
+ app.run("parkSort = 'project'");
+ assert.equal(app.run("sortParking(data.parking).map(p => p.id).join()"), '3,1,2');
+ app.run("parkSort = 'oldest'");
+ assert.equal(app.run("sortParking(data.parking).map(p => p.id).join()"), '1,2,3');
+ app.run("parkFilter = 'none'");
+ assert.equal(app.run("data.parking.filter(p => parkShows(p.projectId)).length"), 1);
+ app.run("parkFilter = 'a'");
+ assert.equal(app.run("data.parking.filter(p => parkShows(p.projectId)).map(p => p.id).join()"), '3');
+});
+
+test('editing a parked item changes its project and completion time, and the log follows', async () => {
+ const app = loadApp({parking:[{id:'p', text:'Call supplier', done:false, at:now}], projects:[{id:'a', name:'Alpha', color:'#111'}]});
+ const earlier = now - 3 * 3600000;
+ app.run(`openParkDialog('p'); $('parkEditProject').value = 'a'; $('parkEditDone').checked = true;
+   $('parkEditDate').value = dayKey(${earlier}); $('parkEditTime').value = toTimeInput(${earlier});`);
+ await app.run('saveParkDialog()');
+ assert.equal(app.run('data.parking[0].done'), true);
+ assert.equal(app.run('data.parking[0].projectId'), 'a');
+ assert.equal(app.run('dayKey(data.entries[0].start) === dayKey(data.parking[0].doneAt)'), true);
+ assert.equal(app.run('toTimeInput(data.entries[0].start) === toTimeInput(' + earlier + ')'), true);
+ assert.equal(app.run('data.entries[0].projectId'), 'a');
+ assert.equal(app.run('data.entries.length'), 1);
+ app.run('$("parkEditDone").checked = false; openParkDialog("p"); $("parkEditDone").checked = false');
+ await app.run('saveParkDialog()');
+ assert.equal(app.run('data.entries.length'), 0);
+ assert.equal(app.run('data.parking[0].doneAt'), null);
+});
+
+test('a task can be finished at a chosen time and moved to the parking lot', async () => {
+ const app = loadApp({tasks:[{id:'t', text:'Send report', day:'2026-10-16', done:false, order:0, projectId:null}], projects:[{id:'a', name:'Alpha', color:'#111'}]});
+ const earlier = now - 5 * 3600000;
+ app.run(`editingTaskId = 't'; editingSubs = []; $('taskEditText').value = 'Send report'; $('taskEditDay').value = '2026-10-16'; $('taskEditDone').checked = true; showTaskDoneWhen(null);
+   $('taskEditDoneDate').value = dayKey(${earlier}); $('taskEditDoneTime').value = toTimeInput(${earlier});`);
+ await app.run('saveTaskDialog()');
+ assert.equal(app.run('data.tasks[0].done'), true);
+ assert.equal(app.run('toTimeInput(data.tasks[0].doneAt) === toTimeInput(' + earlier + ')'), true);
+ app.run(`$('taskEditDoneDate').value = '2999-01-01'`);
+ await app.run('saveTaskDialog()');
+ assert.match(app.run("$('taskEditError').textContent"), /future/);
+ await app.run("setTaskDone('t', false); taskToParking('t')");
+ assert.equal(app.run('data.tasks.length'), 0);
+ assert.equal(app.run('data.parking[0].text'), 'Send report');
+});
+
+test('work log shows each app as its own chip', () => {
+ const html = loadApp().run("entryHtml({id:'s', type:'session', note:'Draft', start:Date.now(), end:Date.now(), focusSec:600, apps:[{name:'Word', sec:300},{name:'Chrome', sec:900}]})");
+ assert.match(html, /app-chip">Chrome <small>15 min/);
+ assert.match(html, /app-chip">Word/);
+});

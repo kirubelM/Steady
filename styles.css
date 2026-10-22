@@ -1562,3 +1562,23 @@ body.has-proj[data-state="focus"], body.has-proj[data-state="paused"] {
 .cal-refresh.connect { color: var(--pine); border-style: dashed; }
 @keyframes cal-spin { to { transform: rotate(360deg); } }
 .sched-head .cal-refresh { margin-left: 0; font-size: 0.8rem; padding-top: 2px; padding-bottom: 2px; }
+
+/* Apps used in a session: one readable chip each, on their own line */
+.entry-apps { margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.app-chip {
+  display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%;
+  font-size: 0.84rem; font-weight: 600; color: var(--ink); line-height: 1.5;
+  padding: 1px 10px; border-radius: 8px; border: 1px solid var(--card-line, var(--line));
+  background: color-mix(in srgb, var(--ink) 5%, transparent); overflow-wrap: anywhere;
+}
+.app-chip small { font-size: 0.76rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.app-more { font-size: 0.8rem; color: var(--muted); align-self: center; }
+.entry .meta { margin-top: 6px; row-gap: 4px; }
+
+/* Parking lot: filter, sort and project chips */
+.park-form select { max-width: 11rem; }
+.park-tools { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0 0 8px; max-width: 640px; }
+.park-tools label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.88rem; }
+.park-list li .pchip { margin-right: 0; flex: none; }
+.park-list li { flex-wrap: wrap; }
+.park-list .empty { color: var(--muted); }

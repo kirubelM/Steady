@@ -124,7 +124,7 @@ async function deleteTask(id) {
 async function parkingToTask(id) {
   const p = data.parking.find((x) => x.id === id);
   if (!p) return;
-  await addTask(p.text);
+  await addTask(p.text, 0, todayKey(), p.projectId);
   data.parking = data.parking.filter((x) => x.id !== id);
   await persist('parking');
   renderParking();
@@ -916,6 +916,18 @@ function addSubFromEditor() {
   $('taskEditSubInput').focus();
 }
 
+// The "Finished on / at" fields appear with the Done box, starting from the saved time or right now.
+function showTaskDoneWhen(doneAt) {
+  const done = $('taskEditDone').checked;
+  $('taskEditWhen').hidden = !done;
+  if (done) {
+    const at = doneAt || Date.now();
+    $('taskEditDoneDate').value = dayKey(at);
+    $('taskEditDoneTime').value = toTimeInput(at);
+  }
+  $('taskEditDoneDate').max = todayKey();
+}
+
 function openTaskDialog(id) {
   const t = findTask(id);
   if (!t) return;
@@ -928,6 +940,9 @@ function openTaskDialog(id) {
   $('taskEditPreset').innerHTML = '<option value="">Whatever is selected</option>' + settings.presets
     .map((p) => `<option value="${p.id}" ${p.id === t.presetId ? 'selected' : ''}>${esc(p.name)} (${p.focusMin} min)</option>`).join('');
   $('taskEditDone').checked = !!t.done;
+  showTaskDoneWhen(t.doneAt);
+  $('taskEditError').textContent = '';
+  $('taskEditPark').hidden = !!t.done;
   const r = recurById(t.recurId);
   $('taskEditRepeat').innerHTML = REPEAT_OPTIONS.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('');
   $('taskEditRepeat').value = r ? r.freq : '';
@@ -947,14 +962,21 @@ async function saveTaskDialog() {
   if (!t) return $('taskDialog').close();
   const text = $('taskEditText').value.trim();
   if (!text) { $('taskEditText').focus(); return; }
+  const done = $('taskEditDone').checked;
+  let finishedAt = null;
+  if (done) {
+    finishedAt = new Date(`${$('taskEditDoneDate').value}T${$('taskEditDoneTime').value}`).getTime();
+    if (!Number.isFinite(finishedAt)) { $('taskEditError').textContent = 'Pick the date and time it was finished.'; return; }
+    if (finishedAt > Date.now()) { $('taskEditError').textContent = 'That time is in the future.'; return; }
+  }
   t.text = text;
   t.projectId = $('taskEditProject').value || null;
   t.est = Number($('taskEditEst').value) || 0;
   t.presetId = $('taskEditPreset').value || null;
   const day = $('taskEditDay').value;
   if (day && day !== t.day) { t.day = day; t.order = nextOrder(day); }
-  const done = $('taskEditDone').checked;
-  if (done !== t.done) { t.done = done; t.doneAt = done ? Date.now() : null; }
+  t.done = done;
+  t.doneAt = finishedAt;
   if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
   t.subtasks = editingSubs.filter((x) => x.text.trim()).map(s => {
     const old = (t.subtasks || []).find(x => x.id === s.id);
@@ -981,19 +1003,21 @@ async function saveTaskDialog() {
 /* ---------- Events ---------- */
 
 function bindPlan() {
-  $('taskForm').addEventListener('submit', (e) => {
+  $('taskForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = $('taskInput').value.trim();
-    if (!text) return;
-    const when = planDay >= todayKey() ? parseTaskTime(text) : null;
-    const day = planDay;
-    addTask(when ? when.text : text, $('taskEst').value, day, $('taskProject').value || null).then((id) => {
-      if (when) setBlock(id, day, when.startMin, when.mins || defaultBlockMins(findTask(id)));
-    });
+    const typed = $('taskInput').value.trim();
+    if (!typed) return;
+    const est = $('taskEst').value;
+    const chosen = $('taskProject').value || null;
     $('taskInput').value = '';
     showTimeHint();
     $('taskEst').value = '0';
     $('taskInput').focus();
+    const { text, projectId } = await takeProjectTag(typed, chosen); // "#project" beats the picker
+    const when = planDay >= todayKey() ? parseTaskTime(text) : null;
+    const day = planDay;
+    const id = await addTask(when ? when.text : text, est, day, projectId);
+    if (when) setBlock(id, day, when.startMin, when.mins || defaultBlockMins(findTask(id)));
   });
 
   $('doneOpen').addEventListener('click', () => {
@@ -1013,14 +1037,17 @@ function bindPlan() {
       }
     }, 150);
   });
-  $('doneForm').addEventListener('submit', (e) => {
+  $('doneForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = $('doneInput').value.trim();
-    if (!text) return;
-    addDoneItem(text, $('doneMinutes').value, $('doneProject').value, planDay);
+    const typed = $('doneInput').value.trim();
+    if (!typed) return;
+    const minutes = $('doneMinutes').value;
+    const chosen = $('doneProject').value;
     $('doneInput').value = '';
     $('doneMinutes').value = '';
     $('doneInput').focus();
+    const { text, projectId } = await takeProjectTag(typed, chosen);
+    addDoneItem(text, minutes, projectId, planDay);
   });
 
   const onListClick = (e) => {
@@ -1101,6 +1128,12 @@ function bindPlan() {
   $('taskEditDelete').addEventListener('click', async () => {
     await deleteTask(editingTaskId);
     $('taskDialog').close();
+  });
+  $('taskEditDone').addEventListener('change', () => showTaskDoneWhen(null));
+  $('taskEditPark').addEventListener('click', async () => {
+    const id = editingTaskId;
+    $('taskDialog').close();
+    await taskToParking(id);
   });
   $('taskEditText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveTaskDialog(); } });
   $('taskEditSubAdd').addEventListener('click', addSubFromEditor);

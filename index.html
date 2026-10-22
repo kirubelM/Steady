@@ -174,7 +174,7 @@
           <button id="doneOpen" class="link sub-add-link done-open" type="button">+ Log something you did</button>
           <form id="doneForm" class="task-form" hidden>
             <label for="doneInput" class="sr-only">Something you did</label>
-            <input id="doneInput" type="text" maxlength="200" placeholder="Add something you finished, e.g. Called the vendor" autocomplete="off">
+            <input id="doneInput" type="text" maxlength="200" placeholder="Add something you finished, e.g. Called the vendor #project" autocomplete="off">
             <label for="doneMinutes" class="sr-only">Minutes spent (optional)</label>
             <input id="doneMinutes" class="minutes" type="number" min="0" max="720" placeholder="Min">
             <label for="doneProject" class="sr-only">Project</label>
@@ -295,9 +295,15 @@
         <p class="lede">Write down the thought, get back to work, deal with it on your break.</p>
         <form id="parkForm" class="park-form">
           <label for="parkInput" class="sr-only">New item</label>
-          <input id="parkInput" type="text" maxlength="200" placeholder="Reply to Sam about Friday" autocomplete="off">
+          <input id="parkInput" type="text" maxlength="200" placeholder="Reply to Sam about Friday #project" autocomplete="off">
+          <label for="parkProject" class="sr-only">Project</label>
+          <select id="parkProject" class="project-select" data-none="No project"></select>
           <button class="btn primary" type="submit">Park it</button>
         </form>
+        <div class="park-tools">
+          <label>Show <select id="parkFilter"></select></label>
+          <label>Sort <select id="parkSort"></select></label>
+        </div>
         <h3>Open</h3>
         <ul id="parkList" class="park-list"></ul>
         <section class="park-completed-section" aria-labelledby="parkCompletedTitle">
@@ -665,9 +671,15 @@
       </div>
     </div>
     <label class="checkin-done"><input id="taskEditDone" type="checkbox"> Done</label>
+    <div id="taskEditWhen" class="dialog-grid" hidden>
+      <label class="field">Finished on <input id="taskEditDoneDate" type="date"></label>
+      <label class="field">at <input id="taskEditDoneTime" type="time"></label>
+    </div>
+    <p id="taskEditError" class="form-error" role="alert"></p>
     <div class="dialog-actions">
       <button id="taskEditSave" class="btn primary" type="button">Save task</button>
       <button id="taskEditCancel" class="btn quiet" type="button">Cancel</button>
+      <button id="taskEditPark" class="btn quiet" type="button">Move to parking lot</button>
       <button id="taskEditDelete" class="btn danger" type="button">Delete task</button>
     </div>
   </dialog>
@@ -718,6 +730,28 @@
         <button id="welcomeBack3" class="btn quiet" type="button">Back</button>
       </div>
     </section>
+  </dialog>
+
+  <!-- Edit a parked item -->
+  <dialog id="parkDialog" class="dialog" aria-labelledby="parkDialogTitle">
+    <h2 id="parkDialogTitle">Edit parked item</h2>
+    <label class="field">What it is
+      <input id="parkEditText" type="text" maxlength="200">
+    </label>
+    <div class="dialog-grid">
+      <label class="field">Project <select id="parkEditProject"></select></label>
+    </div>
+    <label class="checkin-done"><input id="parkEditDone" type="checkbox"> Done</label>
+    <div id="parkEditWhen" class="dialog-grid" hidden>
+      <label class="field">Finished on <input id="parkEditDate" type="date"></label>
+      <label class="field">at <input id="parkEditTime" type="time"></label>
+    </div>
+    <p id="parkEditError" class="form-error" role="alert"></p>
+    <div class="dialog-actions">
+      <button id="parkEditSave" class="btn primary" type="button">Save</button>
+      <button id="parkEditCancel" class="btn quiet" type="button">Cancel</button>
+      <button id="parkEditPlan" class="btn quiet" type="button">Move to today's plan</button>
+    </div>
   </dialog>
 
   <!-- Edit or add a log entry -->

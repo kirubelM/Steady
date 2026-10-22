@@ -16,8 +16,8 @@ function setKind(k) {
   $('text').placeholder = PLACEHOLDERS[k];
   $('minutes').hidden = k !== 'done';
   $('hint').innerHTML = k === 'done'
-    ? '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type. Add time by ending with a number, like "20m".'
-    : '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type, <kbd>Esc</kbd> closes';
+    ? '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type. Add time like "20m" and a project like "#Acme".'
+    : '<kbd>Enter</kbd> saves, <kbd>Tab</kbd> switches type. Add a project with "#Acme".';
   $('text').focus();
 }
 
@@ -32,11 +32,16 @@ function submit() {
   if (!text) return;
   let minutes = Number($('minutes').value) || 0;
   // "Called the vendor 20m" also works, so you never have to leave the keyboard.
+  // A "#project" tag may come before or after the time, so set it aside while reading the time.
+  const tag = /(^|\s)#[^\s#]+/.exec(text);
+  const tagText = tag ? tag[0].trim() : '';
+  if (tag && kind === 'done') text = (text.slice(0, tag.index) + ' ' + text.slice(tag.index + tag[0].length)).trim();
   const m = /\s(\d{1,3})\s*(m|min|mins|minutes)$/i.exec(text);
   if (kind === 'done' && m && !minutes) {
     minutes = Number(m[1]);
     text = text.slice(0, m.index).trim();
   }
+  if (tag && kind === 'done') text = `${text} ${tagText}`.trim();
   window.steady.submitCapture({ kind, text, minutes });
   reset();
 }

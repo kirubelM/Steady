@@ -52,6 +52,24 @@ async function addProject(name) {
   return p.id;
 }
 
+const projectKey = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+// Pulls a "#project" tag out of typed text, e.g. "Call Sam #Acme". The tag matches a project by name
+// (spaces and punctuation ignored, or an unambiguous start of it) and creates the project if none fits.
+async function takeProjectTag(text, fallbackId = null) {
+  const m = /(^|\s)#([^\s#]+)/.exec(text);
+  if (!m) return { text: text.trim(), projectId: fallbackId || null };
+  const rest = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim();
+  const key = projectKey(m[2]);
+  if (!rest || !key) return { text: text.trim(), projectId: fallbackId || null };
+  const list = activeProjects();
+  const exact = list.find((p) => projectKey(p.name) === key);
+  const starts = list.filter((p) => projectKey(p.name).startsWith(key));
+  const found = exact || (starts.length === 1 ? starts[0] : null);
+  const projectId = found ? found.id : await addProject(m[2].replace(/[-_]+/g, ' '));
+  return { text: rest, projectId };
+}
+
 async function updateProject(id, patch) {
   const p = projectById(id);
   if (!p) return;

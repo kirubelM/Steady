@@ -95,11 +95,9 @@ function entryHtml(e) {
       <div class="entry-actions"><button class="del" data-del="${e.id}" type="button" aria-label="Delete this break">×</button></div>
     </li>`;
   }
-  const apps = (e.apps || []).slice(0, 3).map((a) => esc(a.name)).join(', ');
   const meta = [];
   if (type === 'session') meta.push(`${fmtMins(e.focusSec || 0)} focused${e.early ? ' (ended early)' : ''}`);
   else if (workSec(e)) meta.push(fmtMins(workSec(e)));
-  if (apps) meta.push(apps);
   if (e.distractions?.length) meta.push(plural(e.distractions.length, 'drift'));
   const goal = type === 'session' && e.goal
     ? `<p class="entry-goal goal-${e.goalHit || 'none'}">◎ ${esc(e.goal)}${e.goalHit ? ` <span>${{ yes: 'reached', partly: 'partly reached', no: 'not reached' }[e.goalHit]}</span>` : ''}</p>`
@@ -113,12 +111,23 @@ function entryHtml(e) {
       <span class="type-badge">${entryLabel(e)}</span>
       <p class="note">${esc(e.note)}</p>
       ${goal}
+      ${appChips(e.apps)}
       <p class="meta">${e.rating ? `<span class="chip ${esc(e.rating)}">${RATING_LABELS[e.rating]}</span>` : ''}${projectChip(e.projectId)}${meta.join('. ')}</p>
     </div>
     <div class="entry-actions">
       <button class="link" data-edit="${e.id}" type="button">Edit</button>
     </div>
   </li>`;
+}
+
+// The apps used during a session, one readable chip each, longest first.
+function appChips(apps) {
+  const list = (apps || []).filter((a) => a && a.name).sort((a, b) => (b.sec || 0) - (a.sec || 0));
+  if (!list.length) return '';
+  const more = list.length - 5;
+  const chips = list.slice(0, 5).map((a) =>
+    `<span class="app-chip">${esc(a.name)}${a.sec >= 60 ? ` <small>${fmtMins(a.sec)}</small>` : ''}</span>`).join('');
+  return `<p class="entry-apps" aria-label="Apps used">${chips}${more > 0 ? `<span class="app-more">+${more} more</span>` : ''}</p>`;
 }
 
 function bindLogFilter() {
@@ -221,6 +230,8 @@ async function saveEntryDialog() {
   e.end = start + mins * 60000;
   if (e.type === 'session') e.focusSec = mins * 60;
 
+  const parked = e.parkingCompletion && data.parking.find((p) => p.id === e.parkingCompletion);
+  if (parked) { parked.text = note; parked.projectId = projectId; parked.doneAt = start; await persist('parking'); }
   await persist('entries');
   $('entryDialog').close();
   renderParking();
@@ -326,16 +337,39 @@ function setLogView(view) {
 
 /* ---------- Parking lot ---------- */
 
+let parkFilter = 'all'; // 'all', 'none' or a project id
+let parkSort = 'newest';
+try {
+  parkFilter = localStorage.getItem('parkFilter') || 'all';
+  parkSort = localStorage.getItem('parkSort') || 'newest';
+} catch { /* storage unavailable */ }
+const PARK_SORTS = { newest: 'Newest first', oldest: 'Oldest first', project: 'By project', az: 'A to Z' };
+if (!PARK_SORTS[parkSort]) parkSort = 'newest';
+
+const parkShows = (projectId) => parkFilter === 'all' || (parkFilter === 'none' ? !projectId : projectId === parkFilter);
+
+function sortParking(items) {
+  const name = (p) => projectName(p.projectId).toLowerCase();
+  const by = {
+    newest: (a, b) => (b.at || 0) - (a.at || 0),
+    oldest: (a, b) => (a.at || 0) - (b.at || 0),
+    project: (a, b) => (!name(a) - !name(b)) || name(a).localeCompare(name(b)) || (b.at || 0) - (a.at || 0),
+    az: (a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' })
+  }[parkSort];
+  return items.slice().sort(by);
+}
+
 function completedParkingGroups() {
   const entries = data.entries.filter(e => e.parkingCompletion).map(e => ({
-    id: e.parkingCompletion, text: e.note, doneAt: e.start, entryId: e.id
+    id: e.parkingCompletion, text: e.note, doneAt: e.start, entryId: e.id,
+    projectId: e.projectId || data.parking.find(p => p.id === e.parkingCompletion)?.projectId || null
   }));
   const logged = new Set(entries.map(e => e.id));
   entries.push(...data.parking.filter(p => p.done && !logged.has(p.id)).map(p => ({
-    id: p.id, text: p.text, doneAt: p.doneAt || null, entryId: null
+    id: p.id, text: p.text, doneAt: p.doneAt || null, entryId: null, projectId: p.projectId || null
   })));
   const groups = new Map();
-  entries.sort((a,b) => (b.doneAt || 0) - (a.doneAt || 0)).forEach(item => {
+  entries.filter(item => parkShows(item.projectId)).sort((a,b) => (b.doneAt || 0) - (a.doneAt || 0)).forEach(item => {
     const day = item.doneAt ? dayKey(item.doneAt) : 'unknown';
     if (!groups.has(day)) groups.set(day, []);
     groups.get(day).push(item);
@@ -343,13 +377,30 @@ function completedParkingGroups() {
   return [...groups].map(([day, items]) => ({day, items}));
 }
 
+function renderParkTools() {
+  const used = new Set(data.parking.map(p => p.projectId).filter(Boolean));
+  const list = (data.projects || []).filter(p => !p.archived || used.has(p.id));
+  if (parkFilter !== 'all' && parkFilter !== 'none' && !projectById(parkFilter)) parkFilter = 'all';
+  $('parkFilter').innerHTML = '<option value="all">All projects</option><option value="none">No project</option>' +
+    list.map(p => '<option value="' + p.id + '">' + esc(p.name) + '</option>').join('');
+  $('parkFilter').value = parkFilter;
+  $('parkSort').innerHTML = Object.entries(PARK_SORTS).map(([k, v]) => '<option value="' + k + '">' + v + '</option>').join('');
+  $('parkSort').value = parkSort;
+}
+
 function renderParking() {
-  const items = data.parking.filter(p => !p.done);
+  renderParkTools();
+  const all = data.parking.filter(p => !p.done);
+  const items = sortParking(all.filter(p => parkShows(p.projectId)));
   $('parkList').innerHTML = items.length
     ? items.map(p => '<li><label><input type="checkbox" data-toggle="' + p.id + '"><span>' + esc(p.text) + '</span></label>' +
-      '<time>' + fmtTime(p.at) + '</time><button class="link small-link" data-park-task="' + p.id + '" type="button">Add to today?s plan</button>' +
+      projectChip(p.projectId) + '<time>' + fmtTime(p.at) + '</time>' +
+      '<button class="link small-link" data-park-edit="' + p.id + '" type="button">Edit</button>' +
+      '<button class="link small-link" data-park-task="' + p.id + '" type="button">Add to today\'s plan</button>' +
       '<button class="del" data-park-del="' + p.id + '" type="button" aria-label="Delete item">&times;</button></li>').join('')
-    : emptyState('note', 'Nothing parked', 'Add a thought here to come back to later.');
+    : all.length
+      ? '<li class="empty">Nothing parked under this filter. <button class="link" type="button" data-park-reset>Show all</button></li>'
+      : emptyState('note', 'Nothing parked', 'Add a thought here to come back to later.');
   const groups = completedParkingGroups();
   $('parkCompletedSummary').textContent = groups.reduce((n,g) => n + g.items.length, 0) + ' completed';
   $('parkCompleted').innerHTML = groups.length ? groups.map(g => {
@@ -357,10 +408,67 @@ function renderParking() {
       new Date(g.day + 'T12:00').toLocaleDateString([], {weekday:'long', month:'short', day:'numeric', year:'numeric'});
     return '<details class="park-day" open><summary>' + esc(label) + ' (' + g.items.length + ')</summary><ul class="park-list">' +
       g.items.map(item => '<li class="done"><span class="park-completed-text">' + esc(item.text) + '</span>' +
+        projectChip(item.projectId) +
         (item.doneAt ? '<time>' + fmtTime(item.doneAt) + '</time>' : '') +
-        (item.entryId ? '<button class="link" type="button" data-park-log="' + item.entryId + '">Edit log</button>' : '') +
+        '<button class="link" type="button" data-park-edit="' + item.id + '">Edit</button>' +
         '<button class="link" type="button" data-park-reopen="' + item.id + '">Reopen</button></li>').join('') + '</ul></details>';
   }).join('') : '<p class="summary">Completed parking items will appear here, grouped by day, and in your work log.</p>';
+}
+
+/* Edit a parked item: its words, project, and when it was finished (set before or changed after the fact). */
+let editingParkId = null;
+
+function openParkDialog(id) {
+  const entry = data.entries.find(e => e.parkingCompletion === id);
+  const item = data.parking.find(p => p.id === id)
+    || (entry ? { id, text: entry.note, at: entry.start, done: true, doneAt: entry.start, projectId: entry.projectId || null } : null);
+  if (!item) return;
+  editingParkId = id;
+  const at = item.done ? (entry?.start || item.doneAt || Date.now()) : Date.now();
+  $('parkEditText').value = item.text;
+  $('parkEditProject').innerHTML = projectOptions(entry?.projectId || item.projectId || null);
+  $('parkEditDone').checked = !!item.done;
+  $('parkEditDate').value = dayKey(at);
+  $('parkEditDate').max = todayKey();
+  $('parkEditTime').value = toTimeInput(at);
+  $('parkEditWhen').hidden = !item.done;
+  $('parkEditPlan').hidden = !!item.done;
+  $('parkEditError').textContent = '';
+  $('parkDialog').showModal();
+  $('parkEditText').focus();
+}
+
+async function saveParkDialog() {
+  const text = $('parkEditText').value.trim();
+  if (!text) { $('parkEditError').textContent = 'Write what it is.'; $('parkEditText').focus(); return; }
+  const done = $('parkEditDone').checked;
+  let when = null;
+  if (done) {
+    when = new Date(`${$('parkEditDate').value}T${$('parkEditTime').value}`).getTime();
+    if (!Number.isFinite(when)) { $('parkEditError').textContent = 'Pick the date and time it was finished.'; return; }
+    if (when > Date.now()) { $('parkEditError').textContent = 'That time is in the future.'; return; }
+  }
+  const id = editingParkId;
+  const projectId = $('parkEditProject').value || null;
+  const old = data.entries.find(e => e.parkingCompletion === id);
+  let item = data.parking.find(p => p.id === id);
+  if (!item) {
+    item = { id, text, at: old ? old.start : Date.now(), done: false, doneAt: null };
+    data.parking.unshift(item);
+  }
+  item.text = text;
+  item.projectId = projectId;
+  item.done = done;
+  item.doneAt = when;
+  data.entries = data.entries.filter(e => e.parkingCompletion !== id);
+  if (done) data.entries.push({
+    id: old?.id || uid(), type: 'manual', parkingCompletion: id, note: text, projectId, start: when, end: when
+  });
+  await persist('parking', 'entries');
+  $('parkDialog').close();
+  renderParking();
+  renderLog();
+  renderPlan();
 }
 
 async function reopenParking(id) {
@@ -368,7 +476,7 @@ async function reopenParking(id) {
   if (!item) {
     const entry = data.entries.find(e => e.parkingCompletion === id);
     if (!entry) return;
-    item = {id, text: entry.note, at: entry.start, done: true, doneAt: entry.start};
+    item = {id, text: entry.note, at: entry.start, done: true, doneAt: entry.start, projectId: entry.projectId || null};
     data.parking.unshift(item);
   }
   await setParkingDone(id, false);
@@ -382,7 +490,7 @@ async function setParkingDone(id, done) {
   item.doneAt = done ? Date.now() : null;
   data.entries = data.entries.filter(e => e.parkingCompletion !== id);
   if (done) data.entries.push({
-    id: uid(), type: 'manual', parkingCompletion: id, note: item.text,
+    id: uid(), type: 'manual', parkingCompletion: id, note: item.text, projectId: item.projectId || null,
     start: item.doneAt, end: item.doneAt
   });
   await persist('parking', 'entries');
@@ -391,10 +499,21 @@ async function setParkingDone(id, done) {
   renderPlan();
 }
 
-async function addParking(text) {
-  data.parking.unshift({ id: uid(), text, done: false, at: Date.now() });
+async function addParking(text, projectId = null) {
+  data.parking.unshift({ id: uid(), text, projectId: projectId || null, done: false, at: Date.now() });
   await persist('parking');
   renderParking();
+}
+
+// Plan to parking lot, for a task that is not for today after all.
+async function taskToParking(id) {
+  const t = findTask(id);
+  if (!t) return;
+  data.parking.unshift({ id: uid(), text: t.text, projectId: t.projectId || null, done: false, at: Date.now() });
+  await persist('parking');
+  await deleteTask(id);
+  renderParking();
+  showNudge(`Moved "${t.text}" to the parking lot.`, 'info', true, { label: 'Open parking lot', fn: () => showTab('parking') });
 }
 
 /* ---------- Settings ---------- */
