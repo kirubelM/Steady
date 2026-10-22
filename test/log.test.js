@@ -178,3 +178,16 @@ test('leftover tasks say how long ago they were planned', () => {
   assert.equal(app.run("ageLabel(shiftKey(todayKey(), -1))"), 'yesterday');
   assert.equal(app.run("ageLabel(shiftKey(todayKey(), -3))"), '3 days ago');
 });
+
+test('left-over tasks can be sorted', () => {
+  const app = loadApp({ projects: [{ id: 'a', name: 'Alpha', color: '#111' }], tasks: [
+    { id: '1', text: 'Zed', day: '2020-01-02', done: false, order: 0 },
+    { id: '2', text: 'Abe', day: '2020-01-01', done: false, order: 0, projectId: 'a' },
+    { id: '3', text: 'Mid', day: '2020-01-03', done: false, order: 0 }
+  ] });
+  const ids = (sort) => app.run(`leftoverSort = '${sort}'; sortLeftovers(leftoverTasks()).map((t) => t.id).join()`);
+  assert.equal(ids('oldest'), '2,1,3');
+  assert.equal(ids('newest'), '3,1,2');
+  assert.equal(ids('project'), '2,1,3');
+  assert.equal(ids('az'), '2,3,1');
+});

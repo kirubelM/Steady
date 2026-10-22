@@ -1905,3 +1905,6 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .leftovers .task.leftover { column-gap: 16px; padding: 8px 14px 8px 12px; }
 .leftovers .task.leftover .task-actions { padding-left: 16px; margin-right: 2px; flex: none; }
 .leftovers .task.leftover .btn { padding-inline: 14px; white-space: nowrap; }
+.leftover-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.leftover-sort { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--amber-ink); }
+.leftover-sort select { font-size: 0.82rem; padding: 3px 8px; }

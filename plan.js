@@ -40,6 +40,22 @@ function nextOrder(day) {
   return same.length ? Math.max(...same.map((t) => t.order)) + 1 : 0;
 }
 
+const LEFTOVER_SORTS = { oldest: 'Oldest first', newest: 'Newest first', project: 'By project', az: 'A to Z' };
+let leftoverSort = 'oldest';
+try { leftoverSort = localStorage.getItem('leftoverSort') || 'oldest'; } catch { /* storage unavailable */ }
+if (!LEFTOVER_SORTS[leftoverSort]) leftoverSort = 'oldest';
+
+function sortLeftovers(list) {
+  const name = (t) => projectName(t.projectId).toLowerCase();
+  const by = {
+    oldest: (a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.order - b.order),
+    newest: (a, b) => (a.day < b.day ? 1 : a.day > b.day ? -1 : a.order - b.order),
+    project: (a, b) => (!name(a) - !name(b)) || name(a).localeCompare(name(b)) || (a.day < b.day ? -1 : a.day > b.day ? 1 : a.order - b.order),
+    az: (a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' })
+  }[leftoverSort];
+  return list.slice().sort(by);
+}
+
 // "3 days ago" for a day key before today.
 function ageLabel(day) {
   const n = Math.round((new Date(todayKey() + 'T12:00') - new Date(day + 'T12:00')) / 86400000);
@@ -857,7 +873,10 @@ function renderPlan() {
   const left = isToday ? leftoverTasks() : [];
   $('leftoverSection').hidden = !left.length;
   $('leftoverCount').textContent = left.length;
-  $('leftoverList').innerHTML = left.map((t) => {
+  $('leftoverSort').innerHTML = Object.entries(LEFTOVER_SORTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+  $('leftoverSort').value = leftoverSort;
+  $('leftoverSort').parentElement.hidden = left.length < 2;
+  $('leftoverList').innerHTML = sortLeftovers(left).map((t) => {
     const from = new Date(t.day + 'T12:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     return `<li class="task leftover">
       <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
@@ -1387,6 +1406,11 @@ function bindPlan() {
   bindTaskDrag();
   bindNestDrag();
   bindTaskView();
+  $('leftoverSort').addEventListener('change', (e) => {
+    leftoverSort = e.target.value;
+    try { localStorage.setItem('leftoverSort', leftoverSort); } catch { /* storage unavailable */ }
+    renderPlan();
+  });
   $('moveAllBtn').addEventListener('click', () => moveToToday(leftoverTasks().map((t) => t.id)));
   $('dismissNote').addEventListener('click', async () => {
     data.meta.tomorrowNote = null;
