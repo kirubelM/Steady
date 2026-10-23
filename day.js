@@ -138,15 +138,15 @@ function dayHelpHtml(week, showDone, combine, showApps) {
   const items = [];
   if (combine) {
     items.push(key('plan', '<strong>Hollow, dashed card:</strong> planned, not done yet. Click to edit it.'));
-    items.push(key('done', '<strong>Filled card, solid bar:</strong> done. Planned tasks you ticked off show a ✓ and the time you finished.'));
+    items.push(key('done', '<strong>Filled card, solid bar:</strong> done. Planned tasks you ticked off show a check and the time you finished.'));
     items.push(key('meet', '<strong>Grey card:</strong> a meeting from your calendar.'));
     items.push('<li><span class="dh-key" aria-hidden="true">↓</span><span>Each day is one list in time order, so overlapping things stack instead of squeezing side by side. Turn off View > Combine planned and done to get the hour grid back, where you can drag tasks to schedule them.</span></li>');
   } else {
     items.push(key('plan solid', '<strong>Colored block on the grid:</strong> a task or meeting you planned. Drag it to move it, drag its bottom edge to change its length.'));
     if (showDone) {
       items.push(key('done', `<strong>${week ? 'Right side of each day' : 'Done column'}:</strong> what you actually did, at the real time. Solid bar means done.`));
-      items.push(key('pill', '<strong>✓ N done:</strong> ticked-off tasks close together, gathered into one pill. Click it to open that day in the work log.'));
-      items.push('<li><span class="dh-key" aria-hidden="true">✓</span><span>A planned block you finished stays in its slot, ticked and dimmed.</span></li>');
+      items.push(key('pill', '<strong>"N done" pill:</strong> ticked-off tasks close together, gathered into one pill. Click it to open that day in the work log.'));
+      items.push('<li><span class="dh-key" aria-hidden="true">' + icon('check') + '</span><span>A planned block you finished stays in its slot, ticked and dimmed.</span></li>');
     } else {
       items.push('<li><span class="dh-key" aria-hidden="true">+</span><span>Turn on View > Show what\'s done to see sessions, check-ins and finished tasks next to your plan. Add Combine planned and done to stack them in one list.</span></li>');
     }
@@ -172,7 +172,7 @@ function combinedHtml(days, week) {
       const color = projectById(t.projectId)?.color;
       const when = t.done && t.doneAt ? `Done ${clock(t.doneAt)}` : `${clock(atDay(k, it.startMin))} – ${clock(atDay(k, it.endMin))}`;
       rows.push({ min: it.startMin, html: `<div class="ag-card ag-plan${t.done ? ' finished' : ''}"${color ? ` style="--bc:${color}"` : ''} data-cal-task="${t.id}" data-cal-day="${k}" tabindex="0" role="button" aria-label="${esc(`${t.done ? 'Finished' : 'Planned'}: ${t.text}, ${when}`)}">
-        <span class="ag-time">${when}</span><strong>${t.done ? '✓ ' : ''}${esc(t.text)}</strong><span class="ag-tag">${t.done ? 'Done' : 'Planned'}</span></div>` });
+        <span class="ag-time">${when}</span><strong>${t.done ? inlineIcon('check') : ''}${esc(t.text)}</strong><span class="ag-tag">${t.done ? 'Done' : 'Planned'}</span></div>` });
     });
     if (k <= today) {
       doneOnDay(k).forEach((it) => {
@@ -182,7 +182,7 @@ function combinedHtml(days, week) {
         const color = projectById(e.projectId)?.color;
         const when = it.point ? clock(e.start) : `${clock(e.start)} – ${clock(e.end)}`;
         rows.push({ min: it.startMin, html: `<button type="button" class="ag-card ag-done${it.point ? ' point' : ''} kind-${e.type}"${color ? ` style="--bc:${color}"` : ''} data-done-entry="${esc(e.id)}" aria-label="${esc(`${entryLabel(e)}: ${doneTitle(e)}, ${when}. Click to edit.`)}">
-          <span class="ag-time">${when}</span><strong>${it.point ? '✓ ' : ''}${esc(doneTitle(e))}</strong><span class="ag-tag">${esc(entryLabel(e))}</span></button>` });
+          <span class="ag-time">${when}</span><strong>${it.point ? inlineIcon('check') : ''}${esc(doneTitle(e))}</strong><span class="ag-tag">${esc(entryLabel(e))}</span></button>` });
       });
     }
     return rows.sort((x, y) => x.min - y.min).map((r) => r.html).join('') || '<p class="ag-empty">Nothing</p>';
@@ -306,7 +306,7 @@ function renderDay() {
     const keys = canEdit ? ` Arrow keys move it${week ? ', Left and Right move it a day' : ''}, Shift with arrows changes its length, Delete clears its time.` : '';
     return `<div class="cal-task${isDone ? ' finished' : ''}${isShort ? ' short' : ''}${end < Date.now() ? ' past' : ''}${missed ? ' missed' : ''}${canEdit ? ' movable' : ''}" style="${place(it)}${color ? `;--bc:${color}` : ''}" data-cal-task="${t.id}" data-cal-day="${colDay}" tabindex="0" role="button"
         aria-label="${esc(`${t.text}, ${week ? `${new Date(colDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ` : ''}${fmtTime(start)} to ${fmtTime(end)}.${keys}`)}">
-        <strong>${isDone ? '✓ ' : ''}${esc(t.text)}</strong><span class="cal-when">${isDone && t.doneAt ? `Done ${fmtTime(t.doneAt)}` : `${fmtTime(start)} – ${fmtTime(end)}`}</span>
+        <strong>${isDone ? inlineIcon('check') : ''}${esc(t.text)}</strong><span class="cal-when">${isDone && t.doneAt ? `Done ${fmtTime(t.doneAt)}` : `${fmtTime(start)} – ${fmtTime(end)}`}</span>
         <span class="cal-task-actions">
           ${!isDone && canFocus && colDay === today && end > Date.now() ? `<button type="button" data-block-start="${t.id}" title="Start focus" aria-label="Start focus on ${esc(t.text)}">${icon('play')}</button>` : ''}
           ${missed ? `<button type="button" data-resched-next="${t.id}" title="Move to the next free time" aria-label="Move ${esc(t.text)} to the next free time">${icon('retry')}</button><button type="button" data-resched-tomorrow="${t.id}" title="Move to tomorrow" aria-label="Move ${esc(t.text)} to tomorrow">${icon('next')}</button>` : ''}
@@ -326,7 +326,7 @@ function renderDay() {
     const style = forced || place(it);
     return `<button type="button" class="cal-done${it.point ? ' point' : ` kind-${e.type}`}${!it.point && it.endMin - it.startMin < 40 ? ' short' : ''}${moveDone ? ' movable' : ''}" style="${style}${color ? `;--bc:${color}` : ''}"
         data-done-entry="${esc(e.id)}" data-done-start="${e.start}" data-done-len="${it.point ? 0 : e.end - e.start}" aria-label="${esc(label)} Click to edit." data-tip="${esc(`${when}\n${entryLabel(e)}\n${title}`)}">
-        ${it.point ? '<span class="cal-check" aria-hidden="true">✓</span>' : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
+        ${it.point ? `<span class="cal-check" aria-hidden="true">${icon('check')}</span>` : `<span class="cal-done-icon" aria-hidden="true">${typeIcon(e.type)}</span>`}<strong>${esc(title)}</strong>${it.point ? '' : `<span class="cal-when">${when}</span>`}
       </button>`;
   };
   const doneColumn = (k, l) => l.ranged.map((it) => doneBlock(it)).join('') + l.bursts.map((g) => {
@@ -335,7 +335,7 @@ function renderDay() {
     const names = g.items.map((it) => doneTitle(it.entry));
     return `<button type="button" class="cal-done point burst" style="top:${y(first.startMin)}px;height:20px;right:4px" data-done-day="${k}"
         aria-label="${esc(`${g.items.length} things finished around ${fmtTime(first.entry.start)}. Click to open the work log.`)}" data-tip="${esc(`${fmtTime(first.entry.start)}\n${names.slice(0, 8).join('\n')}${names.length > 8 ? `\n+ ${names.length - 8} more` : ''}`)}">
-        <span class="cal-check" aria-hidden="true">✓</span><strong>${g.items.length} done</strong></button>`;
+        <span class="cal-check" aria-hidden="true">${icon('check')}</span><strong>${g.items.length} done</strong></button>`;
   }).join('');
   // In the week view each day gives its right side to what was done.
   const PLAN_SHARE = 0.62;

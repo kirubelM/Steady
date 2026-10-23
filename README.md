@@ -18,6 +18,11 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.20.0
+
+- **One icon set.** The last text symbols (×, ✓, ‹ ›, ✎, ↻, ◎) are now drawn line icons that match the rest of the app: close buttons, day arrows, check marks, the edit pencil, the session goal and the left-over marker.
+- **A richer dark mode.** Dark mode has a deep tinted background with a soft glow from the accent, cards that lift off it with a faint top light, a glowing primary button and selected tab, and clearer fields with an accent focus ring.
+
 ## What's new in 1.19.0
 
 - **A calmer, more polished design.** Page titles use a display face, text follows one consistent type scale, and every card shares the same shape, border and shadow with more room inside and between. Color is calmer: the accent marks titles and the main action, project chips are softer, and the moving backdrop and pointer glow are subtler. The Notion, Linear and Things looks keep their own style.

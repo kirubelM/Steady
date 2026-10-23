@@ -268,7 +268,7 @@ function renderCalendarSettings() {
         <input type="text" value="${esc(c.name)}" data-cal-name="${c.id}" maxlength="30" aria-label="Calendar name">
         <span class="cal-kind">${CAL_KIND_LABEL[c.kind]}</span>
         <button class="link" type="button" data-cal-test="${c.id}">Test</button>
-        <button class="del" type="button" data-cal-del="${c.id}" aria-label="Remove ${esc(c.name)}">×</button>
+        <button class="del" type="button" data-cal-del="${c.id}" aria-label="Remove ${esc(c.name)}">${icon('close')}</button>
       </li>`).join('')
     : '<li class="empty">No calendars connected yet.</li>';
   updateCalendarFields();

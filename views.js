@@ -100,7 +100,7 @@ function entryHtml(e) {
   else if (workSec(e)) meta.push(fmtMins(workSec(e)));
   if (e.distractions?.length) meta.push(plural(e.distractions.length, 'drift'));
   const goal = type === 'session' && e.goal
-    ? `<p class="entry-goal goal-${e.goalHit || 'none'}">◎ ${esc(e.goal)}${e.goalHit ? ` <span>${{ yes: 'reached', partly: 'partly reached', no: 'not reached' }[e.goalHit]}</span>` : ''}</p>`
+    ? `<p class="entry-goal goal-${e.goalHit || 'none'}">${inlineIcon('target')} ${esc(e.goal)}${e.goalHit ? ` <span>${{ yes: 'reached', partly: 'partly reached', no: 'not reached' }[e.goalHit]}</span>` : ''}</p>`
     : '';
   const when = e.end > e.start ? `${fmtTime(e.start)} – ${fmtTime(e.end)}` : fmtTime(e.start);
   // The type keeps its own color; a session's project shows on its left edge and chip.
@@ -397,7 +397,7 @@ function renderParking() {
       projectChip(p.projectId) + '<time>' + fmtTime(p.at) + '</time>' +
       '<button class="link small-link" data-park-edit="' + p.id + '" type="button">Edit</button>' +
       '<button class="link small-link" data-park-task="' + p.id + '" type="button">Add to today\'s plan</button>' +
-      '<button class="del" data-park-del="' + p.id + '" type="button" aria-label="Delete item">&times;</button></li>').join('')
+      '<button class="del" data-park-del="' + p.id + '" type="button" aria-label="Delete item">' + icon('close') + '</button></li>').join('')
     : all.length
       ? '<li class="empty">Nothing parked under this filter. <button class="link" type="button" data-park-reset>Show all</button></li>'
       : emptyState('note', 'Nothing parked', 'Add a thought here to come back to later.');

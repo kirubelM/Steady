@@ -232,7 +232,7 @@ function taskMeta(t) {
   if (sec) parts.push(fmtMins(sec));
   if (t.done && t.doneAt) parts.push(`done at ${fmtTime(t.doneAt)}`);
   const r = t.recurId && recurById(t.recurId);
-  if (r) parts.push(`↻ ${repeatLabel(r).replace('Repeats ', '')}`);
+  if (r) parts.push(repeatLabel(r));
   return parts.join(', ');
 }
 
@@ -903,13 +903,13 @@ function renderPlan() {
         if (g.manual.length && !g.sessions) meta.push(g.manual.length > 1 ? `Added ${g.manual.length} times` : `Added at ${fmtTime(g.manual[0].end)}`);
         const color = projectById(g.projectId)?.color;
         return `<li class="done-item${g.taskDone ? ' is-task' : ''}"${color ? ` style="--pc:${color}"` : ''}>
-          <span class="done-mark" aria-hidden="true">${g.taskDone ? '✓' : '•'}</span>
+          <span class="done-mark" aria-hidden="true">${g.taskDone ? icon('check') : icon('ring')}</span>
           <div class="task-main">
             <span class="task-text">${esc(g.text)}</span>
             <span class="task-meta">${projectChip(g.projectId)}<span>${esc(meta.join(', '))}</span></span>
           </div>
           <span class="done-time">${g.sec ? fmtMins(Math.max(60, g.sec)) : ''}</span>
-          <button class="done-edit-btn" type="button" data-done-edit="${index}" aria-label="Edit ${esc(g.text)}">Edit <span aria-hidden="true">&#9998;</span></button>
+          <button class="done-edit-btn" type="button" data-done-edit="${index}" aria-label="Edit ${esc(g.text)}">Edit ${icon('note')}</button>
         </li>`;
       }).join('')
       : isToday ? emptyState('check', 'Nothing finished yet', 'Sessions, completed tasks and anything you log show up here.')

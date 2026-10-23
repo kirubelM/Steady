@@ -4,7 +4,7 @@ function featureNotesHtml(notes) {
   return notes.split(/\r?\n/).filter(line => line.startsWith('- ')).map(line => {
     const text = line.slice(2);
     const feature = text.match(/^\*\*(.+?)\*\*\s*(.*)$/);
-    return '<article class="whats-new-feature"><span class="whats-new-dot" aria-hidden="true">&#10003;</span><div>' +
+    return '<article class="whats-new-feature"><span class="whats-new-dot" aria-hidden="true">' + icon('check') + '</span><div>' +
       (feature ? '<h3>' + esc(feature[1]) + '</h3><p>' + esc(feature[2]) + '</p>' : '<p>' + esc(text) + '</p>') + '</div></article>';
   }).join('');
 }

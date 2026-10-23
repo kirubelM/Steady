@@ -106,7 +106,7 @@ function renderProjectsSettings() {
           <input type="number" min="0" max="80" step="0.5" value="${p.weeklyGoalMin ? +(p.weeklyGoalMin / 60).toFixed(1) : ''}" data-proj-goal="${p.id}" aria-label="Weekly goal for ${esc(p.name)} in hours" placeholder="–"> h/week
         </label>
         <button class="link" type="button" data-proj-archive="${p.id}">${p.archived ? 'Restore' : 'Archive'}</button>
-        <button class="del" type="button" data-proj-del="${p.id}" data-used="${used ? 1 : 0}" aria-label="Delete ${esc(p.name)}">×</button>
+        <button class="del" type="button" data-proj-del="${p.id}" data-used="${used ? 1 : 0}" aria-label="Delete ${esc(p.name)}">${icon('close')}</button>
       </li>`;
     }).join('')
     : '<li class="empty">No projects yet. Add one to group your tasks and time.</li>';

@@ -234,7 +234,7 @@ function drilldown(key, workEntries) {
       <span class="h-total">${total ? fmtMins(total) + ' logged' : ''}</span>
       <button class="link" type="button" data-open-log="${key}">Open in work log</button>
       <button class="link" type="button" data-open-plan="${key}">Open day page</button>
-      <button class="icon-btn small" type="button" data-drill-close aria-label="Close day details">×</button>
+      <button class="icon-btn small" type="button" data-drill-close aria-label="Close day details">${icon('close')}</button>
     </div>
     ${list}
   </section>`;

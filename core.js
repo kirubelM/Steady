@@ -99,8 +99,16 @@ const ICONS = {
   subtask: '<path d="M4 3v5.5a1.5 1.5 0 0 0 1.5 1.5H12"/><path d="M9.5 7.5L12 10l-2.5 2.5"/>',
   view: '<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7"/>',
   chevron: '<path d="M4.5 6.5L8 10l3.5-3.5"/>',
-  panel: '<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>'
+  panel: '<rect x="2.5" y="3" width="11" height="10" rx="1.5"/><path d="M6.5 3v10"/>',
+  check: '<path d="M3.5 8.5l3 3 6-7"/>',
+  left: '<path d="M10 3.5L5.5 8l4.5 4.5"/>',
+  right: '<path d="M6 3.5L10.5 8 6 12.5"/>',
+  target: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.2"/>',
+  ring: '<circle cx="8" cy="8" r="4.5"/>',
+  repeat: '<path d="M3 7V6a2 2 0 0 1 2-2h7.5"/><path d="M10.5 2l2 2-2 2"/><path d="M13 9v1a2 2 0 0 1-2 2H3.5"/><path d="M5.5 14l-2-2 2-2"/>'
 };
+// The same icon sized to the text around it, e.g. a check before a finished task's name.
+const inlineIcon = (name) => icon(name).replace('class="ico"', 'class="ico ico-inline"');
 const icon = (name, label) => `<svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}>${ICONS[name] || ''}</svg>`;
 
 // A button that opens a small dropdown menu; it closes on Esc, on a click outside and when the window loses focus.

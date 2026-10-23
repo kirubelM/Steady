@@ -251,7 +251,7 @@ function buildDay(key) {
   if (pvd.scheduled.length) {
     const slipped = pvd.scheduled.filter((s) => !s.done);
     html += `<h3>Plan vs. done</h3><p class="rv-detail">You planned ${fmtMins(pvd.plannedSec)} for ${plural(pvd.scheduled.length, 'task')} and logged ${fmtMins(pvd.workedSec)} of work. ${pvd.doneCount} of ${pvd.scheduled.length} scheduled ${pvd.scheduled.length === 1 ? 'task is' : 'tasks are'} done${slipped.length ? `; ${slipped.map((s) => s.task.text).join(', ')} slipped` : ''}.</p>`
-      + listHtml(pvd.scheduled.map((s) => `<li class="${s.done ? 'pvd-done' : 'pvd-slipped'}"><span><span class="pvd-mark" aria-hidden="true">${s.done ? '✓' : '○'}</span>${esc(s.task.text)} <span class="rv-when">${fmtTime(s.start)} – ${fmtTime(s.end)}</span></span>`
+      + listHtml(pvd.scheduled.map((s) => `<li class="${s.done ? 'pvd-done' : 'pvd-slipped'}"><span><span class="pvd-mark" aria-hidden="true">${s.done ? icon('check') : icon('ring')}</span>${esc(s.task.text)} <span class="rv-when">${fmtTime(s.start)} – ${fmtTime(s.end)}</span></span>`
         + `<span class="rv-time">${s.sec ? `${fmtMins(Math.max(60, s.sec))} focused` : s.done ? 'Done' : 'Not started'}</span></li>`), 'pvd');
   }
 
