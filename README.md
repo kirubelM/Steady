@@ -18,6 +18,12 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.18.0
+
+- **A livelier look.** The tabs have icons and a marker that glides to the one you pick. A soft backdrop in your accent color drifts slowly behind the page, cards light up where your pointer is, buttons ripple when pressed, and primary buttons shine on hover.
+- **Confetti.** Ticking off a task, subtask or parked item sends up a little burst. Finishing everything on today's plan sends up a big one.
+- **Your choice.** Turn it all off in Settings > Appearance > Lively effects. It also stays off when motion is reduced.
+
 ## What's new in 1.17.14
 
 - **Project suggestions while you type #.** The Plan page's task box, the Done box, the Parking lot box, check-ins and log entries now offer your projects as soon as you type #, the way quick capture does. Arrow keys move, Tab or Enter picks, Esc closes.

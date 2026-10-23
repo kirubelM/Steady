@@ -296,6 +296,7 @@ function bind() {
   bindCalendars();
 
   bindScrollPolish();
+  if (typeof bindLively === 'function') bindLively();
   bindPlanning();
   bindDay();
   bindRowMenus();

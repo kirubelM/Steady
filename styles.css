@@ -1916,3 +1916,80 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .hash-suggest button i { width: 9px; height: 9px; border-radius: 50%; background: var(--pc, var(--pine)); flex: none; }
 .hash-suggest button:hover, .hash-suggest button[aria-selected="true"] { background: var(--pine); color: var(--on-accent); }
 .hash-none { padding: 6px 10px; font-size: 0.82rem; color: var(--muted); }
+
+/* ---------- Lively effects (Settings > Appearance). Motion sits in no-preference blocks, so reduced motion turns it off. ---------- */
+
+/* Tab bar: icons, and a pill that glides to the selected tab */
+.tabs { position: relative; }
+.tab-btn { display: inline-flex; align-items: center; gap: 7px; position: relative; z-index: 1; overflow: hidden; }
+.tab-ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.75; flex: none; }
+.tab-btn[aria-selected="true"] .tab-ico { opacity: 1; color: var(--pine); }
+.tab-ink { display: none; }
+:root[data-lively="on"] .tab-btn[aria-selected="true"] { border-bottom-color: transparent; }
+:root[data-lively="on"] .tab-ink {
+  display: block; position: absolute; left: 0; bottom: 4px; height: calc(100% - 20px); z-index: 0; border-radius: 10px;
+  background: color-mix(in srgb, var(--pine) 13%, transparent); box-shadow: inset 0 -3px 0 var(--pine);
+  pointer-events: none;
+}
+:root[data-lively="on"] .tab-btn:hover:not([aria-selected="true"]) { color: var(--pine); }
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-lively="on"] .tab-ink { transition: transform 420ms cubic-bezier(0.34, 1.4, 0.5, 1), width 420ms cubic-bezier(0.34, 1.4, 0.5, 1); }
+  :root[data-lively="on"] .tab-btn .tab-ico { transition: transform 300ms cubic-bezier(0.34, 1.6, 0.5, 1); }
+  :root[data-lively="on"] .tab-btn:hover .tab-ico { transform: translateY(-2px) rotate(-6deg); }
+  :root[data-lively="on"] .tab-btn[aria-selected="true"] .tab-ico { transform: scale(1.12); }
+}
+
+/* A soft, slowly drifting backdrop in the accent color */
+.aurora { display: none; }
+:root[data-lively="on"] .aurora { display: block; position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+:root[data-lively="on"] .panel { position: relative; isolation: isolate; } /* the backdrop sits under everything in the panel */
+.aurora i { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; filter: blur(70px); opacity: 0.16; }
+.aurora i:nth-child(1) { background: var(--pine); left: -12%; top: -18%; }
+.aurora i:nth-child(2) { background: var(--amber); right: -16%; top: 30%; opacity: 0.1; }
+.aurora i:nth-child(3) { background: color-mix(in srgb, var(--pine) 50%, #6FA8DC); left: 25%; bottom: -30%; opacity: 0.11; }
+@media (prefers-color-scheme: dark) { .aurora i { opacity: 0.12; } }
+@media (prefers-reduced-motion: no-preference) {
+  .aurora i:nth-child(1) { animation: aurora-a 28s ease-in-out infinite alternate; }
+  .aurora i:nth-child(2) { animation: aurora-b 34s ease-in-out infinite alternate; }
+  .aurora i:nth-child(3) { animation: aurora-c 40s ease-in-out infinite alternate; }
+}
+@keyframes aurora-a { to { transform: translate(18%, 22%) scale(1.15); } }
+@keyframes aurora-b { to { transform: translate(-22%, -14%) scale(0.9); } }
+@keyframes aurora-c { to { transform: translate(14%, -20%) scale(1.2); } }
+
+/* Light that follows the pointer across cards */
+:root[data-lively="on"] .glowing {
+  background-image: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--pine) 11%, transparent), transparent 62%);
+}
+:root[data-lively="on"] .plan-section.glowing, :root[data-lively="on"] .insight.glowing, :root[data-lively="on"] .g-tile.glowing {
+  box-shadow: var(--card-shadow-hover), 0 0 0 1px color-mix(in srgb, var(--pine) 22%, transparent);
+}
+
+/* Ripples on buttons, and a sheen across primary buttons */
+.btn, .range button { position: relative; overflow: hidden; }
+.ripple { position: absolute; border-radius: 50%; background: currentColor; pointer-events: none; transform: scale(0); }
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-lively="on"] .btn.primary::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+    transform: translateX(-120%);
+  }
+  :root[data-lively="on"] .btn.primary:hover::after { animation: sheen 0.8s ease; }
+  :root[data-lively="on"] .btn:not(:disabled):hover { transform: translateY(-1px); }
+  :root[data-lively="on"] .btn.primary:not(:disabled):hover { box-shadow: 0 6px 16px -6px var(--pine); }
+}
+@keyframes sheen { to { transform: translateX(120%); } }
+
+/* Confetti */
+.confetti { position: fixed; z-index: 9999; pointer-events: none; will-change: transform, opacity; }
+
+/* Checkboxes bounce when ticked */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-lively="on"] input[type="checkbox"]:checked { animation: check-pop 0.35s cubic-bezier(0.34, 1.8, 0.5, 1); }
+}
+@keyframes check-pop { 40% { transform: scale(1.35); } }
+
+/* Section markers in a gentle gradient */
+:root[data-lively="on"] :is(.plan-section > h3, .todo-head h3, .insight > h3, .insight-head h3, .settings legend)::before {
+  background: linear-gradient(180deg, var(--pine), color-mix(in srgb, var(--pine) 40%, var(--amber)));
+}

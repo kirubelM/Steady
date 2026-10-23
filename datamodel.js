@@ -48,6 +48,7 @@ const DEFAULTS = {
     ringStyle: 'classic',
     projectTint: true,
     dayTint: true,
+    lively: true,
     chimes: false,
     nextPrompt: true,
     blockHeadsUp: true,

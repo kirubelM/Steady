@@ -525,7 +525,7 @@ const NUM_FIELDS = {
 };
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
-  'projectTint', 'dayTint', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart',
+  'projectTint', 'dayTint', 'lively', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart',
   'focusDnd', 'focusBlockApps', 'strictFocus', 'appTimeline'];
 const TEXT_FIELDS = {
   motion: (v) => (['system', 'full', 'reduced'].includes(v) ? v : null),
@@ -717,6 +717,7 @@ function applyAppearance(s = settings) {
   root.density = s.density || 'comfortable';
   root.font = s.font || 'segoe';
   root.ring = s.ringStyle || 'classic';
+  root.lively = s.lively === false ? 'off' : 'on';
   applyDayTint();
 }
 
