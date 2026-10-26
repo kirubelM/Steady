@@ -199,3 +199,10 @@ test('#project in a missed check-in files it under that project', async () => {
  assert.equal(app.run('data.entries[0].note'), 'Reviewed contract');
  assert.equal(app.run('data.entries[0].projectId'), 'a');
 });
+
+test('#tag with several projects starting the same way picks the closest instead of creating a new one', async () => {
+ const app = loadApp({projects:[{id:'a', name:'BB Angel', color:'#111'},{id:'b', name:'BB Admin Work', color:'#222'}]});
+ const r = await app.run("takeProjectTag('ADP fix #bb')");
+ assert.equal(r.projectId, 'a');
+ assert.equal(app.run('data.projects.length'), 2);
+});

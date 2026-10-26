@@ -65,7 +65,8 @@ async function takeProjectTag(text, fallbackId = null) {
   const list = activeProjects();
   const exact = list.find((p) => projectKey(p.name) === key);
   const starts = list.filter((p) => projectKey(p.name).startsWith(key));
-  const found = exact || (starts.length === 1 ? starts[0] : null);
+  // Several projects can start the same way; the shortest name is the closest match, rather than making a new project.
+  const found = exact || starts.sort((x, y) => x.name.length - y.name.length)[0] || null;
   const projectId = found ? found.id : await addProject(m[2].replace(/[-_]+/g, ' '));
   return { text: rest, projectId };
 }
@@ -122,9 +123,9 @@ function bindHashSuggest(ids) {
   let field = null;
   let picks = [];
   let pick = 0;
-  const flat = (s) => s.replace(/s+/g, '').toLowerCase();
+  const flat = (s) => s.replace(/\s+/g, '').toLowerCase();
   const atCaret = (el) => {
-    const m = el.value.slice(0, el.selectionStart).match(/(^|s)#([^s#]*)$/);
+    const m = el.value.slice(0, el.selectionStart).match(/(^|\s)#([^\s#]*)$/);
     return m ? { query: m[2].toLowerCase(), start: el.selectionStart - m[2].length - 1, end: el.selectionStart } : null;
   };
   const close = () => { pop.hidden = true; picks = []; };
@@ -150,7 +151,7 @@ function bindHashSuggest(ids) {
     const x = picks[i];
     if (!at || !x) return false;
     const tag = `#${flat(x.name)} `;
-    field.value = field.value.slice(0, at.start) + tag + field.value.slice(at.end).replace(/^s+/, '');
+    field.value = field.value.slice(0, at.start) + tag + field.value.slice(at.end).replace(/^\s+/, '');
     const caret = at.start + tag.length;
     field.setSelectionRange(caret, caret);
     close();

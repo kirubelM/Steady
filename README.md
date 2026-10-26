@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.20.1
+
+- **Fixed: the #project list.** Typing # in a task, parking, done or check-in box now reliably offers your projects and fills in the full name (including names with spaces). A short tag like #bb that fits several projects picks the closest one instead of creating a new project.
+
 ## What's new in 1.20.0
 
 - **One icon set.** The last text symbols (×, ✓, ‹ ›, ✎, ↻, ◎) are now drawn line icons that match the rest of the app: close buttons, day arrows, check marks, the edit pencil, the session goal and the left-over marker.
