@@ -119,6 +119,7 @@ function paletteCommands() {
   add('Add something I did', goAddDone, 'Ctrl+D');
   add('Park a thought', goPark, 'Ctrl+J');
   add('Quick capture window', () => api.openCapture(), 'Ctrl+Shift+Space');
+  add('Recent captures: move one to the right list', openCaptures);
   add('Go to Plan', () => showTab('plan'), 'Ctrl+1');
   add('Plan tomorrow', () => { planDay = shiftKey(dayKey(Date.now()), 1); showTab('plan'); ensureCalendarFor(planDay); });
   add('Go to Day view', () => showTab('day'), 'Ctrl+2');

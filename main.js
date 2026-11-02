@@ -971,6 +971,15 @@ ipcMain.on('capture:submit', (_e, item) => {
 });
 ipcMain.on('capture:close', () => { if (captureWindow) captureWindow.hide(); });
 ipcMain.on('capture:open', () => openCapture());
+// What the capture window needs each time it opens: the type to start on, whether to suggest types, and the projects.
+ipcMain.handle('capture:config', () => {
+  const s = (data && data.settings) || {};
+  return {
+    opensOn: ['todo', 'done', 'park', 'last'].includes(s.captureOpensOn) ? s.captureOpensOn : 'todo',
+    hints: s.captureHints !== false,
+    projects: ((data && data.projects) || []).filter((p) => !p.archived).map((p) => ({ name: p.name, color: p.color }))
+  };
+});
 ipcMain.handle('capture:projects', () => ((data && data.projects) || []).filter((p) => !p.archived).map((p) => ({ name: p.name, color: p.color })));
 
 /* ---------- App lifecycle ---------- */

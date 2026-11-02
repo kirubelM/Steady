@@ -300,6 +300,7 @@ function bind() {
   bindPlanning();
   bindDay();
   bindRowMenus();
+  bindCaptures();
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();
@@ -355,16 +356,20 @@ async function init() {
     if (!typed) return;
     if (item.kind === 'todo') {
       const added = await addQuickTask(typed);
-      const q = added && added.parsed;
-      const extra = q && quickAddSummary(q, todayKey());
-      showNudge(`Added "${q ? q.text : typed}" to ${q && q.day !== todayKey() ? 'your plan' : "today's plan"}${extra ? `: ${extra}` : ''}.`, 'info', true);
+      if (!added) return;
+      const q = added.parsed;
+      const extra = quickAddSummary(q, todayKey());
+      const rec = await recordCapture('todo', typed, { type: 'task', id: added.task.id });
+      showNudge(`Added "${q.text}" to ${q.day !== todayKey() ? 'your plan' : "today's plan"}${extra ? `: ${extra}` : ''}.`, 'info', true, captureFixAction(rec));
       return;
     }
     const { text, projectId } = await takeProjectTag(typed);
-    if (item.kind === 'done') await addDoneItem(text, item.minutes, projectId, dayKey(Date.now()));
-    else await addParking(text, projectId);
-    const where = { done: 'your done list', park: 'the parking lot' }[item.kind] || 'the parking lot';
-    showNudge(`Added "${text}" to ${where}${projectId ? ` (${projectName(projectId)})` : ''}.`, 'info', true);
+    let ref;
+    if (item.kind === 'done') ref = { type: 'entry', id: (await addDoneItem(text, item.minutes, projectId, dayKey(Date.now()))).id };
+    else ref = { type: 'parking', id: (await addParking(text, projectId)).id };
+    const kind = item.kind === 'done' ? 'done' : 'park';
+    const rec = await recordCapture(kind, text, ref);
+    showNudge(`Added "${text}" to ${CAPTURE_PLACE[kind]}${projectId ? ` (${projectName(projectId)})` : ''}.`, 'info', true, captureFixAction(rec));
   });
   api.onRecovered((name) => {
     showNudge(name === 'none'

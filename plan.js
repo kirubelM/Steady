@@ -760,12 +760,14 @@ async function addDoneItem(text, minutes, projectId, day) {
   let end;
   if (day === todayKey()) end = Date.now();
   else end = new Date(day + 'T12:00').getTime() + mins * 60000;
-  data.entries.push({
+  const entry = {
     id: uid(), type: 'manual', start: end - mins * 60000, end, note: text.trim(), projectId: projectId || null
-  });
+  };
+  data.entries.push(entry);
   await persist('entries');
   renderPlan();
   renderLog();
+  return entry;
 }
 
 /* ---------- Rendering ---------- */

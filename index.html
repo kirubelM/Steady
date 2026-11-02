@@ -384,6 +384,21 @@
             <label class="check"><input name="nextPrompt" type="checkbox"> After a break, offer to start the next task (it never starts on its own)</label>
           </fieldset>
 
+          <fieldset data-cat="plan">
+            <legend>Quick capture</legend>
+            <p class="field-note">The small window that opens with Ctrl+Shift+Space. It always shows where the next thing will be saved. Start your text with <code>todo:</code>, <code>done:</code> or <code>park:</code> (or <code>/todo</code>, <code>/done</code>, <code>/park</code>) to pick the type without Tab.</p>
+            <label>Open on
+              <span><select name="captureOpensOn">
+                <option value="todo">To do</option>
+                <option value="park">Parking lot</option>
+                <option value="done">Done</option>
+                <option value="last">Whatever I used last</option>
+              </select></span>
+            </label>
+            <label class="check"><input name="captureHints" type="checkbox"> Suggest another type when what I typed sounds like it belongs there</label>
+            <p class="field-note">For example, "Call Sam tomorrow" typed while saving to Done offers To do instead. It only suggests: Ctrl+Enter takes the suggestion, Enter saves as shown.</p>
+          </fieldset>
+
           <fieldset data-cat="appearance">
             <legend>Look and feel</legend>
             <div class="field-col"><span>Look</span>
@@ -878,6 +893,13 @@
   </dialog>
 
   <!-- Shortcut list -->
+  <dialog id="capturesDialog" class="dialog" aria-labelledby="capturesTitle">
+    <h2 id="capturesTitle">Recent captures</h2>
+    <p class="summary">What you added with quick capture (Ctrl+Shift+Space). If something landed in the wrong list, pick the right one.</p>
+    <ul id="capturesList" class="captures-list"></ul>
+    <div class="dialog-actions"><button id="capturesClose" class="btn primary" type="button">Done</button></div>
+  </dialog>
+
   <dialog id="shortcutsDialog" class="dialog" aria-labelledby="shortcutsTitle">
     <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
     <dl id="shortcutList" class="shortcut-list"></dl>
@@ -906,6 +928,7 @@
   <script src="planning.js"></script>
   <script src="day.js"></script>
   <script src="rowmenu.js"></script>
+  <script src="captures.js"></script>
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>

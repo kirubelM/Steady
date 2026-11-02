@@ -43,6 +43,8 @@
       "planning.js",
       "day.js",
       "rowmenu.js",
+      "captures.js",
+      "capturekind.js",
       "goals.js",
       "vivid.js",
       "shortcuts.js",
