@@ -62,6 +62,8 @@ const DEFAULTS = {
     blockedApps: ['Discord', 'Steam', 'Spotify'],
     strictFocus: false,
     appTimeline: true,
+    captureOpensOn: 'todo', // what quick capture starts on: 'todo', 'done', 'park', or 'last' (the one you used last)
+    captureHints: true, // suggest another type when what you typed sounds like it belongs there
     appLogKeepDays: 0, // 0 keeps it forever (the default since 1.16.1)
     blockedSites: ['youtube.com', 'reddit.com', 'x.com', 'twitter.com', 'facebook.com', 'instagram.com', 'tiktok.com'],
     distractionKeywords: ['YouTube', 'Reddit', 'Twitter', ' / X', 'Facebook', 'Instagram', 'TikTok', 'Netflix']

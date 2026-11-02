@@ -18,6 +18,14 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.21.0
+
+- **Quick capture opens on To do.** The window that opens with Ctrl+Shift+Space used to reopen on whichever type you used last, so one slip sent the next to-do to Done. It now starts on To do. In Settings > Projects and tasks > Quick capture you can pick Parking lot, Done or "whatever I used last" instead.
+- **Say the type as you type.** Start with `todo:`, `done:` or `park:` (or `/todo`, `/done`, `/park` and a space) and the window switches type for that capture, no Tab needed. A short `t:`, `d:` or `p:` works too.
+- **Always see where it's going.** The window says "Saving to TO DO", "DONE" or "PARKING LOT" in a different color for each, on its border, label and selected tab.
+- **A nudge when it sounds wrong.** If you type "Call Sam tomorrow" while saving to Done, or "Called the vendor" while saving to To do, a hint offers the other type and Ctrl+Enter saves it there. It only suggests, and you can turn it off in Settings.
+- **Fix it after saving.** The "Added..." message has a Move to To do button for Done and Parking lot captures, and Not a to-do? for to-dos. Recent captures (in the command menu, Ctrl+K) lists your last 15 and moves any of them to the right list, keeping the project and, for a to-do, its day and time.
+
 ## What's new in 1.20.1
 
 - **Fixed: the #project list.** Typing # in a task, parking, done or check-in box now reliably offers your projects and fills in the full name (including names with spaces). A short tag like #bb that fits several projects picks the closest one instead of creating a new project.

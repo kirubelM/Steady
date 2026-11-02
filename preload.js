@@ -61,6 +61,7 @@ contextBridge.exposeInMainWorld('steady', {
   submitCapture: (item) => ipcRenderer.send('capture:submit', item),
   closeCapture: () => ipcRenderer.send('capture:close'),
   captureProjects: () => ipcRenderer.invoke('capture:projects'),
+  captureConfig: () => ipcRenderer.invoke('capture:config'),
   onCapture: (cb) => ipcRenderer.on('capture', (_e, item) => cb(item)),
   onCaptureReset: (cb) => ipcRenderer.on('capture:reset', () => cb())
 });

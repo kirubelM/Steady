@@ -500,9 +500,11 @@ async function setParkingDone(id, done) {
 }
 
 async function addParking(text, projectId = null) {
-  data.parking.unshift({ id: uid(), text, projectId: projectId || null, done: false, at: Date.now() });
+  const item = { id: uid(), text, projectId: projectId || null, done: false, at: Date.now() };
+  data.parking.unshift(item);
   await persist('parking');
   renderParking();
+  return item;
 }
 
 // Plan to parking lot, for a task that is not for today after all.
@@ -526,8 +528,9 @@ const NUM_FIELDS = {
 const BOOL_FIELDS = ['eyeBreaks', 'idleCheckins', 'strictBreaks', 'blockSites', 'startAtLogin', 'startMinimized',
   'meetingAware', 'idleAutoPause', 'reviewEnabled', 'weeklyReview', 'compactAuto', 'soundInBreaks',
   'projectTint', 'dayTint', 'lively', 'chimes', 'nextPrompt', 'blockHeadsUp', 'blockAutoStart',
-  'focusDnd', 'focusBlockApps', 'strictFocus', 'appTimeline'];
+  'focusDnd', 'focusBlockApps', 'strictFocus', 'appTimeline', 'captureHints'];
 const TEXT_FIELDS = {
+  captureOpensOn: (v) => (['todo', 'done', 'park', 'last'].includes(v) ? v : null),
   motion: (v) => (['system', 'full', 'reduced'].includes(v) ? v : null),
   reviewTime: (v) => (/^\d{2}:\d{2}$/.test(v) ? v : null),
   miniMode: (v) => (['off', 'focus', 'always'].includes(v) ? v : null),
