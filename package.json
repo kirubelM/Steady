@@ -44,6 +44,8 @@
       "day.js",
       "rowmenu.js",
       "captures.js",
+      "blocks.js",
+      "bulk.js",
       "capturekind.js",
       "goals.js",
       "vivid.js",

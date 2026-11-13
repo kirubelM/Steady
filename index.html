@@ -143,7 +143,9 @@
               <label for="taskSort" class="sr-only">Sort tasks by</label>
               <select id="taskSort" title="Sort tasks by"></select>
               <label class="hide-done"><input id="taskHideDone" type="checkbox"> Hide done</label>
+              <label id="taskHideBlockedWrap" class="hide-done" hidden><input id="taskHideBlocked" type="checkbox"> Hide blocked</label>
             </div>
+            <button id="selectBtn" class="btn small quiet select-btn" type="button" aria-pressed="false" hidden title="Pick several tasks to change together. You can also hold Ctrl and click tasks, or Shift to pick a range.">Select</button>
           </div>
           <form id="taskForm" class="task-form">
             <label for="taskInput" class="sr-only">New task</label>
@@ -165,6 +167,7 @@
           <p id="estHint" class="field-note est-hint" hidden></p>
           <p id="planSummary" class="summary"></p>
           <p id="taskViewNote" class="field-note task-view-note" hidden></p>
+          <div id="bulkBar" class="bulk-bar" role="toolbar" aria-label="Change the selected tasks" hidden></div>
           <ul id="taskList" class="task-list"></ul>
           <section id="leftoverSection" class="leftovers" hidden>
             <div class="leftover-head">
@@ -750,6 +753,11 @@
         <button id="taskEditSubAdd" class="btn small" type="button">Add</button>
       </div>
     </div>
+    <div class="field">
+      <span>Blocked by</span>
+      <div id="taskEditBlocks" class="block-chips"></div>
+      <div class="inline-form"><button id="taskEditBlockAdd" class="btn small" type="button">Blocked by…</button></div>
+    </div>
     <label class="field">Note
       <textarea id="taskEditNote" rows="3" maxlength="2000" placeholder="Anything to remember or follow up on"></textarea>
     </label>
@@ -893,6 +901,16 @@
   </dialog>
 
   <!-- Shortcut list -->
+  <dialog id="blockDialog" class="dialog block-dialog" aria-labelledby="blockTitle">
+    <h2 id="blockTitle">Blocked by…</h2>
+    <p id="blockFor" class="summary"></p>
+    <div id="blockCurrent" class="block-chips"></div>
+    <label for="blockSearch" class="sr-only">Search tasks, or type who or what you're waiting on</label>
+    <input id="blockSearch" type="text" maxlength="140" placeholder="Pick a task, or type who or what you're waiting on" autocomplete="off">
+    <ul id="blockList" class="block-list" role="listbox" aria-label="Tasks"></ul>
+    <div class="dialog-actions"><button id="blockClear" class="btn quiet" type="button">Clear blocks</button><button id="blockDone" class="btn primary" type="button">Done</button></div>
+  </dialog>
+
   <dialog id="capturesDialog" class="dialog" aria-labelledby="capturesTitle">
     <h2 id="capturesTitle">Recent captures</h2>
     <p class="summary">What you added with quick capture (Ctrl+Shift+Space). If something landed in the wrong list, pick the right one.</p>
@@ -929,6 +947,8 @@
   <script src="day.js"></script>
   <script src="rowmenu.js"></script>
   <script src="captures.js"></script>
+  <script src="blocks.js"></script>
+  <script src="bulk.js"></script>
   <script src="goals.js"></script>
   <script src="shortcuts.js"></script>
   <script src="datacare.js"></script>

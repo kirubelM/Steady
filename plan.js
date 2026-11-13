@@ -86,6 +86,7 @@ async function setTaskDone(id, done) {
   if (done && t.day < todayKey()) { t.day = todayKey(); t.order = nextOrder(t.day); }
   await persist('tasks');
   renderPlan();
+  if (done) announceUnblocked([id]);
 }
 
 // The day's open tasks as "My order" shows them: starred and urgent ones first, then your order.
@@ -144,6 +145,7 @@ async function nestTask(id, parentId) {
   const moved = data.entries.filter((e) => e.taskId === t.id).map((e) => [e, e.subId || null]);
   moved.forEach(([e]) => { e.taskId = parent.id; e.subId = e.subId && carried.some((s) => s.id === e.subId) ? e.subId : sub.id; });
   rememberSkip(t);
+  const relink = unlinkBlockers([t.id]); // tasks that waited on it no longer do
   data.tasks = data.tasks.filter((x) => x.id !== t.id);
   await persist('tasks', 'entries', 'meta');
   renderPlan();
@@ -154,6 +156,7 @@ async function nestTask(id, parentId) {
       const p = findTask(parent.id);
       if (p) p.subtasks = before.subs;
       data.tasks.push(before.task);
+      relink();
       moved.forEach(([e, subId]) => { e.taskId = before.task.id; e.subId = subId; });
       await persist('tasks', 'entries');
       renderPlan();
@@ -188,11 +191,14 @@ async function moveToDay(ids, day) {
 }
 const moveToToday = (ids) => moveToDay(ids, todayKey());
 
+// Returns a function that puts back the "blocked by" links other tasks had to this one (for an Undo).
 async function deleteTask(id) {
   rememberSkip(findTask(id));
+  const relink = unlinkBlockers([id]);
   data.tasks = data.tasks.filter((t) => t.id !== id);
   await persist('tasks', 'meta');
   renderPlan();
+  return relink;
 }
 
 async function parkingToTask(id) {
@@ -840,12 +846,15 @@ function renderPlan() {
       const movable = !t.done;
       const due = dueStatus(t);
       const timed = !t.done && (isToday || isFuture);
-      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && timeFor !== t.id && taskNoteFor !== t.id ? ' draggable="true"' : ''}>
-        ${movable ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder. Hold Ctrl+Shift and drop it on another task to make it a subtask."></span>' : ''}
-        <input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">
+      const picked = sel.on && sel.ids.has(t.id);
+      return `<li class="task${t.done ? ' done' : ''}${t.id === freshTaskId ? ' fresh' : ''}${isBlocked(t) ? ' blocked' : ''}${picked ? ' picked' : ''}"${color ? ` style="--pc:${color}"` : ''} data-task-row="${t.id}"${movable && !sel.on && timeFor !== t.id && taskNoteFor !== t.id ? ' draggable="true"' : ''}>
+        ${movable && !sel.on ? '<span class="task-grip" aria-hidden="true" title="Drag to reorder. Hold Ctrl+Shift and drop it on another task to make it a subtask."></span>' : ''}
+        ${sel.on && !t.done
+    ? `<input type="checkbox" class="pick" data-task-pick="${t.id}" ${picked ? 'checked' : ''} aria-label="Select ${esc(t.text)}">`
+    : `<input type="checkbox" data-task-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark ${esc(t.text)} as done">`}
         <button class="task-main" type="button" data-task-edit="${t.id}" title="Edit task">
           <span class="task-text">${esc(t.text)}</span>
-          <span class="task-meta">${projectChip(t.projectId)}${due ? `<span class="due-chip due-${due.kind}">${esc(due.label)}</span>` : ''}${t.block && !t.done && !timed ? `<span class="block-chip">${fmtTime(atDay(t.block.day, t.block.startMin))}</span>` : ''}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
+          <span class="task-meta">${projectChip(t.projectId)}${blockChips(t)}${due ? `<span class="due-chip due-${due.kind}">${esc(due.label)}</span>` : ''}${t.block && !t.done && !timed ? `<span class="block-chip">${fmtTime(atDay(t.block.day, t.block.startMin))}</span>` : ''}${meta ? `<span>${esc(meta)}</span>` : ''}</span>
           ${progress !== null && !t.done ? `<span class="task-progress" aria-hidden="true"><span style="width:${(progress * 100).toFixed(0)}%"></span></span>` : ''}
         </button>
         <div class="task-actions">
@@ -871,6 +880,7 @@ function renderPlan() {
           : emptyState('sprout', 'No tasks were planned for this day', '');
 
   freshTaskId = null;
+  renderBulk();
 
   const left = isToday ? leftoverTasks() : [];
   $('leftoverSection').hidden = !left.length;
@@ -952,7 +962,7 @@ let doneFormOpen = false;
 let lastNextUp = null;
 function renderNextUp() {
   // The top of the list as you see it, so starred and overdue tasks come first.
-  const next = S.state === 'idle' && !$('task').value.trim() ? viewTasks(todayTasks()).find((t) => !t.done) : null;
+  const next = S.state === 'idle' && !$('task').value.trim() ? viewTasks(todayTasks()).find((t) => !t.done && !isBlocked(t)) : null;
   const label = next ? next.id + next.text : '';
   if (label === lastNextUp) return;
   lastNextUp = label;
@@ -985,7 +995,7 @@ const TASK_SORTS = [
   ['manual', 'My order'], ['priority', 'Priority'], ['project', 'Project'], ['left', 'Most sessions left'],
   ['progress', 'Least progress'], ['name', 'Name A–Z'], ['newest', 'Newest first']
 ];
-const taskView = { project: 'all', sort: 'manual', hideDone: false };
+const taskView = { project: 'all', sort: 'manual', hideDone: false, hideBlocked: false };
 try { Object.assign(taskView, JSON.parse(localStorage.getItem('taskView') || '{}')); } catch { /* storage unavailable */ }
 
 function saveTaskView() {
@@ -1002,6 +1012,7 @@ function viewTasks(tasks) {
   if (taskView.project === 'none') list = list.filter((t) => !t.projectId);
   else if (taskView.project !== 'all') list = list.filter((t) => t.projectId === taskView.project);
   if (taskView.hideDone) list = list.filter((t) => !t.done);
+  if (taskView.hideBlocked) list = list.filter((t) => !isBlocked(t));
   const byName = (a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base' });
   const cmp = {
     // Starred and urgent tasks float up; otherwise your own order.
@@ -1019,7 +1030,7 @@ function viewTasks(tasks) {
 
 function renderTaskView(tasks, shown) {
   const box = $('taskView');
-  box.hidden = tasks.length < 2 && taskView.project === 'all' && !taskView.hideDone;
+  box.hidden = tasks.length < 2 && taskView.project === 'all' && !taskView.hideDone && !taskView.hideBlocked;
   if (box.hidden) return;
   const used = new Set(tasks.map((t) => t.projectId || 'none'));
   const projects = activeProjects().filter((p) => used.has(p.id) || p.id === taskView.project);
@@ -1031,6 +1042,8 @@ function renderTaskView(tasks, shown) {
   $('taskSort').innerHTML = TASK_SORTS.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
   $('taskSort').value = taskView.sort;
   $('taskHideDone').checked = taskView.hideDone;
+  $('taskHideBlocked').checked = taskView.hideBlocked;
+  $('taskHideBlockedWrap').hidden = !(taskView.hideBlocked || tasks.some(isBlocked)); // only offered once something is blocked
   const hidden = tasks.length - shown.length;
   const notes = [];
   if (hidden) notes.push(`${plural(hidden, 'task')} hidden`);
@@ -1046,9 +1059,10 @@ function bindTaskView() {
   $('taskFilter').addEventListener('change', (e) => { taskView.project = e.target.value; changed(); });
   $('taskSort').addEventListener('change', (e) => { taskView.sort = e.target.value; changed(); });
   $('taskHideDone').addEventListener('change', (e) => { taskView.hideDone = e.target.checked; changed(); });
+  $('taskHideBlocked').addEventListener('change', (e) => { taskView.hideBlocked = e.target.checked; changed(); });
   document.querySelector('#taskList').closest('.plan-section').addEventListener('click', (e) => {
     if (!e.target.closest('[data-view-reset]')) return;
-    Object.assign(taskView, { project: 'all', sort: 'manual', hideDone: false });
+    Object.assign(taskView, { project: 'all', sort: 'manual', hideDone: false, hideBlocked: false });
     changed();
   });
 }
@@ -1263,6 +1277,7 @@ function openTaskDialog(id) {
   $('taskEditBlockMins').value = t.block ? String(t.block.mins) : '';
   $('taskEditSubInput').value = '';
   renderSubEditor();
+  loadEditBlocks(t);
   $('taskDialog').showModal();
   $('taskEditText').focus();
 }
@@ -1285,6 +1300,7 @@ async function saveTaskDialog() {
   t.presetId = $('taskEditPreset').value || null;
   const day = $('taskEditDay').value;
   if (day && day !== t.day) { t.day = day; t.order = nextOrder(day); }
+  const wasDone = t.done;
   t.done = done;
   t.doneAt = finishedAt;
   if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
@@ -1296,6 +1312,7 @@ async function saveTaskDialog() {
   const note = $('taskEditNote').value.trim();
   if (note) t.note = note; else delete t.note;
   t.starred = $('taskEditStar').checked;
+  saveEditBlocks(t);
   const blockStart = $('taskEditBlockStart').value;
   if (blockStart) {
     const [h, m] = blockStart.split(':').map(Number);
@@ -1310,6 +1327,7 @@ async function saveTaskDialog() {
   renderRecurringSettings();
   $('taskDialog').close();
   renderPlan();
+  if (done && !wasDone) announceUnblocked([t.id]);
 }
 
 /* ---------- Events ---------- */
@@ -1360,6 +1378,10 @@ function bindPlan() {
   });
 
   const onListClick = (e) => {
+    const chip = e.target.closest('[data-block-chip]');
+    if (chip) { openBlocksFor([chip.dataset.blockChip]); return; } // the chips sit inside the row's button, so look first
+    const deps = e.target.closest('[data-block-dependents]');
+    if (deps) { showNudge(`Waiting for this: ${dependentsOf(deps.dataset.blockDependents).map((d) => `"${d.text}"`).join(', ')}.`, 'info', true); return; }
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.doneEdit !== undefined) openDoneEditor(Number(b.dataset.doneEdit));
