@@ -2203,3 +2203,40 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 
 /* A card's last paragraph doesn't add its own bottom margin to the card's padding. */
 .plan-section > p:last-child, .insight > p:last-child, .sched > p:last-child { margin-bottom: 0; }
+
+/* ---------- 1.22.2 To do header: one calm toolbar, clearly separate controls ---------- */
+.todo-head { gap: 8px 14px; padding-bottom: var(--sp-2); }
+.todo-head h3 { margin: 0; }
+.task-view { gap: 6px; }
+.task-view select, .todo-head .select-btn, .hide-done {
+  height: 30px; box-sizing: border-box; display: inline-flex; align-items: center;
+  font-size: var(--fs-body-sm); line-height: 1; border: 1px solid var(--line); border-radius: 999px;
+  background-color: color-mix(in srgb, var(--field) 70%, transparent); color: var(--ink);
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+.todo-head .task-view select, .task-form select {
+  appearance: none; -webkit-appearance: none; padding-right: 28px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+}
+.todo-head .task-view select { padding-left: 12px; font-weight: 500; }
+.task-view select:hover, .hide-done:hover, .todo-head .select-btn:hover { border-color: var(--pine); }
+/* "Hide done" reads as a toggle chip: a check appears and the chip fills when it is on. */
+.hide-done { padding: 0 12px 0 10px; gap: 6px; color: var(--muted); user-select: none; }
+.hide-done input { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0; border: 1.5px solid var(--muted); border-radius: 4px; display: grid; place-items: center; }
+.hide-done input:checked { background: var(--pine); border-color: var(--pine); }
+.hide-done input:checked::after { content: ""; width: 3px; height: 7px; border: solid var(--on-accent); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.hide-done:has(input:checked) { color: var(--pine); border-color: var(--pine); background-color: var(--tint-pine); }
+.hide-done:has(input:focus-visible), .task-view select:focus-visible, .todo-head .select-btn:focus-visible { outline: 2px solid var(--pine); outline-offset: 2px; }
+/* Select: an outlined action, set apart from the filters by a thin divider. */
+.todo-head .select-btn { padding: 0 14px; font-weight: 600; color: var(--pine); border-color: var(--pine-soft); margin-left: 4px; position: relative; }
+.todo-head .select-btn::before { content: ""; position: absolute; left: -11px; top: 5px; bottom: 5px; width: 1px; background: var(--line); }
+.todo-head .select-btn[aria-pressed="true"] { background: var(--pine); color: var(--on-accent); border-color: var(--pine); }
+/* The add row: input, project and the primary button line up on one height. */
+.task-form { align-items: stretch; }
+.task-form .btn { padding-inline: 20px; font-weight: 600; }
+.task-form select.project-select { color: var(--muted); }
+/* Looks with squarer corners keep every control in the row the same shape. */
+:root:is([data-look="notion"], [data-look="linear"]) :is(.todo-head .select-btn, .hide-done) { border-radius: var(--radius); }
+:root[data-look="things"] :is(.todo-head .select-btn, .hide-done) { border-radius: 999px; }

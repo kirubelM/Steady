@@ -18,6 +18,10 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.22.2
+
+- **A tidier To do header.** The filter and sort menus, the "Hide done" toggle and "Select" are now separate, evenly sized pills. "Hide done" fills in when it's on, "Select" is outlined and set apart, and every menu in the row shows a clear arrow, including the project menu next to Add.
+
 ## What's new in 1.22.1
 
 - **Asks before you finish a blocked task.** Ticking a task that still waits on another task (or on something you wrote in "waiting on") now asks first: "Not yet" or "Mark done anyway". Finishing several at once offers to finish just the unblocked ones. Lifting the block in the editor first lets it through.
