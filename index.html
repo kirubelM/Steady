@@ -901,6 +901,17 @@
   </dialog>
 
   <!-- Shortcut list -->
+  <dialog id="blockedDoneDialog" class="dialog blocked-done-dialog" aria-labelledby="blockedDoneTitle">
+    <h2 id="blockedDoneTitle">This task is still blocked</h2>
+    <ul id="blockedDoneList" class="blocked-done-list"></ul>
+    <p id="blockedDoneText" class="summary"></p>
+    <div class="dialog-actions">
+      <button id="blockedDoneCancel" class="btn primary" type="button">Not yet</button>
+      <button id="blockedDoneSkip" class="btn" type="button" hidden>Finish the others</button>
+      <button id="blockedDoneAnyway" class="btn quiet" type="button">Mark done anyway</button>
+    </div>
+  </dialog>
+
   <dialog id="blockDialog" class="dialog block-dialog" aria-labelledby="blockTitle">
     <h2 id="blockTitle">Blocked by…</h2>
     <p id="blockFor" class="summary"></p>

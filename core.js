@@ -557,7 +557,7 @@ async function saveCheckin(primary) {
     S.pendingSession = null;
     if (!$('checkinDoneRow').hidden && $('checkinDone').checked) {
       if (p.subId && typeof setSubtaskDone === 'function') await setSubtaskDone(p.taskId, p.subId, true);
-      else if (typeof setTaskDone === 'function') await setTaskDone(p.taskId, true);
+      else if (typeof requestDone === 'function') await requestDone(p.taskId);
     }
     await persist('entries');
     $('checkin').close();
@@ -581,7 +581,7 @@ async function saveCheckin(primary) {
         id: uid(), type: 'checkin', start: Date.now() - mins * 60000, end: Date.now(), note, rating, projectId, taskId: $('checkinTask').value || null, apps: topApps()
       });
       await persist('entries');
-      if (!$('checkinDoneRow').hidden && $('checkinDone').checked) await setTaskDone($('checkinTask').value, true);
+      if (!$('checkinDoneRow').hidden && $('checkinDone').checked) await requestDone($('checkinTask').value);
     }
     $('checkin').close();
     lastLogAt = Date.now();

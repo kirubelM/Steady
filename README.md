@@ -18,6 +18,12 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.22.1
+
+- **Asks before you finish a blocked task.** Ticking a task that still waits on another task (or on something you wrote in "waiting on") now asks first: "Not yet" or "Mark done anyway". Finishing several at once offers to finish just the unblocked ones. Lifting the block in the editor first lets it through.
+- **The left panel fits short windows.** On windows around 600 px tall the timer, presets and footer no longer get clipped or scroll; the layout tightens only when it has to.
+- **Tidier tiles and cards.** The four stat tiles line up, and the Schedule card has even padding at the bottom.
+
 ## What's new in 1.22.0
 
 - **Change several tasks at once.** Click Select above your task list (or hold Ctrl and click a task) to pick tasks; Shift+click picks a range and Ctrl+A picks them all. A bar then lets you set the project, estimate, day or due date for all of them, star them, mark them done, delete them or say what they're waiting on. Every change can be undone in one click.

@@ -52,7 +52,7 @@ test('missed check-ins save the entered duration and task link', async () => {
  const app = loadApp();
  app.run("S.checkinKind = 'checkin'; $('checkinNote').value = 'Report'; $('checkinMinutes').value = '45'; $('checkinTask').value = 't'; $('checkinDoneRow').hidden = true;");
  await app.run('saveCheckin(true)');
- assert.equal(app.run('workSec(data.entries[0])'), 2700);
+ assert.equal(Math.round(app.run('workSec(data.entries[0])')), 2700); // rounded: the start and end are read from the clock a moment apart
  assert.equal(app.run('data.entries[0].taskId'), 't');
 });
 
