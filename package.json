@@ -1,7 +1,7 @@
 {
   "name": "steady",
   "productName": "Steady",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "description": "Focus sessions, screen breaks, distraction nudges and a work log for Windows.",
   "main": "main.js",
   "scripts": {
@@ -44,6 +44,8 @@
       "day.js",
       "rowmenu.js",
       "captures.js",
+      "blocks.js",
+      "bulk.js",
       "capturekind.js",
       "goals.js",
       "vivid.js",

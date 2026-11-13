@@ -223,7 +223,7 @@ function renderDay() {
       const color = projectById(t.projectId)?.color;
       const movable = anyEditable;
       return `<li class="day-todo${movable ? '' : ' fixed'}"${color ? ` style="--pc:${color}"` : ''} data-day-task="${t.id}"${movable ? ' draggable="true"' : ''}>
-        <button class="day-todo-text" type="button" data-task-edit="${t.id}" title="Edit task">${esc(t.text)}</button>
+        <button class="day-todo-text" type="button" data-task-edit="${t.id}" title="Edit task">${isBlocked(t) ? `<span class="day-lock" title="${esc(isBlocked(t) ? (waitingOn(t) ? `Waiting on ${waitingOn(t)}` : `Blocked by ${blockersOf(t).map((b) => `"${b.text}"`).join(', ')}`) : '')}">${icon('lock')}</span>` : ''}${esc(t.text)}</button>
         <span class="day-todo-len">${week ? `${esc(new Date(t.day + 'T12:00').toLocaleDateString([], { weekday: 'short' }))} · ` : ''}${fmtMins(defaultBlockMins(t) * 60)}</span>
         ${movable ? `<button class="link" type="button" data-day-next="${t.id}" title="Schedule at the next free time">Next free time</button>` : ''}
         <button class="row-more" type="button" data-row-menu aria-label="More for ${esc(t.text)}" title="More (or right-click)">${icon('more')}</button>

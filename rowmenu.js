@@ -85,13 +85,14 @@ async function deleteTaskUndoable(id) {
   if (!t) return;
   const copy = JSON.parse(JSON.stringify(t));
   const skips = { ...(data.meta.recurSkips || {}) };
-  await deleteTask(id);
+  const relink = await deleteTask(id);
   showNudge(`Deleted "${copy.text}".`, 'info', true, {
     label: 'Undo',
     fn: async () => {
       if (findTask(copy.id)) return;
       data.tasks.push(copy);
       data.meta.recurSkips = skips;
+      if (relink) relink();
       await persist('tasks', 'meta');
       renderPlan();
     }
@@ -123,6 +124,9 @@ function taskMenuItems(id, where = 'plan') {
     open && t.day >= today && where !== 'plan' && !t.block && { label: 'Next free time', icon: 'clock', fn: () => setBlock(t.id, t.day, suggestStart(t.day, defaultBlockMins(t)), defaultBlockMins(t)) },
     open && t.block && { label: 'Clear the time', icon: 'close', fn: () => unblockTask(t.id) },
     open && { label: t.starred ? 'Unstar' : 'Star', icon: t.starred ? 'starOn' : 'star', fn: () => toggleStar(t.id) },
+    open && { label: isBlocked(t) ? 'Change what it waits on…' : 'Blocked by…', icon: 'lock', fn: () => openBlocksFor([t.id]) },
+    open && isBlocked(t) && { label: 'Clear what it waits on', icon: 'unlock', fn: () => clearBlocks([t.id]) },
+    open && where === 'plan' && { label: 'Select with others', icon: 'select', hint: 'Ctrl+click', fn: () => { sel.on = true; sel.ids.add(t.id); sel.anchor = t.id; renderPlan(); } },
     { label: t.note ? 'Edit note' : 'Add a note', icon: 'note', fn: () => {
       if (where === 'plan') { openTaskNote(t.id); return; }
       openTaskDialog(t.id); setTimeout(() => $('taskEditNote')?.focus(), 50);

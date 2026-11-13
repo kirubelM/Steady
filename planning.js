@@ -372,7 +372,7 @@ async function rescheduleBlock(id, where = 'next') {
 // Returns what was placed and what didn't fit, and saves once.
 async function scheduleDay(day = planDay) {
   const today = todayKey();
-  if (day < today) return { placed: [], unfit: [], undo: null };
+  if (day < today) return { placed: [], unfit: [], waiting: [], undo: null };
   const missed = day === today ? missedBlocks().map((b) => b.task) : [];
   const loose = openInOrder(day).filter((t) => !(t.block && t.block.day === day));
   const queue = [...loose, ...missed.filter((t) => !loose.includes(t))]
@@ -384,18 +384,40 @@ async function scheduleDay(day = planDay) {
   const midnight = atDay(day, 0);
   const placed = [];
   const unfit = [];
-  for (const t of queue) {
-    const mins = (missed.includes(t) && before.get(t)?.mins) || defaultBlockMins(t); // a missed block keeps its length
+  // The first stretch of free time that fits, starting no earlier than `from` minutes into the day.
+  const slotFor = (mins, from = 0) => freeBlocks(day)
+    .map(([a, b]) => [Math.max(Math.ceil((a - midnight) / 60000 / 15) * 15, Math.ceil(from / 15) * 15), (b - midnight) / 60000])
+    .find(([a, b]) => b - a >= mins);
+  const minsFor = (t) => (missed.includes(t) && before.get(t)?.mins) || defaultBlockMins(t); // a missed block keeps its length
+
+  // Blocked tasks come after what they wait on, so they're placed last.
+  for (const t of queue.filter((x) => !isBlocked(x))) {
+    const mins = minsFor(t);
     // freeBlocks counts the blocks placed so far, so each task gets the next stretch.
-    const fit = freeBlocks(day)
-      .map(([a, b]) => [Math.ceil((a - midnight) / 60000 / 15) * 15, (b - midnight) / 60000])
-      .find(([a, b]) => b - a >= mins);
+    const fit = slotFor(mins);
     if (!fit) { unfit.push(t); continue; }
     t.block = { day, startMin: fit[0], mins };
     placed.push(t);
   }
+  // A task waiting only on tasks that have a time today goes right after the last of them. One waiting on a person,
+  // or on a task with no time today, stays unscheduled: there's no telling when it can start.
+  let waiting = queue.filter((x) => isBlocked(x));
+  for (let moved = true; moved;) {
+    moved = false;
+    for (const t of waiting.slice()) {
+      const blockers = blockersOf(t);
+      if (waitingOn(t) || blockers.some((b) => !(b.block && b.block.day === day))) continue;
+      const mins = minsFor(t);
+      const fit = slotFor(mins, Math.max(...blockers.map((b) => b.block.startMin + b.block.mins)));
+      waiting = waiting.filter((x) => x !== t);
+      moved = true;
+      if (!fit) { unfit.push(t); continue; }
+      t.block = { day, startMin: fit[0], mins };
+      placed.push(t);
+    }
+  }
   // A missed block that found no new time keeps its old one, so "Move to tomorrow" is still offered.
-  before.forEach((b, t) => { if (!t.block && b && unfit.includes(t)) t.block = b; });
+  before.forEach((b, t) => { if (!t.block && b && (unfit.includes(t) || waiting.includes(t))) t.block = b; });
   await persist('tasks');
   renderPlan();
   const undo = async () => {
@@ -403,7 +425,7 @@ async function scheduleDay(day = planDay) {
     await persist('tasks');
     renderPlan();
   };
-  return { placed, unfit, undo };
+  return { placed, unfit, waiting, undo };
 }
 
 // The button: schedules each day (today on, in the week view) and says what happened, with one Undo for all of it.
@@ -412,14 +434,18 @@ async function scheduleDayAndTell(days = [planDay]) {
   for (const d of days.filter((x) => x >= todayKey())) runs.push(await scheduleDay(d));
   const placed = runs.flatMap((r) => r.placed);
   const unfit = runs.flatMap((r) => r.unfit);
+  const waiting = runs.flatMap((r) => r.waiting || []);
   const undo = async () => { for (const r of runs.reverse()) await r.undo?.(); };
-  if (!placed.length && !unfit.length) { showNudge('Every task already has a time.', 'info', true); return; }
-  if (!placed.length) { showNudge(`There's no free time left in your working hours for ${plural(unfit.length, 'task')}.`, 'warn', true); return; }
+  const waitList = `${waiting.slice(0, 3).map((t) => `"${t.text}"`).join(', ')}${waiting.length > 3 ? '…' : ''}`;
+  const waitNote = waiting.length ? ` ${plural(waiting.length, 'blocked task')} left without a time: ${waitList}.` : '';
+  if (!placed.length && !unfit.length && !waiting.length) { showNudge('Every task already has a time.', 'info', true); return; }
+  if (!placed.length && !unfit.length) { showNudge(`Nothing to schedule: ${waiting.length === 1 ? 'the only task' : `all ${waiting.length} tasks`} here ${waiting.length === 1 ? 'is' : 'are'} blocked (${waitList}).`, 'info', true); return; }
+  if (!placed.length) { showNudge(`There's no free time left in your working hours for ${plural(unfit.length, 'task')}.${waitNote}`, 'warn', true); return; }
   const lastDay = placed.reduce((a, t) => (t.block.day > a ? t.block.day : a), '');
   const last = placed.filter((t) => t.block.day === lastDay).reduce((a, t) => Math.max(a, t.block.startMin + t.block.mins), 0);
   const by = days.length > 1 ? `${new Date(lastDay + 'T12:00').toLocaleDateString([], { weekday: 'long' })} ${fmtTime(atDay(lastDay, last))}` : fmtTime(atDay(lastDay, last));
   showNudge(`Scheduled ${plural(placed.length, 'task')}, done by ${by}.${unfit.length
-    ? ` ${plural(unfit.length, 'task')} didn't fit in your working hours: ${unfit.map((t) => `"${t.text}"`).join(', ')}.` : ''}`,
+    ? ` ${plural(unfit.length, 'task')} didn't fit in your working hours: ${unfit.map((t) => `"${t.text}"`).join(', ')}.` : ''}${waitNote}`,
   unfit.length ? 'warn' : 'info', true, { label: 'Undo', fn: undo });
 }
 
@@ -549,7 +575,7 @@ function nextTaskAfterBreak() {
   const last = [...data.entries].reverse().find((e) => e.type === 'session');
   const same = last && last.taskId ? findTask(last.taskId) : null;
   if (same && !same.done && same.day <= todayKey()) return same;
-  return viewTasks(todayTasks()).find((t) => !t.done) || null;
+  return viewTasks(todayTasks()).find((t) => !t.done && !isBlocked(t)) || null;
 }
 
 function promptNextTask(skipped) {

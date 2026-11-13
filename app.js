@@ -301,6 +301,8 @@ function bind() {
   bindDay();
   bindRowMenus();
   bindCaptures();
+  bindBlocks();
+  bindBulk();
   bindLogFilter();
   if (typeof checkMilestones === 'function') checkMilestones();
   bindSettingsNav();

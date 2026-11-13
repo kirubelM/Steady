@@ -18,6 +18,13 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.22.0
+
+- **Change several tasks at once.** Click Select above your task list (or hold Ctrl and click a task) to pick tasks; Shift+click picks a range and Ctrl+A picks them all. A bar then lets you set the project, estimate, day or due date for all of them, star them, mark them done, delete them or say what they're waiting on. Every change can be undone in one click.
+- **Mark a task as blocked.** Use Blocked by... in a task's ⋯ menu, on its editor, or from the bar for several tasks. Pick the task it has to wait for, or type who or what you're waiting on, like "Dana's pricing". The task shows what it's waiting on, and the task holding others up shows "Blocking 2".
+- **Know when something is free.** Finishing a task tells you which tasks it unblocked, with a Focus button when it's just one. A task can't wait on itself or on something that waits on it.
+- **Blocked tasks stay out of the way.** They're skipped for "Up next" and the suggestion after a break. Schedule my day puts a blocked task right after the tasks it waits on, and leaves tasks waiting on a person without a time. A Hide blocked option joins Hide done, and blocked tasks show a lock on the Day tab's list.
+
 ## What's new in 1.21.0
 
 - **Quick capture opens on To do.** The window that opens with Ctrl+Shift+Space used to reopen on whichever type you used last, so one slip sent the next to-do to Done. It now starts on To do. In Settings > Projects and tasks > Quick capture you can pick Parking lot, Done or "whatever I used last" instead.
