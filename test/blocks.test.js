@@ -181,3 +181,75 @@ test('what is picked is dropped when a task leaves the list', async () => {
   await call(`sel.on = true; data.tasks.forEach((t) => sel.ids.add(t.id)); sel.ids.add('gone'); await setTaskDone(${id('B')}, true); renderBulk();`);
   assert.deepEqual(get(`[...sel.ids].length`), 2); // A and C: B is finished, and "gone" never existed
 });
+
+/* ---------- Asking before finishing something that's still blocked ---------- */
+
+// Replaces the question with a fixed answer and records what was asked.
+const answering = (app, answer) => app.run(`globalThis.__asked = []; askBlockedDone = async (entries, opts) => { __asked.push([entries, opts]); return ${JSON.stringify(answer)}; };`);
+
+test('finishing a free task never asks', async () => {
+  const { app, get, call } = setup({});
+  await add(call, 'A', 'B');
+  answering(app, 'cancel');
+  await call(`await requestDone(${id('A')})`);
+  assert.equal(get('data.tasks[0].done'), true);
+  assert.deepEqual(get('__asked'), []);
+});
+
+test('finishing a blocked task asks first, saying what holds it up, and "Not yet" leaves it open', async () => {
+  const { app, get, call } = setup({});
+  await add(call, 'Get pricing', 'Order parts');
+  await call(`await blockTasks([${id('Order parts')}], ${id('Get pricing')}); await setWaiting([${id('Order parts')}], 'the PO')`);
+  answering(app, 'cancel');
+  await call(`await requestDone(${id('Order parts')})`);
+  assert.equal(get(`data.tasks[1].done`), false);
+  assert.deepEqual(get('__asked[0][0]'), [{ text: 'Order parts', reason: 'blocked by "Get pricing" and waiting on the PO' }]);
+  assert.equal(get('__asked[0][1].canSkip'), false); // one task: nothing to skip
+  answering(app, 'anyway');
+  await call(`await requestDone(${id('Order parts')})`);
+  assert.equal(get(`data.tasks[1].done`), true);
+  assert.deepEqual(get(`data.tasks[1].blockedBy.length`), 1); // the block stays on record if it's reopened
+});
+
+test('a blocker that is already done, or a block that was lifted, does not stop a task being finished', async () => {
+  const { app, get, call } = setup({});
+  await add(call, 'A', 'B', 'C');
+  await call(`await blockTasks([${id('B')}, ${id('C')}], ${id('A')}); await setTaskDone(${id('A')}, true); await clearBlocks([${id('C')}])`);
+  answering(app, 'cancel');
+  await call(`await requestDone(${id('B')}); await requestDone(${id('C')})`);
+  assert.deepEqual(get(`data.tasks.map((t) => t.done)`), [true, true, true]);
+  assert.deepEqual(get('__asked'), []);
+});
+
+test('finishing several at once asks about the blocked ones, and can finish just the free ones', async () => {
+  const { app, get, call } = setup({});
+  await add(call, 'A', 'B', 'C', 'D');
+  await call(`await blockTasks([${id('C')}, ${id('D')}], ${id('A')})`);
+  const all = `[${['A', 'B', 'C', 'D'].map(id).join(', ')}]`;
+  answering(app, 'cancel');
+  await call(`globalThis.__go = await confirmDone(${all})`);
+  assert.deepEqual(get('__go'), []);
+  assert.equal(get('__asked[0][1].canSkip'), true);
+  assert.deepEqual(get('__asked[0][0].map((e) => e.text)'), ['C', 'D']);
+  answering(app, 'skip');
+  await call(`globalThis.__go = await confirmDone(${all})`);
+  assert.deepEqual(get(`__go.length`), 2);
+  assert.deepEqual(get(`__go.map((i) => data.tasks.find((t) => t.id === i).text)`), ['A', 'B']);
+  answering(app, 'anyway');
+  await call(`globalThis.__go = await confirmDone(${all})`);
+  assert.equal(get('__go.length'), 4);
+  // Only blocked tasks selected: nothing to skip to.
+  await call(`globalThis.__go = await confirmDone([${id('C')}, ${id('D')}])`);
+  assert.equal(get('__asked.at(-1)[1].canSkip'), false);
+});
+
+test('the editor asks using what it shows now, so lifting the block there lets the task be finished', async () => {
+  const { get, call } = setup({});
+  await add(call, 'A', 'B');
+  await call(`await blockTasks([${id('B')}], ${id('A')}); editingBlocks = { ids: [${id('A')}], waiting: '' }`);
+  assert.equal(get('editorBlockReason()'), 'blocked by "A"');
+  await call(`editingBlocks = { ids: [], waiting: ' Legal ' }`);
+  assert.equal(get('editorBlockReason()'), 'waiting on Legal');
+  await call(`editingBlocks = { ids: [], waiting: '' }`);
+  assert.equal(get('editorBlockReason()'), '');
+});

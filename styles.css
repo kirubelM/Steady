@@ -2162,3 +2162,44 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 .block-check .ico { width: 15px; height: 15px; }
 .block-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .block-row .pchip { margin-right: 0; flex: none; }
+
+/* ---------- Asking before finishing a blocked task ---------- */
+.blocked-done-dialog { width: min(460px, calc(100vw - 32px)); }
+.blocked-done-list { list-style: none; margin: 12px 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 34vh; overflow-y: auto; }
+.blocked-done-list li { display: flex; flex-direction: column; gap: 1px; padding: 8px 12px; border-left: 3px solid var(--amber); border-radius: 0 8px 8px 0; background: var(--tint-amber); }
+.blocked-done-list strong { overflow-wrap: anywhere; }
+.blocked-done-list span { font-size: 0.85rem; color: var(--amber-ink); overflow-wrap: anywhere; }
+
+/* ---------- 1.22.1 spacing: short windows, aligned tiles, even card padding ---------- */
+
+/* The timer panel. When the window is too short for everything it scrolls inside its own padding (so a focused
+   control never ends up flush with an edge), and below ~760px tall it tightens up so it all still fits. */
+.focus-pane { scroll-padding-block: var(--sp-4); }
+.hint { padding-top: var(--sp-2); }
+@media (max-height: 700px) {
+  .focus-pane { gap: var(--sp-2); padding-block: 12px; }
+  .ring-wrap { width: clamp(116px, 22vh, 190px); }
+  .time { font-size: clamp(2.1rem, 5vh, 3.6rem); }
+  .preset-bar button { padding: 4px 8px; }
+  .p-min { font-size: 1.05rem; }
+  .task-field { gap: 4px; }
+  .task-field > label { font-size: var(--fs-body-sm); }
+  .task-field input { padding: 7px 10px; }
+  .focus-project select { padding: 4px 10px; }
+  .session-goal input { padding: 5px 10px; }
+  .goal { gap: 4px; }
+  .controls .btn { padding-block: 7px; }
+  .hint { padding-top: 4px; }
+}
+@media (max-height: 620px) {
+  .p-name { display: none; } /* the minutes say it: 25, 30, 50, 90 */
+  .preset-bar button { min-width: 56px; }
+  .brand h1 { font-size: 1.15rem; }
+}
+
+/* The four tiles at the top of the Plan page: labels line up across all of them, whatever each one holds. */
+.g-tile { align-items: flex-start; }
+.g-tile:has(.g-ring) .g-ring { margin-top: 10px; } /* centered against the three lines of text beside it */
+
+/* A card's last paragraph doesn't add its own bottom margin to the card's padding. */
+.plan-section > p:last-child, .insight > p:last-child, .sched > p:last-child { margin-bottom: 0; }

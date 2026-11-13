@@ -213,7 +213,13 @@ async function runBulk(action) {
   else if (action === 'clear') { sel.ids.clear(); sel.anchor = null; sel.picking = null; refreshPicks(); }
   else if (action === 'star') await bulkToggleStar(ids);
   else if (action === 'block') openBlocksFor(ids);
-  else if (action === 'done') { await bulkDone(ids); sel.ids.clear(); refreshPicks(); }
+  else if (action === 'done') {
+    const go = await confirmDone(ids); // blocked ones ask first, and can be left out
+    if (!go.length) return;
+    await bulkDone(go);
+    go.forEach((id) => sel.ids.delete(id));
+    refreshPicks();
+  }
   else if (action === 'delete') { await bulkDelete(ids); sel.ids.clear(); refreshPicks(); }
 }
 

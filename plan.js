@@ -548,7 +548,7 @@ async function setSubtaskDone(taskId, subId, done) {
   await updateSubtasks(taskId, () => {});
   const subs = t.subtasks || [];
   if (done && !t.done && subs.length > 1 && subs.every((x) => x.done)) {
-    showNudge(`All subtasks of "${t.text}" are done.`, 'info', true, { label: 'Mark task done', fn: () => setTaskDone(t.id, true) });
+    showNudge(`All subtasks of "${t.text}" are done.`, 'info', true, { label: 'Mark task done', fn: () => requestDone(t.id) });
   }
 }
 
@@ -1301,6 +1301,11 @@ async function saveTaskDialog() {
   const day = $('taskEditDay').value;
   if (day && day !== t.day) { t.day = day; t.order = nextOrder(day); }
   const wasDone = t.done;
+  if (done && !wasDone) {
+    // Still blocked, going by what the editor shows now (so lifting the block here counts)? Ask before finishing it.
+    const reason = editorBlockReason();
+    if (reason && await askBlockedDone([{ text, reason }]) !== 'anyway') return;
+  }
   t.done = done;
   t.doneAt = finishedAt;
   if ($('taskEditSubInput').value.trim()) addSubFromEditor(); // typed but not added yet
@@ -1405,16 +1410,23 @@ function bindPlan() {
     if (b.dataset.taskEdit) openTaskDialog(b.dataset.taskEdit);
     else if (b.dataset.entryEdit) openEntryDialog(b.dataset.entryEdit);
   });
-  $('taskList').addEventListener('change', (e) => {
+  $('taskList').addEventListener('change', async (e) => {
     const id = e.target.dataset?.taskDone;
     if (!id) return;
-    const row = e.target.closest('.task');
-    const reduce = reducedMotion();
-    if (e.target.checked && row && !reduce) {
+    const box = e.target;
+    const row = box.closest('.task');
+    if (!box.checked) { setTaskDone(id, false); return; }
+    const t = findTask(id);
+    if (t && isBlocked(t)) {
+      box.checked = false; // not ticked until it's confirmed
+      if (!(await confirmDone([id])).length) return;
+      box.checked = true;
+    }
+    if (row && !reducedMotion()) {
       row.classList.add('completing');
       setTimeout(() => setTaskDone(id, true), 650);
     } else {
-      setTaskDone(id, e.target.checked);
+      setTaskDone(id, true);
     }
   });
   $('taskList').addEventListener('submit', (e) => {

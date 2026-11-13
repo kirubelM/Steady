@@ -96,6 +96,49 @@ function announceUnblocked(finishedIds) {
   showNudge(unblockedText(finishedIds).trim(), 'info', true, canStart ? { label: 'Focus on it', fn: () => startTask(one.id) } : undefined);
 }
 
+/* ---------- Asking before finishing something that's still blocked ---------- */
+
+// What holds a task up, in words: `blocked by "A", "B"` and/or `waiting on Dana's pricing`.
+function describeBlock(open, wait) {
+  const parts = [];
+  if (open.length) parts.push(`blocked by ${open.map((b) => `"${b.text}"`).join(', ')}`);
+  if (wait) parts.push(`waiting on ${wait}`);
+  return parts.join(' and ');
+}
+const blockReason = (t) => describeBlock(blockersOf(t), waitingOn(t));
+
+let blockedDoneResolve = null;
+
+// Shows what's still holding tasks up and resolves to 'cancel', 'skip' (finish only the free ones; offered when
+// `canSkip`) or 'anyway'. `entries` are { text, reason }. Closing the dialog with Esc counts as 'cancel'.
+function askBlockedDone(entries, { canSkip = false } = {}) {
+  return new Promise((resolve) => {
+    blockedDoneResolve = resolve;
+    const one = entries.length === 1;
+    $('blockedDoneTitle').textContent = one ? 'This task is still blocked' : `${entries.length} tasks are still blocked`;
+    $('blockedDoneText').textContent = one ? 'Mark it done anyway?' : 'Mark them done anyway?';
+    $('blockedDoneList').innerHTML = entries.map((e) => `<li><strong>${esc(e.text)}</strong><span>${esc(e.reason)}</span></li>`).join('');
+    $('blockedDoneSkip').hidden = !canSkip;
+    $('blockedDoneAnyway').textContent = one ? 'Mark done anyway' : 'Mark all done anyway';
+    $('blockedDoneDialog').showModal();
+    $('blockedDoneCancel').focus(); // the safe answer is the default one
+  });
+}
+
+// Which of `ids` to go ahead and finish: all of them when none is blocked, else whatever the answer allows.
+async function confirmDone(ids) {
+  const blocked = ids.map(findTask).filter((t) => t && !t.done && isBlocked(t));
+  if (!blocked.length) return ids;
+  const free = ids.filter((id) => !blocked.some((b) => b.id === id));
+  const answer = await askBlockedDone(blocked.map((t) => ({ text: t.text, reason: blockReason(t) })), { canSkip: ids.length > 1 && free.length > 0 });
+  return answer === 'anyway' ? ids : answer === 'skip' ? free : [];
+}
+
+// Finish one task from a "done" button: asks first when something still holds it up.
+async function requestDone(id) {
+  if ((await confirmDone([id])).length) await setTaskDone(id, true);
+}
+
 /* ---------- What a row shows ---------- */
 
 const shortTitle = (s, n = 26) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -253,6 +296,12 @@ function pickEditBlocks() {
   });
 }
 
+// What the editor says is holding the task up right now (so lifting a block there counts), or ''.
+function editorBlockReason() {
+  const open = editingBlocks.ids.map(findTask).filter((b) => b && !b.done);
+  return describeBlock(open, String(editingBlocks.waiting || '').trim());
+}
+
 // Writes what the editor shows onto the task when it's saved.
 function saveEditBlocks(t) {
   const ids = editingBlocks.ids.filter((id) => id !== t.id && findTask(id) && !wouldCycle(t.id, id));
@@ -293,6 +342,17 @@ function bindBlocks() {
   });
   $('blockDone').addEventListener('click', () => dlg.close());
   dlg.addEventListener('close', () => { blockPicker = null; });
+
+  const answer = (result) => {
+    const resolve = blockedDoneResolve;
+    blockedDoneResolve = null;
+    if (resolve) resolve(result);
+    $('blockedDoneDialog').close();
+  };
+  $('blockedDoneCancel').addEventListener('click', () => answer('cancel'));
+  $('blockedDoneSkip').addEventListener('click', () => answer('skip'));
+  $('blockedDoneAnyway').addEventListener('click', () => answer('anyway'));
+  $('blockedDoneDialog').addEventListener('close', () => { if (blockedDoneResolve) answer('cancel'); }); // Esc
 
   $('taskEditBlockAdd').addEventListener('click', pickEditBlocks);
   $('taskEditBlocks').addEventListener('click', (e) => {
