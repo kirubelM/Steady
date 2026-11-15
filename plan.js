@@ -403,8 +403,8 @@ function subtaskRow(t, s, canFocus) {
     ${!s.done && canFocus ? `<button class="sub-act" type="button" data-sub-focus="${t.id}" data-sub-id="${s.id}" aria-label="Focus on ${esc(s.text)}" title="Focus on just this">${icon('play')}</button>` : ''}
     <button class="sub-act${s.note ? ' has-note' : ''}" type="button" data-sub-note="${t.id}" data-sub-id="${s.id}" aria-label="${s.note ? 'Edit the note on' : 'Add a note to'} ${esc(s.text)}" title="${s.note ? 'Edit note' : 'Add a note'}">${icon('note')}</button>
     <button class="sub-act" type="button" data-sub-promote="${t.id}" data-sub-id="${s.id}" aria-label="Make ${esc(s.text)} a task of its own" title="Make it a task of its own">${icon('promote')}</button>
-    <button class="sub-act more" type="button" data-row-menu aria-label="More for ${esc(s.text)}" title="More">${icon('more')}</button>
     <button class="sub-act del" type="button" data-sub-del="${t.id}" data-sub-id="${s.id}" aria-label="Remove subtask ${esc(s.text)}" title="Remove">${icon('close')}</button>
+    <button class="sub-act more" type="button" data-row-menu aria-label="More for ${esc(s.text)}" title="More">${icon('more')}</button>
   </li>${subExtras(t, s)}`;
 }
 

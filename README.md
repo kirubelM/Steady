@@ -18,6 +18,11 @@ Each GitHub release includes the matching **What's new in VERSION** section belo
 
 **Releasing is automatic.** To ship a new version, change `version` in package.json and add a matching `## What's new in X.Y.Z` section here, in the same commit or pull request. When that reaches master, the Release workflow checks the notes, runs the tests, tags the commit `vX.Y.Z`, builds the installer and publishes the release; Steady's auto-update then picks it up. Pushes that don't change the version publish nothing. Tagging by hand still works, but isn't needed.
 
+## What's new in 1.22.3
+
+- **Room to breathe in the Notion look.** The Schedule and To do sections had almost no inner padding, so text sat right on their edges. They now have proper padding.
+- **Everything lines up in the task list.** The "⋯" menu on subtasks sits in the same column as the one on the task, the clock, Focus and menu buttons line up from row to row, and the "Left over from earlier" sort menu matches the other menus.
+
 ## What's new in 1.22.2
 
 - **A tidier To do header.** The filter and sort menus, the "Hide done" toggle and "Select" are now separate, evenly sized pills. "Hide done" fills in when it's on, "Select" is outlined and set apart, and every menu in the row shows a clear arrow, including the project menu next to Add.

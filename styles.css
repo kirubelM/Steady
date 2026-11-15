@@ -1739,7 +1739,7 @@ body.nest-dragging, body.nest-dragging * { cursor: grabbing !important; user-sel
 :root[data-look="notion"] :is(.plan-section > h3, .todo-head h3, .sched-head h3, .notes-head h3, .insight > h3, .insight-head h3, .settings legend) { padding-left: 0; }
 :root[data-look="notion"] :is(.plan-section > h3, .todo-head h3, .sched-head h3, .notes-head h3, .insight > h3, .insight-head h3, .settings legend)::before { display: none; }
 :root[data-look="notion"] .plan-nav h2 { font-family: var(--font-ui); font-weight: 700; font-size: 2.3rem; letter-spacing: -0.02em; }
-:root[data-look="notion"] .plan-section, :root[data-look="notion"] .insight { border-color: transparent; padding-inline: 4px; }
+:root[data-look="notion"] .plan-section, :root[data-look="notion"] .insight { border-color: transparent; padding-inline: var(--sp-4); }
 :root[data-look="notion"] .plan-section + .plan-section { border-top: 1px solid var(--line); border-radius: 0; padding-top: 22px; }
 :root[data-look="notion"] .tab-btn[aria-selected="true"] { border-bottom-color: var(--ink); border-bottom-width: 2px; }
 :root[data-look="notion"] .tabs { border-bottom-color: var(--line); }
@@ -2240,3 +2240,21 @@ body.pane-collapsed .focus-pane > :not(.pane-rail) { display: none !important; }
 /* Looks with squarer corners keep every control in the row the same shape. */
 :root:is([data-look="notion"], [data-look="linear"]) :is(.todo-head .select-btn, .hide-done) { border-radius: var(--radius); }
 :root[data-look="things"] :is(.todo-head .select-btn, .hide-done) { border-radius: 999px; }
+
+/* ---------- 1.22.3 Plan tab alignment ---------- */
+/* Subtask rows end flush with the task's own "⋯", so the two menu buttons line up in one column. */
+.sub-row { padding-right: 0; }
+.sub-act.more { width: 26px; height: 26px; padding: 0; display: inline-grid; place-items: center; opacity: 0.7; }
+.sub-row:hover .sub-act.more, .sub-act.more:focus-visible { opacity: 1; }
+/* The "Left over" sort menu matches the To do filter pills. */
+.leftover-sort select {
+  height: 30px; box-sizing: border-box; border-radius: 999px; padding: 0 28px 0 12px; font-weight: 500; cursor: pointer;
+  appearance: none; -webkit-appearance: none; border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  background-color: color-mix(in srgb, var(--field) 70%, transparent);
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+}
+:root:is([data-look="notion"], [data-look="linear"]) .leftover-sort select { border-radius: var(--radius); }
+/* The hover-only "add subtask" button floats to the left of the actions, so rows with and without it keep one column. */
+.task-actions { position: relative; }
+.task-actions [data-sub-new] { position: absolute; right: 100%; margin-right: 6px; }
